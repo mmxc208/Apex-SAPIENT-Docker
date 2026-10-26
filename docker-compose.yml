@@ -1,0 +1,36 @@
+name: apex
+
+services:
+  apex:
+    build:
+      context: .
+      additional_contexts:
+        apex: ${APEX_DIR:-../Apex-SAPIENT-Middleware}   # the Apex source checkout
+    image: apex-sapient:4.2.0
+    volumes:
+      - ./apex_config.json:/config/apex_config.json:ro
+      - apex-data:/apex/data   # SQLite archive
+    ports:
+      - "5050:5000"   # XML v6 child (macOS AirPlay Receiver owns host port 5000)
+      - "5010:5010"   # BSI Flex 335 v1.0 child
+      - "5020:5020"   # BSI Flex 335 v2.0 child
+      - "5001:5001"   # Peer (fusion node)
+      - "5002:5002"   # Parent
+      - "5003:5003"   # Recorder
+      - "5004:5004"   # Parent, forwardAll
+      - "8080:8080"   # REST API (data endpoints need Elasticsearch)
+    restart: unless-stopped
+
+  # Optional: docker compose --profile elastic up -d
+  elasticsearch:
+    profiles: ["elastic"]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+
+volumes:
+  apex-data:

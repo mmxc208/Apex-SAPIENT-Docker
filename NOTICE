@@ -1,0 +1,15 @@
+Apex SAPIENT Docker
+Copyright 2026 Yapeng Wu
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes material from these Apache 2.0 projects:
+
+- Apex SAPIENT Middleware (Crown owned copyright; released by Dstl).
+  apex_config.json and apex_config.emulators.json are modified copies of
+  Apex's apex_config.json. The changes are listed in README.md. The Docker
+  image is built from an Apex checkout, which is not included here.
+
+- SAPIENT BSI Flex 335 v2 Test Harness (Crown owned Copyright 2021-2024).
+  The JSON files in emulators/templates/ are unmodified copies.
+  See emulators/templates/NOTICE.md.

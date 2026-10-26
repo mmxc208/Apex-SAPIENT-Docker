@@ -1,0 +1,74 @@
+# Fake v2.0 nodes around Apex. Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.emulators.yml up -d --build
+# See "Fake sensors and fusion node" in README.md.
+
+x-emulator: &emulator
+  image: apex-sapient:4.2.0   # built by docker-compose.yml; has Python, protobuf and sapient_msg
+  working_dir: /emulators
+  volumes:
+    - ./emulators:/emulators:ro
+  environment: &emulator-env
+    APEX_HOST: apex
+    PYTHONUNBUFFERED: "1"
+    PYTHONDONTWRITEBYTECODE: "1"
+  depends_on:
+    - apex
+  restart: unless-stopped
+
+services:
+  apex:
+    volumes:
+      # v2.0 Peer port, and the fusion node (not Apex) sends RegistrationAcks
+      - ./apex_config.emulators.json:/config/apex_config.json:ro
+
+  fusion-node:
+    <<: *emulator
+    command: python fake_fusion_node.py
+    environment:
+      <<: *emulator-env
+      APEX_PORT: "5001"
+      NODE_ID: "f0000001-0000-4000-8000-000000000001"
+      AUTO_TASK: "look_at,move_to,follow,patrol,request:Status"
+      TASK_INTERVAL: "20"
+    stdin_open: true   # docker attach apex-fusion-node-1, then type 'help'
+    tty: true
+
+  radar:
+    <<: *emulator
+    command: python fake_sensor.py
+    environment:
+      <<: *emulator-env
+      APEX_PORT: "5020"
+      NODE_ID: "a0000001-0000-4000-8000-000000000001"
+      NODE_NAME: "Fake radar"
+      NODE_SHORT_NAME: "radar"
+      NODE_TYPE: "RADAR"
+      NODE_LAT: "51.1739"
+      NODE_LON: "-1.8224"
+
+  camera:
+    <<: *emulator
+    command: python fake_sensor.py
+    environment:
+      <<: *emulator-env
+      APEX_PORT: "5020"
+      NODE_ID: "a0000002-0000-4000-8000-000000000002"
+      NODE_NAME: "Fake camera on vehicle"
+      NODE_SHORT_NAME: "camera"
+      NODE_TYPE: "CAMERA"
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+
+  vehicle:
+    <<: *emulator
+    command: python fake_sensor.py
+    environment:
+      <<: *emulator-env
+      APEX_PORT: "5020"
+      NODE_ID: "a0000003-0000-4000-8000-000000000003"
+      NODE_NAME: "Fake vehicle (mobile platform)"
+      NODE_SHORT_NAME: "vehicle"
+      NODE_TYPE: "MOBILE_NODE"
+      DEPENDENT_NODES: "a0000002-0000-4000-8000-000000000002"   # carries the camera
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
