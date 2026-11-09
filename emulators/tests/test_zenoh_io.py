@@ -6,7 +6,7 @@ import zenoh
 
 from conftest import FakeZenohSession
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
-from zenoh_io import ZenohSession
+from zenoh_io import TlsOptions, ZenohSession, open_session, tls_from_env
 from zenoh_keys import live_key, parse_key, qos_for, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
@@ -204,3 +204,49 @@ async def test_fake_session_simulates_transport_loss_and_return():
     assert live.get_nowait() == (key, True)
     assert fake.transport_changes.get_nowait() is True
     assert await fake.alive("sapient/v2/live/*") == [key]
+
+
+TLS_ENV = {"ZENOH_TLS_CA": "/certs/ca.pem", "ZENOH_TLS_CERT": "/certs/n.pem", "ZENOH_TLS_KEY": "/certs/n.key"}
+
+
+@pytest.fixture
+def tls_env(monkeypatch):
+    """Clear the TLS variables and return a setter for some of them."""
+    for name in TLS_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+    def set_vars(*names):
+        for name in names:
+            monkeypatch.setenv(name, TLS_ENV[name])
+
+    return set_vars
+
+
+def test_tls_from_env_reads_all_three(tls_env):
+    tls_env(*TLS_ENV)
+    assert tls_from_env() == TlsOptions(root_ca="/certs/ca.pem", cert="/certs/n.pem", key="/certs/n.key")
+
+
+def test_tls_from_env_is_none_when_unset(tls_env):
+    assert tls_from_env() is None
+
+
+@pytest.mark.parametrize("missing", list(TLS_ENV))
+def test_tls_from_env_rejects_a_partial_set(tls_env, missing):
+    tls_env(*(name for name in TLS_ENV if name != missing))
+    with pytest.raises(ValueError):
+        tls_from_env()
+
+
+async def test_open_session_passes_tls_from_env(tls_env, monkeypatch):
+    tls_env(*TLS_ENV)
+    opened = []
+
+    async def fake_open(connect, loop, tls=None):
+        opened.append((connect, tls))
+        return "session"
+
+    monkeypatch.setattr(ZenohSession, "open", fake_open)
+    session = await open_session("tls/router.p1.h1:7447", asyncio.get_running_loop(), logging.getLogger("t"))
+    assert session == "session"
+    assert opened == [("tls/router.p1.h1:7447", tls_from_env())]

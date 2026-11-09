@@ -175,3 +175,16 @@ def test_parse_key_rejects_malformed(key):
 def test_node_id_from_live_key_rejects_malformed(key):
     with pytest.raises(ValueError):
         node_id_from_live_key(key)
+
+
+def test_prefix_from_env(keys_with_prefix):
+    keys = keys_with_prefix("h1/p1/")
+    assert keys.up_key(NODE, "task").startswith("h1/p1/sapient/v2/")
+    assert keys.UP_ALL == "h1/p1/sapient/v2/*/up/**"
+    assert keys.parse_key(keys.down_key(NODE, "task")) == (NODE, "down", "task")
+    assert keys.node_id_from_live_key(keys.live_key(NODE)) == NODE
+
+
+def test_prefix_without_trailing_slash_rejected(keys_with_prefix):
+    with pytest.raises(ValueError):
+        keys_with_prefix("h1/p1")

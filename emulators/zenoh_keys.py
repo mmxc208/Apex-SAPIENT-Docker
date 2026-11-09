@@ -14,6 +14,8 @@ import zenoh
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 
 PREFIX: str = os.environ.get("ZENOH_KEY_PREFIX", "")
+if PREFIX and not PREFIX.endswith("/"):
+    raise ValueError(f"ZENOH_KEY_PREFIX must end with '/': {PREFIX!r}")
 MAX_KEY_BYTES = 256
 
 _ROOT = f"{PREFIX}sapient/v2"

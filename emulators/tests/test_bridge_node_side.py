@@ -271,7 +271,7 @@ async def connect_when_listening(port):
 
 
 async def test_run_raises_when_the_port_cannot_be_bound(monkeypatch, fake_session):
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         return fake_session
 
     async def never_called(reader, writer):
@@ -296,7 +296,7 @@ def open_sessions(monkeypatch, sessions):
     remaining = iter(sessions)
     attempts = []
 
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         attempts.append(connect)
         if len(attempts) == 1:
             raise bridge_node_side.zenoh.ZError("router unreachable")

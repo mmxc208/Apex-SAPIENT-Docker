@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+from dataclasses import dataclass
 from typing import Any, Callable
 
 import zenoh
@@ -32,6 +34,27 @@ def _config(**settings: Any) -> zenoh.Config:
     return config
 
 
+@dataclass(frozen=True)
+class TlsOptions:
+    """Paths of the PEM files for a mutual-TLS client connection."""
+
+    root_ca: str
+    cert: str
+    key: str
+
+
+def tls_from_env() -> TlsOptions | None:
+    """Read ZENOH_TLS_CA, ZENOH_TLS_CERT and ZENOH_TLS_KEY: all three, or none for no TLS."""
+    root_ca, cert, key = (
+        os.environ.get(name, "") for name in ("ZENOH_TLS_CA", "ZENOH_TLS_CERT", "ZENOH_TLS_KEY")
+    )
+    if not (root_ca or cert or key):
+        return None
+    if not (root_ca and cert and key):
+        raise ValueError("ZENOH_TLS_CA, ZENOH_TLS_CERT and ZENOH_TLS_KEY must be set together")
+    return TlsOptions(root_ca=root_ca, cert=cert, key=key)
+
+
 class ZenohSession:
     """An open zenoh session whose samples and liveliness changes arrive on asyncio queues."""
 
@@ -46,9 +69,20 @@ class ZenohSession:
         self.transport_changes: asyncio.Queue[bool] = asyncio.Queue()
 
     @classmethod
-    async def open(cls, connect: str, loop: asyncio.AbstractEventLoop) -> ZenohSession:
+    async def open(
+        cls, connect: str, loop: asyncio.AbstractEventLoop, tls: TlsOptions | None = None
+    ) -> ZenohSession:
         """Open a client session to the router at connect, like tcp/zenohd:7447."""
-        config = _config(mode="client", connect__endpoints=[connect])
+        settings: dict[str, Any] = {}
+        if tls is not None:
+            settings = {
+                "transport__link__tls__root_ca_certificate": tls.root_ca,
+                "transport__link__tls__connect_certificate": tls.cert,
+                "transport__link__tls__connect_private_key": tls.key,
+                # Without this the client withholds its certificate and the router refuses it.
+                "transport__link__tls__enable_mtls": True,
+            }
+        config = _config(mode="client", connect__endpoints=[connect], **settings)
         self = cls(await asyncio.to_thread(zenoh.open, config), loop)
         # A client has exactly one transport, the one to its router.
         self._transport_listener = self._session.info.declare_transport_events_listener(
@@ -139,10 +173,14 @@ class ZenohSession:
 
 
 async def open_session(connect: str, loop: asyncio.AbstractEventLoop, log: logging.Logger) -> ZenohSession:
-    """Open the Zenoh session, retrying every 10 s until the router is reachable."""
+    """Open the Zenoh session, retrying every 10 s until the router is reachable.
+
+    TLS comes from the environment; see tls_from_env.
+    """
+    tls = tls_from_env()
     while True:
         try:
-            session = await ZenohSession.open(connect, loop)
+            session = await ZenohSession.open(connect, loop, tls)
             log.info(f"connected to Zenoh router at {connect}")
             return session
         except zenoh.ZError as e:

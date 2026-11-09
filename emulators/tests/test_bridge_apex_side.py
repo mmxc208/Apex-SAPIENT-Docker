@@ -374,7 +374,7 @@ async def test_run_keeps_links_through_transport_loss_and_ends_on_close(monkeypa
     session = FakeZenohSession()
     opened = []
 
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         assert connect == "tcp/router:7447"
         opened.append(connect)
         return session
@@ -422,7 +422,7 @@ async def test_run_raises_when_the_bridge_fails(monkeypatch, templates):
 
     session = BrokenLivelinessSession()
 
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         return session
 
     monkeypatch.setattr(ZenohSession, "open", fake_open)

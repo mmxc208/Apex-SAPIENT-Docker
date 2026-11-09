@@ -278,7 +278,7 @@ def test_own_registration_only_lacks_the_capabilities_stage_4_fills(fusion):
 
 
 async def test_run_on_zenoh_registers_and_requests_registrations(monkeypatch, fake_session):
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         return fake_session
 
     monkeypatch.setattr(ZenohSession, "open", fake_open)

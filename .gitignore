@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 data-export/
 .DS_Store
+zenoh/pki/out/

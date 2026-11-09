@@ -1,0 +1,78 @@
+// Hardened router for pod 1: mutual TLS only, and access control by certificate common name.
+// Certificates come from zenoh/pki/make_certs.sh, mounted at /certs.
+{
+  mode: "router",
+  listen: {
+    endpoints: ["tls/0.0.0.0:7447"],
+  },
+  scouting: {
+    multicast: { enabled: false },
+    gossip: { enabled: false },
+  },
+  adminspace: {
+    enabled: true,
+    permissions: { read: true, write: false },
+  },
+  transport: {
+    link: {
+      tx: {
+        lease: 5000,
+      },
+      tls: {
+        root_ca_certificate: "/certs/ca.pem",
+        listen_private_key: "/certs/router.p1.h1.key",
+        listen_certificate: "/certs/router.p1.h1.pem",
+        enable_mtls: true,
+        close_link_on_expiration: true,
+      },
+    },
+  },
+  access_control: {
+    enabled: true,
+    default_permission: "deny",
+    rules: [
+      {
+        id: "fusion-down",
+        messages: ["put"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/*/down/**", "h1/p1/fusion/**"],
+      },
+      {
+        id: "node-up",
+        messages: ["put", "liveliness_token"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/*/up/**", "h1/p1/sapient/v2/live/*"],
+      },
+      {
+        id: "read-all",
+        messages: ["declare_subscriber", "query", "liveliness_query", "declare_liveliness_subscriber"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/**"],
+      },
+      // With default_permission "deny", zenohd also filters egress, so leaving it allowed takes a rule.
+      {
+        id: "egress-all",
+        messages: [
+          "put", "delete", "query", "reply", "declare_subscriber", "declare_queryable",
+          "liveliness_token", "liveliness_query", "declare_liveliness_subscriber",
+        ],
+        flows: ["egress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/**"],
+      },
+    ],
+    subjects: [
+      { id: "fusion", cert_common_names: ["fusion.p1.h1"] },
+      { id: "nodes", cert_common_names: ["radar.p1.h1", "camera.p1.h1", "vehicle.p1.h1", "bridge.p1.h1"] },
+      { id: "recorder", cert_common_names: ["recorder.p1.h1"] },
+    ],
+    policies: [
+      { id: "fusion", rules: ["fusion-down", "read-all", "egress-all"], subjects: ["fusion"] },
+      { id: "nodes", rules: ["node-up", "read-all", "egress-all"], subjects: ["nodes"] },
+      { id: "recorder", rules: ["read-all", "egress-all"], subjects: ["recorder"] },
+    ],
+  },
+}

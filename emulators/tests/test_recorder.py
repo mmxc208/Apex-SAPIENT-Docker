@@ -218,7 +218,7 @@ def open_sessions(monkeypatch, sessions):
     remaining = iter(sessions)
     attempts = []
 
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         attempts.append(connect)
         if len(attempts) == 1:
             raise zenoh_io.zenoh.ZError("router unreachable")

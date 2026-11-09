@@ -291,7 +291,7 @@ def patch_open(monkeypatch, *outcomes):
     remaining = list(outcomes)
     calls = []
 
-    async def fake_open(connect, loop):
+    async def fake_open(connect, loop, tls=None):
         calls.append(connect)
         outcome = remaining.pop(0)
         if isinstance(outcome, Exception):
