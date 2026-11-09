@@ -15,6 +15,7 @@ COPY --from=apex sapient_apex_gui sapient_apex_gui
 COPY --from=apex sapient_apex_qt_helpers sapient_apex_qt_helpers
 COPY --from=apex sapient_msg sapient_msg
 RUN pip install --no-cache-dir --no-deps .
+RUN pip install --no-cache-dir eclipse-zenoh==1.10.2 pytest==8.* pytest-asyncio
 # Default config; docker-compose.yml mounts apex_config.json over it.
 COPY apex_config.json /config/apex_config.json
 # 5000-5004, 5010, 5020: SAPIENT TCP ports; 8080: REST API

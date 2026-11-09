@@ -1,0 +1,12 @@
+# Eclipse Zenoh router. Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.zenoh.yml up -d zenohd
+
+services:
+  zenohd:
+    image: eclipse/zenoh:1.10.2
+    command: ["-c", "/config/router.json5"]
+    volumes:
+      - ./zenoh/router-plain.json5:/config/router.json5:ro
+    ports:
+      - "7447:7447"
+    restart: unless-stopped
