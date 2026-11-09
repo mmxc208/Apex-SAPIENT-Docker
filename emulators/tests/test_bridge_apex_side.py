@@ -18,6 +18,7 @@ OTHER_NODE = "a0000002-0000-4000-8000-000000000002"
 BRIDGE = "b0000000-0000-4000-8000-00000000000b"
 MAX_BYTES = 1024 * 1024
 HOLD = 0.2
+GRACE = 0.05
 TIMEOUT = 5
 log = logging.getLogger("test-bridge")
 
@@ -91,10 +92,18 @@ async def until(condition):
 
 
 @asynccontextmanager
-async def bridged(session, hold_seconds=HOLD):
+async def bridged(session, hold_seconds=HOLD, request_grace_seconds=GRACE):
     """A fake Apex and a running bridge wired to it; yields (bridge, apex)."""
     async with FakeApex() as apex:
-        bridge = ApexSideBridge(session, "127.0.0.1", apex.port, hold_seconds, log=log, bridge_node_id=BRIDGE)
+        bridge = ApexSideBridge(
+            session,
+            "127.0.0.1",
+            apex.port,
+            hold_seconds,
+            log=log,
+            bridge_node_id=BRIDGE,
+            request_grace_seconds=request_grace_seconds,
+        )
         runner = asyncio.create_task(bridge.run())
         try:
             await until(lambda: session._subscriptions and session._liveliness)
@@ -372,7 +381,7 @@ async def test_run_reopens_the_session_after_it_is_lost(monkeypatch, templates):
     monkeypatch.setattr(ZenohSession, "open", fake_open)
     async with FakeApex() as apex:
         runner = asyncio.create_task(
-            bridge_apex_side.run("127.0.0.1", apex.port, "tcp/router:7447", HOLD, log, BRIDGE)
+            bridge_apex_side.run("127.0.0.1", apex.port, "tcp/router:7447", HOLD, GRACE, log, BRIDGE)
         )
         try:
             await until(lambda: sessions[0]._subscriptions and sessions[0]._liveliness)
@@ -409,7 +418,7 @@ async def test_run_raises_when_the_bridge_fails(monkeypatch, templates):
 
     monkeypatch.setattr(ZenohSession, "open", fake_open)
     with pytest.raises(Broken):
-        await asyncio.wait_for(bridge_apex_side.run("127.0.0.1", 1, "tcp/router:7447", HOLD, log, BRIDGE), TIMEOUT)
+        await asyncio.wait_for(bridge_apex_side.run("127.0.0.1", 1, "tcp/router:7447", HOLD, GRACE, log, BRIDGE), TIMEOUT)
     assert session.closed.is_set()
 
 
@@ -434,7 +443,7 @@ async def test_startup_requests_registration_once_from_every_alive_node(fake_ses
     fake_session.declare_token(live_key(OTHER_NODE))
     async with bridged(fake_session):
         await until(lambda: len(fake_session.published) >= 2)
-        await asyncio.sleep(0.05)  # room for a duplicate from the liveliness history
+        await asyncio.sleep(GRACE * 2)  # room for a duplicate from the liveliness history
 
         published = requests_published(fake_session)
         assert sorted(key for key, _ in published) == sorted(
@@ -456,7 +465,7 @@ async def test_startup_asks_for_alive_tokens_directly(templates):
     session.declare_token(live_key(NODE))
     async with bridged(session):
         await until(lambda: session.published)
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(GRACE * 2)
 
         assert [key for key, _, _ in session.published] == [down_key(NODE, "task")]
 
@@ -471,7 +480,7 @@ async def test_token_returning_after_link_closed_requests_registration_once(fake
 
         fake_session.declare_token(live_key(NODE))
         await until(lambda: fake_session.published)
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(GRACE * 2)
 
         published = requests_published(fake_session)
         assert [key for key, _ in published] == [down_key(NODE, "task")]
@@ -485,7 +494,7 @@ async def test_token_flap_with_link_open_requests_nothing(fake_session, template
         fake_session.undeclare_token(live_key(NODE))
         await asyncio.sleep(HOLD / 4)
         fake_session.declare_token(live_key(NODE))
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(GRACE * 2)
 
         assert fake_session.published == []
         assert connection.open
@@ -571,3 +580,161 @@ def test_main_uses_bridge_node_id_from_the_environment(monkeypatch):
 def test_main_generates_a_uuid4_bridge_node_id_by_default(monkeypatch):
     monkeypatch.delenv("BRIDGE_NODE_ID", raising=False)
     assert uuid.UUID(captured_main_arguments(monkeypatch)[-1]).version == 4
+
+
+def test_main_reads_the_request_grace_from_the_environment(monkeypatch):
+    monkeypatch.setenv("REQUEST_GRACE_SECONDS", "7.5")
+    assert captured_main_arguments(monkeypatch)[4] == 7.5
+
+
+def test_main_defaults_the_request_grace_to_three_seconds(monkeypatch):
+    monkeypatch.delenv("REQUEST_GRACE_SECONDS", raising=False)
+    assert captured_main_arguments(monkeypatch)[4] == 3.0
+
+
+async def test_registration_within_the_grace_cancels_the_request(fake_session, templates):
+    async with bridged(fake_session) as (_, apex):
+        fake_session.declare_token(live_key(NODE))
+        connection = await register(fake_session, templates, apex)
+        await asyncio.sleep(GRACE * 2)
+
+        assert fake_session.published == []
+        assert connection.kinds() == ["registration"]
+
+
+async def test_token_with_nothing_following_requests_once_after_the_grace(fake_session):
+    async with bridged(fake_session):
+        fake_session.declare_token(live_key(NODE))
+        await asyncio.sleep(GRACE / 5)
+        assert fake_session.published == []  # still inside the grace
+
+        await until(lambda: fake_session.published)
+        await asyncio.sleep(GRACE * 2)
+
+        published = requests_published(fake_session)
+        assert [key for key, _ in published] == [down_key(NODE, "task")]
+        assert_is_registration_request(published[0][1], NODE)
+
+
+async def test_startup_request_waits_for_the_grace_and_a_registration_cancels_it(fake_session, templates):
+    fake_session.declare_token(live_key(NODE))
+    fake_session.declare_token(live_key(OTHER_NODE))
+    async with bridged(fake_session) as (_, apex):
+        assert fake_session.published == []
+        await register(fake_session, templates, apex)
+
+        await until(lambda: fake_session.published)
+        await asyncio.sleep(GRACE * 2)
+
+        assert [key for key, _, _ in fake_session.published] == [down_key(OTHER_NODE, "task")]
+
+
+async def test_token_gone_within_the_grace_cancels_the_request(fake_session):
+    async with bridged(fake_session):
+        fake_session.declare_token(live_key(NODE))
+        fake_session.undeclare_token(live_key(NODE))
+        await asyncio.sleep(GRACE * 2)
+
+        assert fake_session.published == []
+
+
+async def test_link_opened_by_an_earlier_registration_during_the_grace_needs_no_request(
+    monkeypatch, fake_session, templates
+):
+    started, gate = gate_link_connect(monkeypatch)
+    async with bridged(fake_session) as (bridge, apex):
+        inject_up(fake_session, registration(templates))
+        await asyncio.wait_for(started.wait(), TIMEOUT)
+        fake_session.declare_token(live_key(NODE))  # seen after the registration, before the link exists
+        await asyncio.sleep(0)
+        gate.set()
+        await until(lambda: apex.connections and apex.connections[0].frames)
+        await asyncio.sleep(GRACE * 2)
+
+        assert NODE in bridge.links
+        assert fake_session.published == []
+
+
+async def test_apex_closing_with_token_present_requests_registration_after_the_grace(fake_session, templates):
+    async with bridged(fake_session) as (bridge, apex):
+        fake_session.declare_token(live_key(NODE))
+        first = await register(fake_session, templates, apex)
+
+        first.writer.close()
+        await until(lambda: not bridge.links)
+        await asyncio.sleep(GRACE / 5)
+        assert fake_session.published == []  # still inside the grace
+
+        await until(lambda: fake_session.published)
+        await asyncio.sleep(GRACE * 2)
+
+        published = requests_published(fake_session)
+        assert [key for key, _ in published] == [down_key(NODE, "task")]
+        assert_is_registration_request(published[0][1], NODE)
+        assert len(apex.connections) == 1  # no socket until the node registers again
+
+        inject_up(fake_session, registration(templates))
+        await until(lambda: len(apex.connections) == 2 and apex.connections[1].frames)
+        assert len(fake_session.published) == 1
+
+
+async def test_apex_closing_with_no_token_requests_nothing(fake_session, templates):
+    async with bridged(fake_session) as (bridge, apex):
+        first = await register(fake_session, templates, apex)
+
+        first.writer.close()
+        await until(lambda: not bridge.links)
+        await asyncio.sleep(GRACE * 2)
+
+        assert fake_session.published == []
+
+
+async def test_failed_send_with_token_present_requests_registration(monkeypatch, fake_session, templates):
+    async def broken_send(self, msg):
+        raise ConnectionResetError
+
+    async with bridged(fake_session) as (bridge, apex):
+        fake_session.declare_token(live_key(NODE))
+        await register(fake_session, templates, apex)
+
+        monkeypatch.setattr(bridge_apex_side.Link, "send", broken_send)
+        inject_up(fake_session, status_report(templates))
+        await until(lambda: not bridge.links)
+        await until(lambda: fake_session.published)
+
+        assert [key for key, _, _ in fake_session.published] == [down_key(NODE, "task")]
+        assert len(apex.connections) == 1
+
+
+async def test_failed_request_publish_surfaces_from_run():
+    class Broken(Exception):
+        pass
+
+    class BrokenPublishSession(FakeZenohSession):
+        async def publish(self, key, msg, fused=False):
+            raise Broken
+
+    session = BrokenPublishSession()
+    session.declare_token(live_key(NODE))
+    bridge = ApexSideBridge(
+        session, "127.0.0.1", 1, log=log, bridge_node_id=BRIDGE, request_grace_seconds=GRACE
+    )
+    with pytest.raises(Broken):
+        await asyncio.wait_for(bridge.run(), TIMEOUT)
+
+
+async def test_registration_cancels_the_request_even_while_its_link_is_still_connecting(
+    monkeypatch, fake_session, templates
+):
+    started, gate = gate_link_connect(monkeypatch)
+    async with bridged(fake_session) as (_, apex):
+        fake_session.declare_token(live_key(NODE))
+        await asyncio.sleep(0)  # the token is handled first
+        inject_up(fake_session, registration(templates))
+        await asyncio.wait_for(started.wait(), TIMEOUT)
+        await asyncio.sleep(GRACE * 2)
+
+        assert fake_session.published == []
+
+        gate.set()
+        await until(lambda: apex.connections and apex.connections[0].frames)
