@@ -1,6 +1,9 @@
+import importlib
+
 import pytest
 import zenoh
 
+import zenoh_keys
 from sapient_link import SapientMessage
 from zenoh_keys import (
     DOWN_FOR,
@@ -105,14 +108,39 @@ def test_non_canonical_node_id_rejected(build, node_id):
         build(node_id)
 
 
-def test_key_length_limit_is_256_bytes():
-    room = 256 - len(f"sapient/v2/{NODE}/up/")
-    assert len(up_key(NODE, "k" * room)) == 256
+@pytest.fixture
+def keys_with_prefix(monkeypatch):
+    """Reload zenoh_keys under a given ZENOH_KEY_PREFIX; restore the original afterwards."""
+
+    def reload_with(prefix):
+        monkeypatch.setenv("ZENOH_KEY_PREFIX", prefix)
+        return importlib.reload(zenoh_keys)
+
+    yield reload_with
+    monkeypatch.undo()
+    importlib.reload(zenoh_keys)
+
+
+def test_key_length_limit_is_256_bytes(keys_with_prefix):
+    room = 256 - len(f"sapient/v2/{NODE}/up/task")
+    assert len(keys_with_prefix("p" * (room - 1) + "/").up_key(NODE, "task")) == 256
     with pytest.raises(ValueError):
-        up_key(NODE, "k" * (room + 1))
+        keys_with_prefix("p" * room + "/").up_key(NODE, "task")
     # The limit counts encoded bytes, not characters.
     with pytest.raises(ValueError):
-        up_key(NODE, "é" * room)
+        keys_with_prefix("é" * (room - 1) + "/").up_key(NODE, "task")
+
+
+def test_unknown_kind_rejected():
+    with pytest.raises(ValueError):
+        up_key(NODE, None)
+    with pytest.raises(ValueError):
+        down_key(NODE, "bogus")
+
+
+def test_kinds_match_the_message_oneof():
+    fields = SapientMessage.DESCRIPTOR.oneofs_by_name["content"].fields
+    assert zenoh_keys.KINDS == {field.name for field in fields}
 
 
 @pytest.mark.parametrize(

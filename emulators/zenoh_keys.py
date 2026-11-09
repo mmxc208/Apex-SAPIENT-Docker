@@ -33,11 +33,14 @@ _QOS = {
     "alert_ack": _CONTROL,
     "registration": _SESSION,
     "registration_ack": _SESSION,
-    # The QoS matrix has no row for `error`; it is a reply that must not be dropped.
+    # Errors are control traffic, so they share the registration row and are never dropped.
     "error": _SESSION,
     "status_report": (zenoh.Priority.DATA, zenoh.CongestionControl.BLOCK, False),
     "detection_report": (zenoh.Priority.DATA, zenoh.CongestionControl.DROP, False),
 }
+
+# The SapientMessage.content oneof field names.
+KINDS: frozenset[str] = frozenset(_QOS)
 
 
 def _checked_node_id(node_id: str) -> str:
@@ -47,6 +50,12 @@ def _checked_node_id(node_id: str) -> str:
     return node_id
 
 
+def _checked_kind(kind: str) -> str:
+    if kind not in KINDS:
+        raise ValueError(f"unknown message kind: {kind!r}")
+    return kind
+
+
 def _checked_key(key: str) -> str:
     if len(key.encode()) > MAX_KEY_BYTES:
         raise ValueError(f"key longer than {MAX_KEY_BYTES} bytes: {key!r}")
@@ -54,11 +63,11 @@ def _checked_key(key: str) -> str:
 
 
 def up_key(node_id: str, kind: str) -> str:
-    return _checked_key(f"{_ROOT}/{_checked_node_id(node_id)}/up/{kind}")
+    return _checked_key(f"{_ROOT}/{_checked_node_id(node_id)}/up/{_checked_kind(kind)}")
 
 
 def down_key(node_id: str, kind: str) -> str:
-    return _checked_key(f"{_ROOT}/{_checked_node_id(node_id)}/down/{kind}")
+    return _checked_key(f"{_ROOT}/{_checked_node_id(node_id)}/down/{_checked_kind(kind)}")
 
 
 def live_key(node_id: str) -> str:
@@ -97,7 +106,4 @@ def qos_for(kind: str, fused: bool = False) -> tuple[zenoh.Priority, zenoh.Conge
     """
     if fused and kind == "detection_report":
         return _FUSED_TRACK
-    try:
-        return _QOS[kind]
-    except KeyError:
-        raise ValueError(f"no QoS for message kind: {kind!r}") from None
+    return _QOS[_checked_kind(kind)]
