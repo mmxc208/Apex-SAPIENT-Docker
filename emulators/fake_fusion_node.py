@@ -156,6 +156,7 @@ class FakeFusionNode:
         self.other_fusion_nodes = set()  # owners of up keys that have declared a fusion node
         self.registry_changed = asyncio.Event()  # the registered sensors differ from the last announcement
         self.own_registered = asyncio.Event()  # this connection has published this node's Registration
+        self.status_changed = True  # the next own status report is INFO_NEW
 
     # ---- outgoing ------------------------------------------------------------------------
 
@@ -295,10 +296,10 @@ class FakeFusionNode:
         return stamp(msg, self.node_id)
 
     async def _own_status_loop(self):
-        info = StatusReport.INFO_NEW
         while True:
+            info = StatusReport.INFO_NEW if self.status_changed else StatusReport.INFO_UNCHANGED
+            self.status_changed = False
             await self.send(self._own_status(info))
-            info = StatusReport.INFO_UNCHANGED
             await asyncio.sleep(self.args.status_interval)
 
     async def request_registrations(self):
@@ -322,6 +323,7 @@ class FakeFusionNode:
         msg = self.build_fusion_registration()
         await self.send(msg)
         await self.link.send_upward(msg)
+        self.status_changed = True  # a status report following a Registration must be INFO_NEW
         self.own_registered.set()
 
     async def _announce(self):

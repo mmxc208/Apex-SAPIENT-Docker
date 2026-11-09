@@ -502,6 +502,29 @@ async def test_own_status_waits_for_own_registration(fusion, fake_session, templ
     assert keys.index(up_key(FUSION, "registration")) < keys.index(status_key)
 
 
+@pytest.mark.usefixtures("republishing")
+async def test_own_status_is_new_after_a_re_announced_registration(fusion, fake_session, templates):
+    reg_key, status_key = fusion_up_key("registration"), up_key(FUSION, "status_report")
+
+    def statuses_after_last_registration():
+        keys_and_payloads = [(key, payload) for key, payload, _ in fake_session.published]
+        last = max(i for i, (key, _) in enumerate(keys_and_payloads) if key == reg_key)
+        return [SapientMessage.FromString(p).status_report.info for k, p in keys_and_payloads[last:] if k == status_key]
+
+    fake_session.inject(up_key(NODE, "registration"), registration(templates, NODE).SerializeToString())
+    await until(lambda: len(published_on(fake_session, reg_key)) == 1)
+    task = asyncio.create_task(fusion._status_once_registered())
+    await until(lambda: len(statuses_after_last_registration()) >= 2)
+
+    fake_session.inject(up_key(OTHER, "registration"), registration(templates, OTHER).SerializeToString())
+    await until(lambda: len(published_on(fake_session, reg_key)) == 2)
+    await until(lambda: len(statuses_after_last_registration()) >= 2)
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    assert statuses_after_last_registration()[:2] == [StatusReport.INFO_NEW, StatusReport.INFO_UNCHANGED]
+
+
 async def test_no_track_before_own_registration(receiving, fake_session, templates):
     """A restarted node hears detections during the debounce, before it has registered upward."""
     receiving.args.publish_tracks = True
