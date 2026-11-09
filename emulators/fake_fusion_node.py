@@ -52,7 +52,7 @@ from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from zenoh_io import open_session
-from zenoh_keys import LIVE_ALL, live_key, node_id_from_live_key, parse_key
+from zenoh_keys import LIVE_ALL, node_id_from_live_key, parse_key
 
 TRANSPORTS = ("tcp", "zenoh")
 GATE_M = 100.0  # toy association gate
@@ -102,13 +102,20 @@ def key_owner(key: str) -> str | None:
         return None
 
 
-def error_recipient(node_id: str, key: str) -> str | None:
-    """Who to send an Error to: the message's node_id, else the node its key names, else nobody."""
-    try:
-        live_key(node_id)  # raises ValueError unless node_id is a canonical UUID
-        return node_id
-    except ValueError:
-        return key_owner(key)
+def identity_error(node_id: str, key: str) -> str | None:
+    """Why a message claiming node_id may not arrive on key, or None if it may.
+
+    The router authenticates only the key, so a node_id naming anyone else is a forgery. A message
+    with no node_id is left to validation, which reports the missing field.
+    """
+    if not node_id:
+        return None
+    owner = key_owner(key)
+    if owner is None:
+        return f"malformed key {key!r}"
+    if node_id != owner:
+        return f"node_id {node_id} does not match the owner of its key, {owner}"
+    return None
 
 
 def declares_fusion_node(msg: SapientMessage) -> bool:
@@ -342,8 +349,9 @@ class FakeFusionNode:
         await self.own_registered.wait()
         await self._own_status_loop()
 
-    async def _send_error(self, packet: bytes, description: str, node_id: str, key: str):
-        recipient = error_recipient(node_id, key)
+    async def _send_error(self, packet: bytes, description: str, key: str):
+        """Tell the node that owns key, the only sender identity the router vouches for."""
+        recipient = key_owner(key)
         if recipient is None:
             self.log.info(f"nobody to tell about a message on {key!r}: {description}")
             return
@@ -378,16 +386,16 @@ class FakeFusionNode:
                 if key_owner(key) in self.other_fusion_nodes:
                     continue
                 self.log.info(f"undecodable message dropped (key {key})")
-                await self._send_error(packet, "undecodable message", "", key)
+                await self._send_error(packet, "undecodable message", key)
                 continue
             if self._from_other_fusion_node(msg):
                 continue
-            description = self.validate(msg)
+            key, _ = self.link.last_sample
+            description = identity_error(msg.node_id, key) or self.validate(msg)
             if description is None:
                 return msg
-            key, _ = self.link.last_sample
             self.log.info(f"invalid message from {msg.node_id[:8]!r} dropped: {description}")
-            await self._send_error(packet, description, msg.node_id, key)
+            await self._send_error(packet, description, key)
 
     def _from_other_fusion_node(self, msg) -> bool:
         """Whether the latest sample is another fusion node's: it is a peer, not a sensor of this one.

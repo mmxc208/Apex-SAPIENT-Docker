@@ -244,6 +244,59 @@ async def test_undecodable_message_gets_error_reply_from_its_key(
     assert list(reply.error.error_message) == ["undecodable message"]
 
 
+def status_as(templates, node_id):
+    msg = stamp(templates("sensor", "StatusReport"), node_id)
+    msg.status_report.report_id = new_ulid()
+    msg.status_report.info = StatusReport.INFO_NEW
+    msg.status_report.mode = "CLAIMED"
+    return msg
+
+
+@pytest.mark.parametrize(
+    "kind, build",
+    [("registration", registration), ("status_report", status_as), ("detection_report", detection)],
+)
+async def test_message_claiming_another_node_is_dropped_and_the_key_owner_told(
+    receiving, fake_session, templates, kind, build
+):
+    await receiving._on_registration(registration(templates, OTHER))
+    before = dict(receiving.nodes[OTHER])
+    payload = build(templates, OTHER).SerializeToString()
+
+    fake_session.inject(up_key(NODE, kind), payload)
+    await until(lambda: published_on(fake_session, down_key(NODE, "error")))
+
+    [reply] = published_on(fake_session, down_key(NODE, "error"))
+    assert reply.error.packet == payload
+    assert (reply.node_id, reply.destination_id) == (FUSION, NODE)
+    assert OTHER in reply.error.error_message[0] and NODE in reply.error.error_message[0]
+    assert not published_on(fake_session, down_key(OTHER, "error"))
+    assert receiving.nodes[OTHER] == before
+    assert NODE not in receiving.nodes
+    assert OTHER not in receiving.detection_counts
+    assert OTHER not in receiving.validators
+
+
+async def test_a_node_id_in_another_form_does_not_match_its_key(receiving, fake_session, templates):
+    fake_session.inject(up_key(NODE, "status_report"), status_as(templates, NODE.upper()).SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "error")))
+
+    assert not receiving.nodes
+
+
+async def test_message_with_a_node_id_on_a_malformed_key_is_only_logged(
+    receiving, fake_session, templates, caplog
+):
+    with caplog.at_level(logging.INFO):
+        fake_session.inject("sapient/v2/not-a-uuid/up/status_report", status_as(templates, OTHER).SerializeToString())
+        fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+        await until(lambda: published_on(fake_session, down_key(NODE, "registration_ack")))
+
+    assert [key for key, _, _ in fake_session.published] == [down_key(NODE, "registration_ack")]
+    assert OTHER not in receiving.nodes
+    assert "malformed key" in caplog.text
+
+
 async def test_undecodable_message_on_a_bad_key_is_only_logged(
     receiving, fake_session, templates, caplog
 ):
