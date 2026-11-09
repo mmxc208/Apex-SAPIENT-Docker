@@ -1,0 +1,17 @@
+# Stage 2: the sensors from docker-compose.emulators.yml speak Zenoh themselves, with no node-side
+# bridge. Use after docker-compose.emulators.yml and docker-compose.zenoh.yml, and start with
+# --scale bridge-node=0 (see "Stage 2: native Zenoh sensors" in README.md).
+# bridge-apex still carries their traffic to Apex. The fusion node stays on Apex's Peer port over TCP.
+
+x-native-sensor: &native-sensor
+  environment:
+    TRANSPORT: zenoh
+    ZENOH_CONNECT: tcp/zenohd:7447
+  depends_on:
+    - apex
+    - zenohd
+
+services:
+  radar: *native-sensor
+  camera: *native-sensor
+  vehicle: *native-sensor

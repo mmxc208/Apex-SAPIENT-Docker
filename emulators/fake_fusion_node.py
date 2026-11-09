@@ -24,8 +24,12 @@ import sys
 import time
 import uuid
 
+from google.protobuf.message import DecodeError
+
+from bridge_node_side import open_session
 from sapient_link import (
     Link,
+    ZenohFusionLink,
     lat_lng,
     load_template,
     new_ulid,
@@ -38,6 +42,7 @@ from sapient_msg.bsi_flex_335_v2_0.alert_ack_pb2 import AlertAck
 from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 
+TRANSPORTS = ("tcp", "zenoh")
 GATE_M = 100.0  # toy association gate
 TRACK_PUBLISH_SECONDS = 1.0
 REQUESTS = {"Registration", "Reset", "Start", "Status", "Stop"}
@@ -78,6 +83,7 @@ class FakeFusionNode:
         self.node_id = args.node_id
         self.log = setup_logging("fusion")
         self.link = None
+        self.zenoh_session = None
         self.nodes = {}  # node_id -> {"name", "types", "location"}
         self.tracks = []
         self.detection_counts = {}
@@ -214,7 +220,11 @@ class FakeFusionNode:
 
     async def _receive_loop(self):
         while True:
-            msg = await self.link.receive()
+            try:
+                msg = await self.link.receive()
+            except DecodeError:
+                self.log.info("undecodable message dropped")
+                continue
             kind = msg.WhichOneof("content")
             show = True
             if kind == "registration":
@@ -280,10 +290,21 @@ class FakeFusionNode:
                       "request[:Status|Start|Stop|Reset|Registration] detection_threshold "
                       "detection_report_rate classification_threshold", flush=True)
 
+    async def _connect_link(self):
+        """Connect over the chosen transport; every Zenoh connection gets a fresh session."""
+        if self.args.transport == "tcp":
+            return await Link.connect(self.args.host, self.args.port, self.log)
+        if self.zenoh_session is not None:
+            self.zenoh_session.close()  # no unsubscribe exists, so a reused session keeps stale queues
+        self.zenoh_session = await open_session(
+            self.args.zenoh_connect, asyncio.get_running_loop(), self.log
+        )
+        return await ZenohFusionLink.connect(self.zenoh_session, self.node_id, self.log)
+
     async def run(self):
         asyncio.get_running_loop().create_task(self._stdin_loop())
         while True:
-            self.link = await Link.connect(self.args.host, self.args.port, self.log)
+            self.link = await self._connect_link()
             try:
                 async with asyncio.TaskGroup() as group:
                     group.create_task(self._receive_loop())
@@ -300,6 +321,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default=env("APEX_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(env("APEX_PORT", "5001")), help="Apex Peer port (v2.0)")
+    parser.add_argument("--transport", choices=TRANSPORTS, default=env("TRANSPORT", "tcp"))
+    parser.add_argument("--zenoh-connect", default=env("ZENOH_CONNECT", "tcp/zenohd:7447"),
+                        help="Zenoh router endpoint, used with --transport zenoh")
     parser.add_argument("--node-id", default=env("NODE_ID") or str(uuid.uuid4()))
     parser.add_argument("--auto-task", default=env("AUTO_TASK", "look_at,move_to,follow,patrol,request:Status"),
                         help="comma-separated task kinds to cycle through; empty to disable")
@@ -307,6 +331,8 @@ def main():
     parser.add_argument("--no-publish-tracks", dest="publish_tracks", action="store_false",
                         default=env("PUBLISH_TRACKS", "1") != "0")
     args = parser.parse_args()
+    if args.transport not in TRANSPORTS:
+        parser.error(f"TRANSPORT must be one of {', '.join(TRANSPORTS)}, not {args.transport!r}")
     try:
         asyncio.run(FakeFusionNode(args).run())
     except KeyboardInterrupt:

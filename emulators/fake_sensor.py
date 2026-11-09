@@ -20,8 +20,12 @@ import os
 import time
 import uuid
 
+from google.protobuf.message import DecodeError
+
+from bridge_node_side import open_session
 from sapient_link import (
     Link,
+    ZenohLink,
     lat_lng,
     load_template,
     new_ulid,
@@ -37,6 +41,7 @@ from sapient_msg.bsi_flex_335_v2_0.task_ack_pb2 import TaskAck
 from sapient_msg.bsi_flex_335_v2_0.task_pb2 import Task
 from sapient_msg.bsi_flex_335_v2_0.velocity_pb2 import ENUVelocity
 
+TRANSPORTS = ("tcp", "zenoh")
 PLATFORM_TYPES = {"MOBILE_NODE", "POINTABLE_NODE"}
 # Task commands each kind of node accepts; anything else gets "Task not supported".
 SUPPORTED_COMMANDS = {
@@ -108,6 +113,7 @@ class FakeSensor:
         self.log = setup_logging(args.short_name)
         self.lon, self.lat = args.lon, args.lat
         self.link = None
+        self.zenoh_session = None
         self.registered = asyncio.Event()
         self.detecting = True
         self.status_changed = True  # the next status report is INFO_NEW
@@ -250,7 +256,11 @@ class FakeSensor:
 
     async def _receive_loop(self):
         while True:
-            msg = await self.link.receive()
+            try:
+                msg = await self.link.receive()
+            except DecodeError:
+                self.log.info("undecodable message dropped")
+                continue
             kind = msg.WhichOneof("content")
             self.log.info(f"<- {summary(msg)}")
             if kind == "registration_ack":
@@ -321,9 +331,20 @@ class FakeSensor:
                 step = PLATFORM_SPEED_MPS / dist
                 self.lon, self.lat = offset(self.lon, self.lat, east * step, north * step)
 
+    async def _connect_link(self):
+        """Connect over the chosen transport; every Zenoh connection gets a fresh session."""
+        if self.args.transport == "tcp":
+            return await Link.connect(self.args.host, self.args.port, self.log)
+        if self.zenoh_session is not None:
+            self.zenoh_session.close()  # no unsubscribe exists, so a reused session keeps stale queues
+        self.zenoh_session = await open_session(
+            self.args.zenoh_connect, asyncio.get_running_loop(), self.log
+        )
+        return await ZenohLink.connect(self.zenoh_session, self.node_id, self.log)
+
     async def run(self):
         while True:
-            self.link = await Link.connect(self.args.host, self.args.port, self.log)
+            self.link = await self._connect_link()
             self.registered.clear()
             try:
                 async with asyncio.TaskGroup() as group:
@@ -346,6 +367,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default=env("APEX_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(env("APEX_PORT", "5020")), help="Apex Child port (v2.0)")
+    parser.add_argument("--transport", choices=TRANSPORTS, default=env("TRANSPORT", "tcp"))
+    parser.add_argument("--zenoh-connect", default=env("ZENOH_CONNECT", "tcp/zenohd:7447"),
+                        help="Zenoh router endpoint, used with --transport zenoh")
     parser.add_argument("--node-id", default=env("NODE_ID") or str(uuid.uuid4()))
     parser.add_argument("--name", default=env("NODE_NAME", "Fake radar"))
     parser.add_argument("--short-name", default=env("NODE_SHORT_NAME", "radar"))
@@ -360,6 +384,8 @@ def main():
     parser.add_argument("--status-interval", type=float, default=float(env("STATUS_INTERVAL", "5")))
     parser.add_argument("--detection-interval", type=float, default=float(env("DETECTION_INTERVAL", "1")))
     args = parser.parse_args()
+    if args.transport not in TRANSPORTS:
+        parser.error(f"TRANSPORT must be one of {', '.join(TRANSPORTS)}, not {args.transport!r}")
     args.node_type = args.node_type.upper().removeprefix("NODE_TYPE_")
     try:
         asyncio.run(FakeSensor(args).run())

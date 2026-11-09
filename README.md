@@ -454,6 +454,49 @@ Each Apex socket closes when the hold ends, 120 s after the router was lost. `br
 
 To stop the stage, run `dc down`. Don't add `--remove-orphans` or `-v`: the first would remove a running Elasticsearch container that shares this compose project, and the second would delete the archive.
 
+## Stage 2: native Zenoh sensors
+
+In this stage the fake sensors speak Zenoh themselves, so `bridge-node` isn't used.
+`docker-compose.native-sensors.yml` sets `TRANSPORT=zenoh` and `ZENOH_CONNECT=tcp/zenohd:7447` on the radar, camera and vehicle. `bridge-apex` still opens one Child socket per node to Apex's port 5020, and the fusion node stays on Apex's Peer port 5001 over TCP.
+
+Both emulators take `--transport {tcp,zenoh}` (env `TRANSPORT`, default `tcp`) and `--zenoh-connect` (env `ZENOH_CONNECT`, default `tcp/zenohd:7447`).
+
+`docker-compose.zenoh.yml` still defines `bridge-node`, so the start command below uses `--scale bridge-node=0` to leave it out. Don't add `docker-compose.zenoh-sensors.yml` here.
+
+Run these in order, from the repo root, on a rig that is down. This `dc` replaces the stage 1 one. The comments show what one run of these commands printed on 2026-11-08.
+
+```bash
+dc() { docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml -f docker-compose.native-sensors.yml "$@"; }
+```
+
+**1. Start everything.**
+
+```bash
+dc up -d --build --scale bridge-node=0
+sleep 60
+```
+
+**2. T-01, round trip.**
+
+```bash
+dc logs fusion-node | grep -c "<- registration "
+# 3
+dc logs radar | grep -c "registration_ack"
+# 1
+```
+
+**3. T-02, task path.** The fusion node sends auto-tasks every 20 s.
+
+```bash
+sleep 60
+dc logs --since 120s radar | grep -c "task_ack"
+# 3
+```
+
+A sensor that registers before `bridge-apex` is subscribed loses that first registration. `bridge-apex` sees the sensor's liveliness token, asks it to register again about 3 s later, and the sensor answers with a `task_ack`, so this count can include that request.
+
+To stop the stage, run `dc down`. Don't add `--remove-orphans` or `-v`, for the reasons given in stage 1. If Elasticsearch is running, `dc down` reports that the `apex_default` network is still in use, which is harmless.
+
 ## Optional: Elasticsearch and the REST API
 
 The REST API on port 8080 reads from Elasticsearch. Without it, every data endpoint returns `503 {"detail":"Database Service Unavailable or not started."}`, and only `/` and `/docs` work. Apex doesn't need Elasticsearch to route or record messages, because SQLite always records everything.

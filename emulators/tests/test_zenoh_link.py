@@ -1,9 +1,17 @@
+import argparse
 import asyncio
 import logging
+import sys
 
 import pytest
+import zenoh
 
+import bridge_node_side
+import fake_fusion_node
+import fake_sensor
 from conftest import FakeZenohSession
+from fake_fusion_node import FakeFusionNode
+from fake_sensor import FakeSensor
 from sapient_link import ZenohFusionLink, ZenohLink, stamp
 from zenoh_io import ZenohSession
 from zenoh_keys import down_key, live_key, qos_for, up_key
@@ -244,3 +252,242 @@ async def test_cancelling_receive_keeps_later_samples_available(templates):
     session.inject(down_key(NODE, "task"), msg.SerializeToString())
 
     assert await asyncio.wait_for(link.receive(), TIMEOUT) == msg
+
+
+def sensor_args(**overrides):
+    values = dict(
+        node_id=NODE,
+        node_type="RADAR",
+        name="Fake radar",
+        short_name="radar",
+        lon=-1.8224,
+        lat=51.1739,
+        dependent_node=[],
+        host="apex",
+        port=5020,
+        transport="zenoh",
+        zenoh_connect="tcp/zenohd:7447",
+    )
+    return argparse.Namespace(**{**values, **overrides})
+
+
+def fusion_args(**overrides):
+    values = dict(
+        node_id=FUSION,
+        auto_task="",
+        host="apex",
+        port=5001,
+        transport="zenoh",
+        zenoh_connect="tcp/zenohd:7447",
+    )
+    return argparse.Namespace(**{**values, **overrides})
+
+
+def patch_open(monkeypatch, *outcomes):
+    """Make ZenohSession.open produce outcomes in turn (an exception is raised); returns its calls."""
+    remaining = list(outcomes)
+    calls = []
+
+    async def fake_open(connect, loop):
+        calls.append(connect)
+        outcome = remaining.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(ZenohSession, "open", fake_open)
+    return calls
+
+
+async def test_sensor_connect_link_picks_zenoh(monkeypatch):
+    session = FakeZenohSession()
+    calls = patch_open(monkeypatch, session)
+    sensor = FakeSensor(sensor_args())
+
+    link = await sensor._connect_link()
+
+    assert isinstance(link, ZenohLink)
+    assert link.session is session
+    assert calls == ["tcp/zenohd:7447"]
+    assert session.tokens == {live_key(NODE)}
+
+
+async def test_fusion_connect_link_picks_zenoh(monkeypatch):
+    session = FakeZenohSession()
+    calls = patch_open(monkeypatch, session)
+    fusion = FakeFusionNode(fusion_args())
+
+    link = await fusion._connect_link()
+
+    assert isinstance(link, ZenohFusionLink)
+    assert link.session is session
+    assert calls == ["tcp/zenohd:7447"]
+
+
+@pytest.mark.parametrize(
+    "module, node_class, make_args, port",
+    [
+        (fake_sensor, FakeSensor, sensor_args, 5020),
+        (fake_fusion_node, FakeFusionNode, fusion_args, 5001),
+    ],
+)
+async def test_connect_link_on_tcp_uses_link(monkeypatch, module, node_class, make_args, port):
+    calls = patch_open(monkeypatch)
+    connected = []
+
+    async def fake_connect(host, port, log):
+        connected.append((host, port))
+        return "tcp link"
+
+    monkeypatch.setattr(module.Link, "connect", fake_connect)
+    node = node_class(make_args(transport="tcp"))
+
+    assert await node._connect_link() == "tcp link"
+    assert connected == [("apex", port)]
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "node_class, make_args",
+    [(FakeSensor, sensor_args), (FakeFusionNode, fusion_args)],
+)
+async def test_connect_link_opens_a_fresh_session_and_closes_the_previous(
+    monkeypatch, node_class, make_args
+):
+    first, second = FakeZenohSession(), FakeZenohSession()
+    patch_open(monkeypatch, first, second)
+    node = node_class(make_args())
+
+    await node._connect_link()
+    assert not first.closed.is_set()
+    link = await node._connect_link()
+
+    assert first.closed.is_set()
+    assert not second.closed.is_set()
+    assert link.session is second
+
+
+@pytest.mark.parametrize(
+    "node_class, make_args",
+    [(FakeSensor, sensor_args), (FakeFusionNode, fusion_args)],
+)
+async def test_connect_link_retries_until_the_router_is_reachable(
+    monkeypatch, node_class, make_args
+):
+    session = FakeZenohSession()
+    calls = patch_open(monkeypatch, zenoh.ZError("unreachable"), session)
+    monkeypatch.setattr(bridge_node_side, "RECONNECT_SECONDS", 0)
+    node = node_class(make_args())
+
+    link = await asyncio.wait_for(node._connect_link(), TIMEOUT)
+
+    assert link.session is session
+    assert len(calls) == 2
+
+
+UNDECODABLE = b"\xff\xff\xff"
+
+
+async def test_sensor_drops_an_undecodable_message_and_keeps_receiving(
+    monkeypatch, templates, caplog
+):
+    session = FakeZenohSession()
+    patch_open(monkeypatch, session)
+    sensor = FakeSensor(sensor_args())
+    sensor.link = await sensor._connect_link()
+    loop_task = asyncio.create_task(sensor._receive_loop())
+
+    with caplog.at_level(logging.INFO):
+        session.inject(down_key(NODE, "registration_ack"), UNDECODABLE)
+        ack = templates("fusion_node", "RegistrationAck")
+        ack.registration_ack.acceptance = True
+        session.inject(down_key(NODE, "registration_ack"), stamp(ack, FUSION, NODE).SerializeToString())
+        await asyncio.wait_for(sensor.registered.wait(), TIMEOUT)
+
+    loop_task.cancel()
+    await asyncio.gather(loop_task, return_exceptions=True)
+    assert "undecodable message dropped" in caplog.text
+
+
+async def test_fusion_drops_an_undecodable_message_and_keeps_receiving(
+    monkeypatch, templates, caplog
+):
+    session = FakeZenohSession()
+    patch_open(monkeypatch, session)
+    fusion = FakeFusionNode(fusion_args())
+    fusion.link = await fusion._connect_link()
+    loop_task = asyncio.create_task(fusion._receive_loop())
+
+    async def acknowledged():
+        while not session.published:
+            await asyncio.sleep(0)
+
+    with caplog.at_level(logging.INFO):
+        session.inject(up_key(NODE, "registration"), UNDECODABLE)
+        registration = stamp(templates("sensor", "Registration"), NODE)
+        session.inject(up_key(NODE, "registration"), registration.SerializeToString())
+        await asyncio.wait_for(acknowledged(), TIMEOUT)
+
+    loop_task.cancel()
+    await asyncio.gather(loop_task, return_exceptions=True)
+    assert session.published[0][0] == down_key(NODE, "registration_ack")
+    assert "undecodable message dropped" in caplog.text
+
+
+def run_main(monkeypatch, module, class_name, argv=()):
+    """Run module.main() with the node class replaced; returns the parsed args."""
+    captured = []
+
+    class Capture:
+        def __init__(self, args):
+            captured.append(args)
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr(module, class_name, Capture)
+    monkeypatch.setattr(sys, "argv", ["prog", *argv])
+    module.main()
+    return captured[0]
+
+
+EMULATORS = [(fake_sensor, "FakeSensor"), (fake_fusion_node, "FakeFusionNode")]
+
+
+@pytest.mark.parametrize("module, class_name", EMULATORS)
+def test_main_defaults_to_tcp(monkeypatch, module, class_name):
+    monkeypatch.delenv("TRANSPORT", raising=False)
+    monkeypatch.delenv("ZENOH_CONNECT", raising=False)
+
+    args = run_main(monkeypatch, module, class_name)
+
+    assert (args.transport, args.zenoh_connect) == ("tcp", "tcp/zenohd:7447")
+
+
+@pytest.mark.parametrize("module, class_name", EMULATORS)
+def test_main_reads_transport_from_the_environment(monkeypatch, module, class_name):
+    monkeypatch.setenv("TRANSPORT", "zenoh")
+    monkeypatch.setenv("ZENOH_CONNECT", "tcp/router:7447")
+
+    args = run_main(monkeypatch, module, class_name)
+
+    assert (args.transport, args.zenoh_connect) == ("zenoh", "tcp/router:7447")
+
+
+@pytest.mark.parametrize("module, class_name", EMULATORS)
+def test_main_flags_override_the_environment(monkeypatch, module, class_name):
+    monkeypatch.setenv("TRANSPORT", "tcp")
+
+    args = run_main(
+        monkeypatch, module, class_name, ["--transport", "zenoh", "--zenoh-connect", "tcp/other:7447"]
+    )
+
+    assert (args.transport, args.zenoh_connect) == ("zenoh", "tcp/other:7447")
+
+
+@pytest.mark.parametrize("module, class_name", EMULATORS)
+def test_main_rejects_an_unknown_transport_from_the_environment(monkeypatch, module, class_name):
+    monkeypatch.setenv("TRANSPORT", "carrier-pigeon")
+
+    with pytest.raises(SystemExit):
+        run_main(monkeypatch, module, class_name)
