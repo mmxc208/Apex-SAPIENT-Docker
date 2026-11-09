@@ -497,6 +497,99 @@ A sensor that registers before `bridge-apex` is subscribed loses that first regi
 
 To stop the stage, run `dc down`. Don't add `--remove-orphans` or `-v`, for the reasons given in stage 1. If Elasticsearch is running, `dc down` reports that the `apex_default` network is still in use, which is harmless.
 
+## Stage 3: Zenoh-native rig without Apex
+
+In this stage nothing speaks TCP SAPIENT. The radar, camera, vehicle and fusion node all use `TRANSPORT=zenoh` through the `zenohd` router. There is no Apex and there are no bridges.
+The fusion node takes over what Apex did: it checks each incoming message with Apex's `Validator`, and answers a bad one with an `Error`. When it starts, it asks every live node to register again.
+`recorder` writes every message on Zenoh to one JSON-lines file per UTC day in the `records` volume, at `/data/records/<date>.jsonl`.
+
+`docker-compose.native.yml` is standalone, so don't combine it with the other compose files. It uses the project name `apex-native`, and takes the image `apex-sapient:4.2.0` built by the earlier stages. If that image is missing, run `docker compose -f docker-compose.yml -f docker-compose.emulators.yml build`. The router publishes port 7447, so stop stages 1 and 2 first.
+
+Run these in order, from the repo root, on a rig that is down. The comments show what one run of these commands printed on 2026-11-08 (UTC 2026-11-09).
+
+```bash
+dc() { docker compose -f docker-compose.native.yml "$@"; }
+```
+
+**1. Start everything.**
+
+```bash
+dc up -d
+sleep 30
+```
+
+**2. Registrations and acknowledgements.**
+
+```bash
+dc logs radar | grep -c registration_ack
+# 1
+dc logs fusion-node | grep -c "<- registration "
+# 3
+```
+
+**3. Late joiner.** The restart takes about 10 s, because Python as PID 1 ignores `SIGTERM` until Docker kills it. The new fusion node finds the sensors from their liveliness tokens and requests a registration from each one. The sensors stay connected throughout.
+
+```bash
+dc restart fusion-node
+sleep 20
+dc logs --since 30s fusion-node | grep -c "<- registration "
+# 3
+dc logs --since 30s radar camera vehicle | grep 'request "Registration"'
+# vehicle-1  | 04:52:47 vehicle: <- task f0000001 -> a0000003 9VYE7F request "Registration"
+# radar-1    | 04:52:47 radar: <- task f0000001 -> a0000001 PWFZZ4 request "Registration"
+# camera-1   | 04:52:47 camera: <- task f0000001 -> a0000002 RVDJ7P request "Registration"
+dc logs radar camera vehicle | grep -c "lost; reconnecting"
+# 0
+```
+
+**4. Recorder.** Run the first command, then the second to see the count grow. The volume survives `dc down`, so the count includes any earlier run on the same UTC day, as it did here.
+
+```bash
+dc exec recorder sh -c 'wc -l /data/records/*.jsonl && head -c 300 /data/records/*.jsonl'
+# 765 /data/records/2026-11-09.jsonl
+# {"t": "2026-11-09T04:49:44.865+00:00", "key": "sapient/v2/a0000002-0000-4000-8000-000000000002/up/registration", "kind": "registration", "node_id": "a0000002-0000-4000-8000-000000000002", "msg": {"timestamp": "2026-11-09T04:49:44.864976Z", "node_id": "a0000002-0000-4000-8000-000000000002", "registra
+sleep 10
+dc exec recorder sh -c 'wc -l /data/records/*.jsonl'
+# 802 /data/records/2026-11-09.jsonl
+```
+
+**5. Validation.** This publishes a `StatusReport` with no `node_id` on the radar's up key, then listens on the radar's `error` key for 5 s. The fusion node takes the recipient from the key, because the message doesn't name a sender.
+
+```bash
+dc run --rm --no-deps -T radar python -c '
+import asyncio, time
+from sapient_link import load_template, new_ulid
+from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
+from zenoh_io import ZenohSession
+from zenoh_keys import up_key, down_key
+NODE = "a0000001-0000-4000-8000-000000000001"
+async def main():
+    session = await ZenohSession.open("tcp/zenohd:7447", asyncio.get_running_loop())
+    errors = session.subscribe(down_key(NODE, "error"))
+    await asyncio.sleep(1)
+    msg = load_template("sensor", "StatusReport")
+    msg.status_report.report_id = new_ulid()
+    msg.timestamp.GetCurrentTime()
+    msg.ClearField("node_id")
+    await session.publish(up_key(NODE, "status_report"), msg)
+    count, deadline = 0, time.monotonic() + 5
+    while (left := deadline - time.monotonic()) > 0:
+        try:
+            key, payload = await asyncio.wait_for(errors.get(), left)
+        except asyncio.TimeoutError:
+            break
+        count += 1
+        print(key, list(SapientMessage.FromString(payload).error.error_message))
+    print("errors received:", count)
+    session.close()
+asyncio.run(main())
+'
+# sapient/v2/a0000001-0000-4000-8000-000000000001/down/error ['node_id (mandatory fields present): Missing mandatory field: node_id']
+# errors received: 1
+```
+
+To stop the stage, run `dc down`. The recordings stay in the `apex-native_records` volume. Don't add `-v` unless you mean to delete them.
+
 ## Optional: Elasticsearch and the REST API
 
 The REST API on port 8080 reads from Elasticsearch. Without it, every data endpoint returns `503 {"detail":"Database Service Unavailable or not started."}`, and only `/` and `/docs` work. Apex doesn't need Elasticsearch to route or record messages, because SQLite always records everything.

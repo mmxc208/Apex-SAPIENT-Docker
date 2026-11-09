@@ -1,0 +1,102 @@
+# Stage 3: the fusion node and sensors talk over Zenoh with no Apex and no bridges, and a recorder
+# keeps every message. Standalone: use this file alone, not on top of docker-compose.yml.
+#   docker compose -f docker-compose.native.yml up -d
+# See "Stage 3: Zenoh-native rig without Apex" in README.md.
+#
+# The image is built by the stage 1 files:
+#   docker compose -f docker-compose.yml -f docker-compose.emulators.yml build
+
+name: apex-native   # never the "apex" project, which holds other containers
+
+x-emulator: &emulator
+  image: apex-sapient:4.2.0   # has Python, sapient_msg, zenoh and Apex's Validator
+  working_dir: /emulators
+  depends_on:
+    - zenohd
+  restart: unless-stopped
+
+x-emulator-env: &emulator-env
+  TRANSPORT: zenoh
+  ZENOH_CONNECT: tcp/zenohd:7447
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+x-emulator-volumes: &emulator-volumes
+  - ./emulators:/emulators:ro
+
+services:
+  zenohd:
+    image: eclipse/zenoh:1.10.2
+    command: ["-c", "/config/router.json5"]
+    volumes:
+      - ./zenoh/router-plain.json5:/config/router.json5:ro
+    ports:
+      - "7447:7447"
+    restart: unless-stopped
+
+  fusion-node:
+    <<: *emulator
+    command: python fake_fusion_node.py
+    volumes: *emulator-volumes
+    environment:
+      <<: *emulator-env
+      NODE_ID: "f0000001-0000-4000-8000-000000000001"
+      AUTO_TASK: "look_at,move_to,follow,patrol,request:Status"
+      TASK_INTERVAL: "20"
+    stdin_open: true   # docker attach apex-native-fusion-node-1, then type 'help'
+    tty: true
+
+  radar:
+    <<: *emulator
+    command: python fake_sensor.py
+    volumes: *emulator-volumes
+    environment:
+      <<: *emulator-env
+      NODE_ID: "a0000001-0000-4000-8000-000000000001"
+      NODE_NAME: "Fake radar"
+      NODE_SHORT_NAME: "radar"
+      NODE_TYPE: "RADAR"
+      NODE_LAT: "51.1739"
+      NODE_LON: "-1.8224"
+
+  camera:
+    <<: *emulator
+    command: python fake_sensor.py
+    volumes: *emulator-volumes
+    environment:
+      <<: *emulator-env
+      NODE_ID: "a0000002-0000-4000-8000-000000000002"
+      NODE_NAME: "Fake camera on vehicle"
+      NODE_SHORT_NAME: "camera"
+      NODE_TYPE: "CAMERA"
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+
+  vehicle:
+    <<: *emulator
+    command: python fake_sensor.py
+    volumes: *emulator-volumes
+    environment:
+      <<: *emulator-env
+      NODE_ID: "a0000003-0000-4000-8000-000000000003"
+      NODE_NAME: "Fake vehicle (mobile platform)"
+      NODE_SHORT_NAME: "vehicle"
+      NODE_TYPE: "MOBILE_NODE"
+      DEPENDENT_NODES: "a0000002-0000-4000-8000-000000000002"   # carries the camera
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+
+  recorder:
+    <<: *emulator
+    command: python recorder.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - records:/data/records
+    environment:
+      ZENOH_CONNECT: tcp/zenohd:7447
+      RECORD_DIR: /data/records
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+volumes:
+  records:
