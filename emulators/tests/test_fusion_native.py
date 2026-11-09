@@ -17,13 +17,14 @@ from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from zenoh_io import ZenohSession
-from zenoh_keys import UP_ALL, down_key, fusion_up_key, live_key, qos_for, up_key
+from zenoh_keys import LIVE_ALL, UP_ALL, down_key, fusion_up_key, live_key, qos_for, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
 OTHER = "a0000002-0000-4000-8000-000000000002"
 FUSION = "f0000001-0000-4000-8000-000000000001"
 PEER_FUSION = "f0000002-0000-4000-8000-000000000002"
 TIMEOUT = 5
+HOLD = 0.05
 UNDECODABLE = b"\xff\xff\xff"
 
 
@@ -37,6 +38,7 @@ def fusion_args(**overrides):
         zenoh_connect="tcp/zenohd:7447",
         status_interval=0.01,
         publish_tracks=False,
+        node_hold_seconds=HOLD,
     )
     return argparse.Namespace(**{**values, **overrides})
 
@@ -70,6 +72,21 @@ async def republishing(receiving, monkeypatch):
     yield receiving
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.fixture
+async def tracking(republishing, fake_session, monkeypatch):
+    """The fusion node following liveliness and the transport, with no grace before a request."""
+    monkeypatch.setattr(fake_fusion_node, "REQUEST_GRACE_SECONDS", 0)
+    tasks = [
+        asyncio.create_task(republishing._track_liveliness(fake_session.liveliness(LIVE_ALL))),
+        asyncio.create_task(republishing._track_transport(fake_session.transport_changes)),
+        asyncio.create_task(republishing._request_loop()),
+    ]
+    yield republishing
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def published_on(session, key) -> list[SapientMessage]:
@@ -678,6 +695,186 @@ async def test_fusion_typed_registration_without_node_id_filters_only_its_key_ow
     assert not published_on(fake_session, down_key(PEER_FUSION, "error"))
 
 
+async def join(session, templates, node_id, *capabilities):
+    """A node declares its token and registers; returns once the fusion node has it."""
+    session.declare_token(live_key(node_id))
+    msg = with_capabilities(registration(templates, node_id), *capabilities)
+    session.inject(up_key(node_id, "registration"), msg.SerializeToString())
+    await until(lambda: published_on(session, down_key(node_id, "registration_ack")))
+
+
+def registration_requests(session, node_id):
+    return [t for t in published_on(session, down_key(node_id, "task")) if t.task.command.request == "Registration"]
+
+
+async def test_token_loss_then_hold_expiry_removes_the_node_and_republishes(tracking, fake_session, templates):
+    key = fusion_up_key("registration")
+    await join(fake_session, templates, NODE, ("A", "x"))
+    await join(fake_session, templates, OTHER, ("B", "y"))
+    await until(lambda: published_on(fake_session, key))
+    tracking.validate(detection(templates, NODE))
+    published = len(published_on(fake_session, key))
+
+    fake_session.undeclare_token(live_key(NODE))
+    await until(lambda: NODE not in tracking.nodes)
+    await until(lambda: len(published_on(fake_session, key)) > published)
+
+    assert [c.category for c in published_on(fake_session, key)[-1].registration.capabilities] == ["B"]
+    assert NODE not in tracking.validators
+    assert OTHER in tracking.nodes
+
+
+async def test_node_is_kept_until_the_hold_ends(tracking, fake_session, templates):
+    tracking.args.node_hold_seconds = 60
+    await join(fake_session, templates, NODE, ("A", "x"))
+
+    fake_session.undeclare_token(live_key(NODE))
+    await until(lambda: NODE in tracking._hold_timers)
+    await asyncio.sleep(HOLD * 2)
+
+    assert NODE in tracking.nodes
+
+
+async def test_token_flap_within_the_hold_keeps_the_node(tracking, fake_session, templates):
+    await join(fake_session, templates, NODE, ("A", "x"))
+
+    fake_session.undeclare_token(live_key(NODE))
+    fake_session.declare_token(live_key(NODE))
+    await asyncio.sleep(HOLD * 3)
+
+    assert NODE in tracking.nodes
+    assert not tracking._hold_timers
+
+
+async def test_malformed_token_is_ignored(tracking, fake_session, templates, caplog):
+    with caplog.at_level(logging.INFO):
+        fake_session.declare_token("sapient/v2/live/not-a-uuid")
+        await join(fake_session, templates, NODE, ("A", "x"))
+        await until(lambda: "bad key" in caplog.text)
+
+
+async def test_transport_return_keeps_nodes_whose_tokens_are_present(tracking, fake_session, templates):
+    await join(fake_session, templates, NODE, ("A", "x"))
+    await join(fake_session, templates, OTHER, ("B", "y"))
+
+    fake_session.lose_transport()
+    await until(lambda: len(tracking._hold_timers) == 2)
+    fake_session.undeclare_token(live_key(OTHER))  # goes during the outage, so nothing reports it
+    fake_session.restore_transport(report_tokens=False)
+    await until(lambda: OTHER not in tracking.nodes)
+    await asyncio.sleep(HOLD * 2)
+
+    assert NODE in tracking.nodes
+
+
+async def test_transport_loss_holds_a_node_that_never_showed_a_token(tracking, fake_session, templates):
+    await tracking._on_registration(registration(templates))
+
+    fake_session.lose_transport()
+
+    await until(lambda: NODE not in tracking.nodes)
+
+
+async def test_node_removed_by_a_long_outage_is_asked_to_register_on_return(tracking, fake_session, templates):
+    await join(fake_session, templates, NODE, ("A", "x"))
+
+    fake_session.lose_transport()
+    await until(lambda: NODE not in tracking.nodes)
+    assert not registration_requests(fake_session, NODE)
+    fake_session.restore_transport()
+
+    await until(lambda: registration_requests(fake_session, NODE))
+
+
+async def test_status_from_a_returning_node_does_not_stop_the_request(tracking, fake_session, templates, monkeypatch):
+    """Status arrives first after an outage; only a Registration counts as registered."""
+    monkeypatch.setattr(fake_fusion_node, "REQUEST_GRACE_SECONDS", HOLD)
+    await join(fake_session, templates, NODE, ("A", "x"))
+    fake_session.lose_transport()
+    await until(lambda: NODE not in tracking.nodes)
+
+    fake_session.restore_transport()
+    fake_session.inject(up_key(NODE, "status_report"), status_as(templates, NODE).SerializeToString())
+
+    await until(lambda: registration_requests(fake_session, NODE))
+
+
+async def test_no_request_when_the_registration_arrives_within_the_grace(tracking, fake_session, templates, monkeypatch):
+    monkeypatch.setattr(fake_fusion_node, "REQUEST_GRACE_SECONDS", HOLD)
+
+    await join(fake_session, templates, NODE, ("A", "x"))
+    await asyncio.sleep(HOLD * 3)
+
+    assert not registration_requests(fake_session, NODE)
+
+
+async def test_no_request_once_the_token_has_gone_again(tracking, fake_session, monkeypatch):
+    monkeypatch.setattr(fake_fusion_node, "REQUEST_GRACE_SECONDS", HOLD)
+
+    fake_session.declare_token(live_key(NODE))
+    await until(lambda: NODE in tracking._pending_requests)
+    fake_session.undeclare_token(live_key(NODE))
+    await asyncio.sleep(HOLD * 3)
+
+    assert not registration_requests(fake_session, NODE)
+
+
+async def test_registration_in_flight_when_the_hold_ended_is_removed_again(tracking, fake_session, templates):
+    fake_session.declare_token(live_key(NODE))
+    await until(lambda: tracking._token_alive.get(NODE) is True)
+    fake_session.undeclare_token(live_key(NODE))
+    await until(lambda: tracking._token_alive.get(NODE) is False)
+    await until(lambda: NODE not in tracking._hold_timers)
+
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: NODE in tracking.nodes)
+
+    await until(lambda: NODE not in tracking.nodes)
+
+
+async def test_status_after_removal_does_not_leave_a_node_behind(tracking, fake_session, templates):
+    await join(fake_session, templates, NODE, ("A", "x"))
+    fake_session.undeclare_token(live_key(NODE))
+    await until(lambda: NODE not in tracking.nodes)
+
+    fake_session.inject(up_key(NODE, "status_report"), status_as(templates, NODE).SerializeToString())
+    await until(lambda: NODE in tracking.nodes)
+
+    await until(lambda: NODE not in tracking.nodes)
+
+
+async def test_last_node_leaving_publishes_no_empty_registration(tracking, fake_session, templates):
+    """Capabilities are mandatory, so the last announcement stands until a sensor registers."""
+    key = fusion_up_key("registration")
+    await join(fake_session, templates, NODE, ("A", "x"))
+    await until(lambda: published_on(fake_session, key))
+    published = len(published_on(fake_session, key))
+
+    fake_session.undeclare_token(live_key(NODE))
+    await until(lambda: NODE not in tracking.nodes)
+    await asyncio.sleep(HOLD * 2)
+
+    assert len(published_on(fake_session, key)) == published
+
+
+async def test_run_on_zenoh_removes_a_departed_node(monkeypatch, fake_session, templates):
+    async def fake_open(connect, loop, tls=None):
+        return fake_session
+
+    monkeypatch.setattr(ZenohSession, "open", fake_open)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    node = FakeFusionNode(fusion_args())
+    task = asyncio.create_task(node.run())
+    await until(lambda: fake_session._subscriptions and fake_session._liveliness)
+
+    await join(fake_session, templates, NODE, ("A", "x"))
+    assert NODE in node.nodes
+    fake_session.undeclare_token(live_key(NODE))
+    await until(lambda: NODE not in node.nodes)
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
 async def test_run_on_zenoh_registers_and_requests_registrations(monkeypatch, fake_session, templates):
     async def fake_open(connect, loop, tls=None):
         return fake_session
@@ -708,6 +905,33 @@ async def test_receive_raw_still_raises_decode_error_and_keeps_the_sample(fake_s
     with pytest.raises(DecodeError):
         await asyncio.wait_for(link.receive_raw(), TIMEOUT)
     assert link.last_sample == (key, UNDECODABLE)
+
+
+@pytest.mark.parametrize(
+    "argv, env, expected",
+    [([], None, 120.0), ([], "3", 3.0), (["--node-hold-seconds", "7"], "3", 7.0)],
+)
+def test_main_reads_the_node_hold(monkeypatch, argv, env, expected):
+    captured = []
+
+    class Capture:
+        def __init__(self, args):
+            captured.append(args)
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr(fake_fusion_node, "FakeFusionNode", Capture)
+    monkeypatch.setattr(asyncio, "run", lambda coroutine: coroutine.close())
+    monkeypatch.setattr(sys, "argv", ["prog", *argv])
+    if env is None:
+        monkeypatch.delenv("NODE_HOLD_SECONDS", raising=False)
+    else:
+        monkeypatch.setenv("NODE_HOLD_SECONDS", env)
+
+    fake_fusion_node.main()
+
+    assert captured[0].node_hold_seconds == expected
 
 
 @pytest.mark.parametrize(

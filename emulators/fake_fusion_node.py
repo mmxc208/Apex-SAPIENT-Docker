@@ -19,6 +19,7 @@ Apex's own validator (replying with an Error), asks every live node to re-regist
 own status reports. It registers upward as a child Fusion_Node (BSI Flex 335 v2.0 clause 4.11) with
 the union of its sensors' capabilities and task commands, once the first sensor has registered and
 again whenever the registered sensors change, and mirrors its tracks onto the pod's fusion keys.
+A node whose liveliness token stays gone for the hold window (--node-hold-seconds) is forgotten.
 
 Usage: python fake_fusion_node.py --port 5001 --auto-task look_at,move_to,follow
 """
@@ -31,6 +32,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+import zenoh
 from google.protobuf.message import DecodeError
 
 from fake_sensor import use_lat_lng
@@ -70,6 +72,7 @@ TASK_TEMPLATES = {
 }
 OWN_MODE = "Default"
 REGISTRATION_DEBOUNCE_SECONDS = 5
+REQUEST_GRACE_SECONDS = 3.0  # a node that has just appeared gets this long to register by itself
 # The validationOptions block of apex_config.emulators.json.
 VALIDATION_OPTIONS = ValidationOptions.from_config_dict({
     "validationTypes": [
@@ -164,6 +167,10 @@ class FakeFusionNode:
         self.registry_changed = asyncio.Event()  # the registered sensors differ from the last announcement
         self.own_registered = asyncio.Event()  # this connection has published this node's Registration
         self.status_changed = True  # the next own status report is INFO_NEW
+        self._token_alive = {}  # node_id -> the last liveliness state reported; absent until first reported
+        self._hold_timers = {}  # node_id -> the TimerHandle that forgets the node
+        self._pending_requests = {}  # node_id -> the TimerHandle that asks it to register
+        self._requests_due = asyncio.Queue()  # node_ids whose grace has ended
 
     # ---- outgoing ------------------------------------------------------------------------
 
@@ -358,6 +365,103 @@ class FakeFusionNode:
         reply = SapientMessage(error=Error(packet=packet, error_message=[description]))
         await self.send(stamp(reply, self.node_id, recipient))
 
+    # ---- who is still there (Zenoh only) ---------------------------------------------------
+    # The same hold and transport handling as the Apex-side bridge: tokens all report gone while the
+    # router is away, so nothing is forgotten until a whole hold has passed without the token.
+
+    def _is_registered(self, node_id: str) -> bool:
+        return "registration" in self.nodes.get(node_id, {})
+
+    async def _track_liveliness(self, changes: asyncio.Queue):
+        while True:
+            key, alive = await changes.get()
+            self._on_liveliness(key, alive)
+
+    def _on_liveliness(self, key: str, alive: bool):
+        try:
+            node_id = node_id_from_live_key(key)
+        except ValueError:
+            self.log.info(f"ignoring liveliness on bad key {key!r}")
+            return
+        if not alive:
+            self._token_gone(node_id)
+            return
+        already_alive = self._token_alive.get(node_id) is True
+        self._token_alive[node_id] = True
+        self._stop_hold(node_id)
+        if not already_alive and not self._is_registered(node_id):
+            self._schedule_request(node_id)
+
+    def _token_gone(self, node_id: str):
+        self._token_alive[node_id] = False
+        self._cancel_request(node_id)
+        self._start_hold(node_id)
+
+    async def _track_transport(self, changes: asyncio.Queue):
+        while True:
+            if await changes.get():
+                self.log.info("Zenoh transport back; checking node tokens")
+                await self._consult_alive_tokens()
+            else:
+                self.log.info("Zenoh transport lost; holding every node")
+                for node_id in {*self.nodes, *self._token_alive}:
+                    self._token_gone(node_id)
+
+    async def _consult_alive_tokens(self):
+        """Count the tokens alive now as reported. One missing here just keeps its hold running."""
+        try:
+            keys = await self.link.session.alive(LIVE_ALL)
+        except zenoh.ZError as e:
+            self.log.info(f"could not query the node tokens: {e}")
+            return
+        for key in keys:
+            self._on_liveliness(key, True)
+
+    def _hold_if_token_gone(self, node_id: str):
+        """A message still in flight when the token went must not bring the node back for good."""
+        if self._token_alive.get(node_id) is False:
+            self._start_hold(node_id)
+
+    def _start_hold(self, node_id: str):
+        if node_id not in self._hold_timers:
+            self._hold_timers[node_id] = asyncio.get_running_loop().call_later(
+                self.args.node_hold_seconds, self._hold_expired, node_id
+            )
+
+    def _stop_hold(self, node_id: str):
+        timer = self._hold_timers.pop(node_id, None)
+        if timer is not None:
+            timer.cancel()
+
+    def _hold_expired(self, node_id: str):
+        del self._hold_timers[node_id]
+        self.validators.pop(node_id, None)
+        node = self.nodes.pop(node_id, None)
+        if node is None:
+            return
+        self.log.info(f"node {node_id[:8]} gone for {self.args.node_hold_seconds:g} s; removed")
+        if "registration" in node:
+            self.registry_changed.set()
+
+    def _schedule_request(self, node_id: str):
+        if node_id not in self._pending_requests:
+            self._pending_requests[node_id] = asyncio.get_running_loop().call_later(
+                REQUEST_GRACE_SECONDS, self._requests_due.put_nowait, node_id
+            )
+
+    def _cancel_request(self, node_id: str):
+        timer = self._pending_requests.pop(node_id, None)
+        if timer is not None:
+            timer.cancel()
+
+    async def _request_loop(self):
+        """Ask each live node that has not registered by the end of its grace to register."""
+        while True:
+            node_id = await self._requests_due.get()
+            self._pending_requests.pop(node_id, None)
+            if self._token_alive.get(node_id) and not self._is_registered(node_id):
+                await self.send_task("request:Registration", [node_id])
+
     # ---- incoming ------------------------------------------------------------------------
 
     def validate(self, msg: SapientMessage) -> str | None:
@@ -414,6 +518,7 @@ class FakeFusionNode:
         reg = msg.registration
         self.validators.pop(msg.node_id, None)  # a (re)registering sender starts afresh, as on a new Apex connection
         known = msg.node_id in self.nodes
+        self._hold_if_token_gone(msg.node_id)
         self.nodes.setdefault(msg.node_id, {"location": None})
         if self.nodes[msg.node_id].get("registration") != reg:
             self.registry_changed.set()
@@ -427,6 +532,7 @@ class FakeFusionNode:
 
     def _on_status(self, msg):
         report = msg.status_report
+        self._hold_if_token_gone(msg.node_id)
         node = self.nodes.setdefault(msg.node_id, {"name": msg.node_id[:8], "types": set(), "location": None})
         if report.HasField("node_location"):
             node["location"] = report.node_location
@@ -556,6 +662,11 @@ class FakeFusionNode:
                     group.create_task(self._auto_task_loop())
                     if self.args.transport == "zenoh":
                         self.own_registered.clear()
+                        # Before _announce, so a node that appears meanwhile is not missed.
+                        changes = self.zenoh_session.liveliness(LIVE_ALL)
+                        group.create_task(self._track_liveliness(changes))
+                        group.create_task(self._track_transport(self.zenoh_session.transport_changes))
+                        group.create_task(self._request_loop())
                         group.create_task(self._announce())
                         group.create_task(self._registration_loop())
                         group.create_task(self._status_once_registered())
@@ -580,6 +691,9 @@ def main():
     parser.add_argument("--task-interval", type=float, default=float(env("TASK_INTERVAL", "20")))
     parser.add_argument("--status-interval", type=float, default=float(env("STATUS_INTERVAL", "10")),
                         help="seconds between this node's own status reports, used with --transport zenoh")
+    parser.add_argument("--node-hold-seconds", type=float, default=float(env("NODE_HOLD_SECONDS", "120")),
+                        help="how long a node's liveliness token may be gone before it is forgotten, "
+                             "used with --transport zenoh")
     parser.add_argument("--no-publish-tracks", dest="publish_tracks", action="store_false",
                         default=env("PUBLISH_TRACKS", "1") != "0")
     args = parser.parse_args()
