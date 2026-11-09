@@ -138,18 +138,25 @@ async def open_session(connect: str, loop: asyncio.AbstractEventLoop, log: loggi
 
 
 async def run(port: int, connect: str, log: logging.Logger) -> None:
-    """Serve until the Zenoh session is lost, drop every node, then reopen and serve again."""
+    """Serve until the Zenoh session is lost, drop every node, then reopen and serve again.
+
+    A listener failure raises, so the process exits and the container's restart policy applies.
+    """
     loop = asyncio.get_running_loop()
     while True:
         session = await open_session(connect, loop, log)
         bridge = NodeSideBridge(session, log)
         server = asyncio.create_task(bridge.serve(port))
+        session_lost = asyncio.create_task(session.closed.wait())
         try:
-            await session.closed.wait()
+            await asyncio.wait({server, session_lost}, return_when=asyncio.FIRST_COMPLETED)
+            if server.done():
+                server.result()
             log.info("Zenoh session lost; dropping all nodes and reconnecting")
         finally:
             server.cancel()
-            await asyncio.gather(server, bridge.close_all(), return_exceptions=True)
+            session_lost.cancel()
+            await asyncio.gather(server, session_lost, bridge.close_all(), return_exceptions=True)
             session.close()
 
 

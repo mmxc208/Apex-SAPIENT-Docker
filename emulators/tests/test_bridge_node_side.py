@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import logging
 import socket
 import struct
@@ -164,18 +165,27 @@ async def test_invalid_node_id_is_refused(fake_session, templates, caplog):
 async def test_duplicate_node_id_refused(fake_session, templates, caplog):
     caplog.set_level(logging.INFO, logger=log.name)
     async with serving(fake_session) as (bridge, connect):
-        _, first = await connect()
+        first_reader, first = await connect()
         send(first, registration(templates))
         await until(lambda: fake_session.published)
+        first_connection = bridge.nodes[NODE]
 
         reader, second = await connect()
         send(second, registration(templates))
 
         assert await read_eof(reader) == b""
         assert len(fake_session.tokens) == 1
-        assert bridge.nodes[NODE] is not None
+        assert bridge.nodes[NODE] is first_connection
         assert len(fake_session.published) == 1
         assert "node_id already connected; refusing" in caplog.text
+
+        # The first connection still works in both directions.
+        task_bytes = templates("fusion_node", "Task.Request.Status").SerializeToString()
+        fake_session.inject(down_key(NODE, "task"), task_bytes)
+        assert await read_frame(first_reader) == task_bytes
+        send(first, status_report(templates))
+        await until(lambda: len(fake_session.published) == 2)
+        assert fake_session.published[1][0] == up_key(NODE, "status_report")
 
 
 async def test_unknown_message_after_registration_drops_the_connection(fake_session, templates):
@@ -257,6 +267,27 @@ async def connect_when_listening(port):
                 await asyncio.sleep(0.01)
 
     return await asyncio.wait_for(attempt(), TIMEOUT)
+
+
+async def test_run_raises_when_the_port_cannot_be_bound(monkeypatch, fake_session):
+    async def fake_open(connect, loop):
+        return fake_session
+
+    async def never_called(reader, writer):
+        raise AssertionError("no client connects in this test")
+
+    monkeypatch.setattr(bridge_node_side.ZenohSession, "open", fake_open)
+    blocker = await asyncio.start_server(never_called, "127.0.0.1", 0)
+    port = blocker.sockets[0].getsockname()[1]
+    try:
+        # Checks errno because wait_for's TimeoutError is an OSError too.
+        with pytest.raises(OSError) as failure:
+            await asyncio.wait_for(bridge_node_side.run(port, "tcp/router:7447", log), TIMEOUT)
+    finally:
+        blocker.close()
+        await blocker.wait_closed()
+    assert failure.value.errno == errno.EADDRINUSE
+    assert fake_session.closed.is_set()
 
 
 async def test_run_retries_the_router_and_reopens_after_session_loss(monkeypatch, templates):
