@@ -340,6 +340,7 @@ Each emulated node takes command-line options, or the matching environment varia
 | `--task-interval` | `TASK_INTERVAL` | 20 s |
 | `--no-publish-tracks` | `PUBLISH_TRACKS=0` | tracks are published |
 | `--port` | `APEX_PORT` | 5001 |
+| `--node-hold-seconds` | `NODE_HOLD_SECONDS` | 120 s, how long a node's liveliness token may be gone before it is forgotten (`--transport zenoh` only) |
 
 To add a node, copy a service block in `docker-compose.emulators.yml` and give it a new `NODE_ID`.
 To run a node on the Mac instead, use the venv from step 4:
@@ -399,11 +400,11 @@ dc logs radar | grep -c "registration_ack"
 # 1
 ```
 
-**3. T-02, task path.** The fusion node sends auto-tasks every 20 s.
+**3. T-02, task path.** The fusion node sends auto-tasks every 20 s, and each acceptance has to come back to it.
 
 ```bash
 sleep 60
-dc logs --since 120s radar | grep -c "task_ack"
+dc logs --since 120s fusion-node | grep -c "<- task_ack"
 # 2
 ```
 
@@ -505,11 +506,11 @@ dc logs radar | grep -c "registration_ack"
 # 1
 ```
 
-**3. T-02, task path.** The fusion node sends auto-tasks every 20 s.
+**3. T-02, task path.** The fusion node sends auto-tasks every 20 s, and each acceptance has to come back to it.
 
 ```bash
 sleep 60
-dc logs --since 120s radar | grep -c "task_ack"
+dc logs --since 120s fusion-node | grep -c "<- task_ack"
 # 3
 ```
 
@@ -618,7 +619,7 @@ The router denies by default and binds each certificate to its own keys. A senso
 
 The compose file is standalone, so don't combine it with the other compose files. It uses the project name `apex-pod1` and takes the image `apex-sapient:4.2.0` built by the earlier stages. The router's port isn't published to the host.
 
-Run these in order, from the repo root, on a rig that is down. The comments in steps 1 to 7 show what one run of these commands printed on 2026-11-09 UTC, and step 8 says where its output comes from. `dc run` also prints container creation lines, which are left out here.
+Run these in order, from the repo root, on a rig that is down. The comments show what one run of these commands printed on RESULT-STAGE4-DATE. `dc run` also prints container creation lines, which are left out here.
 
 ```bash
 dc() { docker compose -f docker-compose.pod1.yml "$@"; }
@@ -735,6 +736,13 @@ async def main():
         heard = session.subscribe(down_key(CAMERA, "task"))
         await asyncio.sleep(8)
         print("heard on the camera down key:", heard.qsize())
+    elif kind == "forge":  # a StatusReport naming the camera, on the up key of sender
+        msg = stamp(load_template("sensor", "StatusReport"), CAMERA)
+        msg.status_report.report_id = new_ulid()
+        msg.status_report.info = msg.status_report.INFO_NEW
+        msg.status_report.mode = "T07-FORGED"
+        await session.publish(up_key(sender, "status_report"), msg)
+        print("published status naming", CAMERA[:8], "on the up key of", sender[:8])
     elif kind == "unchanged":  # registers as sender, then reports Unchanged with no New
         msg = stamp(load_template("sensor", "Registration"), sender)
         await session.publish(up_key(sender, "registration"), msg)
@@ -780,6 +788,20 @@ dc logs --since 15s fusion-node | grep -c "a0000002.*T07-PROBE"
 # 0
 dc exec -T recorder sh -c 'cat /data/records/*.jsonl | grep -c "a0000002.*T07-PROBE"'
 # 0
+```
+
+The radar's certificate may publish on its own up key, so the router lets this one through. The fusion node compares the message's `node_id` with the owner of the key, drops the forgery, and tells the radar.
+
+```bash
+dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR forge
+# published status naming a0000002 on the up key of a0000001
+sleep 3
+dc logs --since 15s fusion-node | grep -c "a0000002.*T07-FORGED"
+# 0
+dc logs --since 15s fusion-node | grep "does not match"
+# RESULT-T07-FORGE
+dc logs --since 15s radar | grep -c "<- error"
+# RESULT-T07-RADAR-ERROR
 ```
 
 Two controls show the same probes do arrive when the certificate is allowed. The radar reports as itself, and the fusion certificate tasks the camera while the radar's certificate tries to listen on the camera's down key.
@@ -843,8 +865,6 @@ dc up -d radar camera
 ```
 
 **8. T-11 (partial): the pod registers upward.** Zenoh keeps no history, so a subscriber that joins a settled rig would never see the registration. This stops the fusion node, starts a subscriber on the pod's upward keys with the recorder's certificate, and starts the fusion node again 4 s later. There is no host fusion node in this rig, so this shows only what the pod publishes.
-
-This step comes from a separate run on 2026-11-09 UTC at commit `2335831`, not from the run above, and it wasn't repeated after commit `a04d411`.
 
 ```bash
 docker compose -f docker-compose.pod1.yml stop fusion-node
@@ -916,6 +936,22 @@ EOF
 # (kind, node_id): {'registration/f0000001-0000-4000-8000-000000000001': 1, 'detection_report/f0000001-0000-4000-8000-000000000001': 21}
 # every sender is the fusion node: True
 # first message is the registration: True
+```
+
+**9. A departed node is forgotten.** The radar's token goes when it stops. After the 120 s hold the fusion node removes it and, 5 s later, announces the registration again without the radar's capabilities. Restarting the radar brings it back.
+
+```bash
+dc stop radar
+sleep 15
+dc logs --since 30s fusion-node | grep -c "removed"
+# 0
+sleep 115
+dc logs --since 135s fusion-node | grep -E "removed|-> registration f0000001"
+# RESULT-STEP9-REMOVED
+dc start radar
+sleep 15
+dc logs --since 20s fusion-node | grep -c "<- registration a0000001"
+# RESULT-STEP9-BACK
 ```
 
 To stop the stage, run `dc down`. The recordings stay in the `apex-pod1_records` volume. Don't add `-v` unless you mean to delete them.
