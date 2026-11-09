@@ -18,11 +18,11 @@ from typing import Any, Callable
 
 import zenoh
 
+from sapient_link import RECONNECT_SECONDS
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from zenoh_keys import kind_of, qos_for
 
 log = logging.getLogger("zenoh-io")
-RECONNECT_SECONDS = 10  # BSI Flex 335 v2.0: retry the connection every 10 s
 
 
 def _config(**settings: Any) -> zenoh.Config:

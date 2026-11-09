@@ -1,13 +1,17 @@
 """Shared helpers for the fake SAPIENT nodes: framing, templates, IDs and logging.
 
 BSI Flex 335 v2.0 framing: a 4-byte little-endian length, then a serialised SapientMessage.
+Nothing Zenoh is imported until a Zenoh link is used, so the TCP path needs no Zenoh binding.
 """
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import math
 import struct
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ulid
 from google.protobuf.json_format import MessageToDict, ParseDict
@@ -18,11 +22,20 @@ from sapient_msg.bsi_flex_335_v2_0.location_pb2 import (
     Location,
 )
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
-from zenoh_io import RECONNECT_SECONDS, ZenohSession
-from zenoh_keys import DOWN_FOR, KINDS, UP_ALL, down_key, fusion_up_key, kind_of, live_key, up_key
+
+if TYPE_CHECKING:
+    from zenoh_io import ZenohSession
 
 TEMPLATES = Path(__file__).parent / "templates"
 EARTH_RADIUS_M = 6_371_000.0
+RECONNECT_SECONDS = 10  # BSI Flex 335 v2.0: retry the connection every 10 s
+
+
+def _zenoh_keys():
+    """The zenoh_keys module, imported on first use because it needs the Zenoh binding."""
+    import zenoh_keys
+
+    return zenoh_keys
 
 
 def setup_logging(name: str):
@@ -183,13 +196,15 @@ class ZenohLink:
     @classmethod
     async def connect(cls, session: ZenohSession, node_id: str, log: logging.Logger) -> "ZenohLink":
         # Subscribe first: the token is what prompts the other side to send down messages.
-        samples = session.subscribe(DOWN_FOR(node_id))
-        session.declare_token(live_key(node_id))
+        keys = _zenoh_keys()
+        samples = session.subscribe(keys.DOWN_FOR(node_id))
+        session.declare_token(keys.live_key(node_id))
         log.info(f"joined Zenoh as node {node_id}")
         return cls(session, node_id, samples)
 
     async def send(self, msg: SapientMessage):
-        await self.session.publish(up_key(self.node_id, kind_of(msg)), msg)
+        keys = _zenoh_keys()
+        await self.session.publish(keys.up_key(self.node_id, keys.kind_of(msg)), msg)
 
     async def receive(self) -> SapientMessage:
         """Next message for this node; raises ConnectionError when the session is closed."""
@@ -197,7 +212,7 @@ class ZenohLink:
         return SapientMessage.FromString(payload)
 
     def close(self):
-        self.session.undeclare_token(live_key(self.node_id))
+        self.session.undeclare_token(_zenoh_keys().live_key(self.node_id))
 
 
 class ZenohFusionLink:
@@ -209,28 +224,31 @@ class ZenohFusionLink:
         self.session = session
         self.fusion_id = fusion_id
         self.samples = samples
-        self.own_keys = frozenset(up_key(fusion_id, kind) for kind in KINDS)
+        keys = _zenoh_keys()
+        self.own_keys = frozenset(keys.up_key(fusion_id, kind) for kind in keys.KINDS)
         self.last_sample: tuple[str, bytes] = ("", b"")  # (key, payload) of the latest message from a node
 
     @classmethod
     async def connect(
         cls, session: ZenohSession, fusion_id: str, log: logging.Logger
     ) -> "ZenohFusionLink":
-        samples = session.subscribe(UP_ALL)
+        samples = session.subscribe(_zenoh_keys().UP_ALL)
         log.info(f"joined Zenoh as fusion node {fusion_id}")
         return cls(session, fusion_id, samples)
 
     async def send(self, msg: SapientMessage):
         """Publish to msg.destination_id if set; otherwise as this fusion node's own output."""
-        kind = kind_of(msg)
+        keys = _zenoh_keys()
+        kind = keys.kind_of(msg)
         if msg.destination_id:
-            await self.session.publish(down_key(msg.destination_id, kind), msg)
+            await self.session.publish(keys.down_key(msg.destination_id, kind), msg)
         else:
-            await self.session.publish(up_key(self.fusion_id, kind), msg, fused=True)
+            await self.session.publish(keys.up_key(self.fusion_id, kind), msg, fused=True)
 
     async def send_upward(self, msg: SapientMessage):
         """Publish on the pod's fusion keys, where a host would listen to this child Fusion_Node."""
-        await self.session.publish(fusion_up_key(kind_of(msg)), msg, fused=True)
+        keys = _zenoh_keys()
+        await self.session.publish(keys.fusion_up_key(keys.kind_of(msg)), msg, fused=True)
 
     async def receive_raw(self) -> tuple[bytes, SapientMessage]:
         """Next message from a node, with its payload bytes.

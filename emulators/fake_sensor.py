@@ -39,7 +39,6 @@ from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from sapient_msg.bsi_flex_335_v2_0.task_ack_pb2 import TaskAck
 from sapient_msg.bsi_flex_335_v2_0.task_pb2 import Task
 from sapient_msg.bsi_flex_335_v2_0.velocity_pb2 import ENUVelocity
-from zenoh_io import open_session
 
 TRANSPORTS = ("tcp", "zenoh")
 PLATFORM_TYPES = {"MOBILE_NODE", "POINTABLE_NODE"}
@@ -337,6 +336,8 @@ class FakeSensor:
         """Connect over the chosen transport; every Zenoh connection gets a fresh session."""
         if self.args.transport == "tcp":
             return await Link.connect(self.args.host, self.args.port, self.log)
+        from zenoh_io import open_session  # here, so the TCP path needs no Zenoh binding
+
         if self.zenoh_session is not None:
             self.zenoh_session.close()  # no unsubscribe exists, so a reused session keeps stale queues
         self.zenoh_session = await open_session(
