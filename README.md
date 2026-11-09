@@ -18,7 +18,8 @@ It should also work on Linux, and with Docker Desktop instead of Colima.
 | File | Purpose |
 |---|---|
 | `Dockerfile` | Builds the image: Python 3.11, Apex's `requirements.txt`, then Apex itself, taken from `APEX_DIR` |
-| `docker-compose.yml` | Runs Apex, maps its ports, keeps the SQLite archive in a volume; optional Elasticsearch |
+| `docker-compose.yml` | Runs Apex, maps its ports, keeps the SQLite archive in a volume |
+| `docker-compose.elastic.yml` | Adds Elasticsearch, which the REST API's data endpoints need (see "Optional: Elasticsearch and the REST API") |
 | `apex_config.json` | Apex config for the container (see "Differences from the repo config") |
 | `smoke_test.py` | Sends one v2.0 Registration and prints Apex's reply |
 | `docker-compose.emulators.yml` | Adds a fake fusion node, radar, camera and vehicle (see "Fake sensors and fusion node") |
@@ -136,7 +137,7 @@ registration_ack {
 If a field is missing, Apex replies with an `error` and names the field, for example `Missing mandatory repeated field: mode_definition`.
 That also means the connection works. Apex validated the message and rejected it.
 
-To check the REST API, open <http://127.0.0.1:8080/docs>. To check the archive:
+To check the REST API, open <http://127.0.0.1:8080/docs>. The data endpoints return 503 until you add Elasticsearch (see "Optional: Elasticsearch and the REST API"). To check the archive:
 
 ```bash
 docker compose exec apex sh -c 'ls -l data/'
@@ -153,7 +154,7 @@ docker compose exec apex sh -c 'ls -l data/'
 | 5002 | 5002 | Parent (C2) | BSI Flex 335 v1.0 |
 | 5003 | 5003 | Recorder | BSI Flex 335 v1.0 |
 | 5004 | 5004 | Parent, forwardAll | Proto, no conversion |
-| 8080 | 8080 | REST API | HTTP |
+| 8080 | 8080 | REST API; data endpoints need Elasticsearch | HTTP |
 
 The XML port is **5050 on the Mac**, because macOS's AirPlay Receiver already listens on port 5000.
 Other containers on the same Compose network still reach it as `apex:5000`.
@@ -174,7 +175,7 @@ If you add a connection on a new port, also add it under `ports:` in `docker-com
 
 1. **`apiConfig.host` is `0.0.0.0`.** With `127.0.0.1`, the REST API is reachable only from inside the container.
 2. **The outbound Parent connection to `127.0.0.1:10000` is removed.** Inside a container, `127.0.0.1` is the container itself. To connect to a C2 system running on the Mac, add the connection back with `"host": "host.docker.internal"`.
-3. **`elasticConfig` points at the `elasticsearch` container, without SSL.** It stays disabled (`"enabled": false`).
+3. **`elasticConfig` points at the `elasticsearch` container, without SSL.** It stays disabled (`"enabled": false`); `docker-compose.elastic.yml` turns it on at startup.
 
 ### Testing a v2.0 fusion node
 
@@ -346,19 +347,35 @@ The fake sensors keep running. When the new fusion node connects, Apex replays e
   Apex converts every message to v1.0 to fill the `xml` column of its archive (`sapient_apex_server/parse_proto.py` in the Apex repo), and v2.0-only content can't convert.
   The messages themselves are forwarded unchanged; only the archive's XML copy is missing.
 
-## Optional: Elasticsearch
+## Optional: Elasticsearch and the REST API
 
-The REST API's data endpoints need Elasticsearch. Apex doesn't need it to route or record messages: SQLite always records everything.
+The REST API on port 8080 reads from Elasticsearch. Without it, every data endpoint returns `503 {"detail":"Database Service Unavailable or not started."}`, and only `/` and `/docs` work. Apex doesn't need Elasticsearch to route or record messages, because SQLite always records everything.
 
-1. Start Colima with at least 6 GiB of memory (see step 2).
-2. Set `"enabled": true` under `elasticConfig` in `apex_config.json`.
-3. Start both services:
+`docker-compose.elastic.yml` adds Elasticsearch 8.11.1 (single node, security off) and makes these changes to Apex:
+
+- Apex waits until Elasticsearch is healthy. Apex connects to Elasticsearch once at startup and doesn't retry, so this order matters.
+- Apex runs with the mounted config, but with `elasticConfig.enabled` set to `true`. You don't have to edit `apex_config.json`.
+
+1. Give Colima at least 6 GiB of memory (see step 2). Elasticsearch uses about 1 GiB.
+2. Add the file after the others:
 
    ```bash
-   docker compose --profile elastic up -d
+   docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.elastic.yml up -d
    ```
 
-This setup has not been tested yet. Elasticsearch may need a minute to start, and Apex may log connection errors until it is ready.
+   Leave out `-f docker-compose.emulators.yml` if you don't want the fake nodes. The first start pulls a 700 MB image, then waits about 30 s for Elasticsearch to become healthy.
+
+3. Query the API:
+
+   ```bash
+   curl -s http://127.0.0.1:8080/registered
+   curl -s http://127.0.0.1:8080/node_definitions
+   curl -s 'http://127.0.0.1:8080/detections?node_ids=all&detection_count=2'
+   ```
+
+   Open <http://127.0.0.1:8080/docs> for the full list of endpoints.
+
+`/registered` lists the nodes that registered on the Child ports. It returns `400 No Registered Nodes found.` until a node registers. The messages are kept in the `es-data` volume. To go back to running without Elasticsearch, run `up -d` again without the elastic file.
 
 ## The SQLite archive
 

@@ -1,0 +1,38 @@
+# Elasticsearch for the REST API's data endpoints. Add it after the other files:
+#   docker compose -f docker-compose.yml [-f docker-compose.emulators.yml] -f docker-compose.elastic.yml up -d
+# See "Optional: Elasticsearch" in README.md.
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    restart: unless-stopped
+
+  apex:
+    depends_on:
+      elasticsearch:
+        condition: service_healthy   # Apex connects once at startup and doesn't retry
+    # Run with whichever config is mounted, but with elasticConfig.enabled set to true.
+    command:
+      - sh
+      - -c
+      - >-
+        python -c "import json; c = json.load(open('/config/apex_config.json'));
+        c['elasticConfig']['enabled'] = True;
+        json.dump(c, open('/tmp/apex_config.json', 'w'), indent=2)"
+        && exec apex /tmp/apex_config.json
+
+volumes:
+  es-data:
