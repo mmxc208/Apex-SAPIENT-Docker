@@ -353,76 +353,104 @@ This stage carries the fake TCP sensors over Eclipse Zenoh without changing them
 Each sensor connects to `bridge-node` instead of Apex. `bridge-node` publishes its traffic to the `zenohd` router, and `bridge-apex` opens one Child socket per node to Apex's port 5020.
 The fusion node stays on Apex's Peer port 5001 over TCP.
 
-The checks below were run on 2026-11-08 with the default `HOLD_SECONDS` of 120. Each output is what that run printed.
-Set this first, then run the commands from the repo root:
+The router alone needs only `docker-compose.yml` and `docker-compose.zenoh.yml`. The sensors reach Apex over Zenoh with `docker-compose.zenoh-sensors.yml` added, which is what the commands below use.
+
+The steps below form one sequence, with the default `HOLD_SECONDS` of 120. Run them in order, from the repo root, on a rig that is down. `counts` prints totals since bring-up. The comments show what one run of exactly these commands printed on 2026-11-08.
 
 ```bash
-dc() { docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml "$@"; }
+dc() { docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml -f docker-compose.zenoh-sensors.yml "$@"; }
+counts() { echo "closes=$(dc logs bridge-apex | grep -c 'closing Apex socket') registrations=$(dc logs fusion-node | grep -c '<- registration ') requests=$(dc logs bridge-apex | grep -c 'requested registration')"; }
+connections() { dc exec -T apex python -c "import sqlite3,glob;p=sorted(glob.glob('/apex/data/*.sqlite'))[-1];c=sqlite3.connect(f'file:{p}?mode=ro',uri=True);print('rows',c.execute('select count(*) from Connection').fetchone()[0],'open',c.execute('select count(*) from Connection where disconnect_time is null').fetchone()[0])"; }
 ```
 
-**1. Start everything.** The sensors register about 10 s later, on their first connection retry.
+**1. Start everything.**
 
 ```bash
 dc up -d --build
+sleep 60
 ```
 
-**2. T-01, round trip.** Run about 60 s after step 1. The first count is three registrations, the second is the radar's acknowledgement.
+**2. T-01, round trip.**
 
 ```bash
-dc logs fusion-node | grep -c "<- registration "   # 3
-dc logs radar | grep -c "registration_ack"         # 1
+dc logs fusion-node | grep -c "<- registration "
+# 3
+dc logs radar | grep -c "registration_ack"
+# 1
 ```
 
-**3. T-02, task path.** Run about 2 minutes after step 1, when the fusion node has sent its auto-tasks every 20 s.
+**3. T-02, task path.** The fusion node sends auto-tasks every 20 s.
 
 ```bash
-dc logs --since 120s radar | grep -c "task_ack"    # 2
+sleep 60
+dc logs --since 120s radar | grep -c "task_ack"
+# 2
 ```
 
 **4. T-03, node loss.** The Apex socket closes when the hold window ends, 120 s after the sensor goes, so nothing shows at 15 s.
 
 ```bash
+counts; connections
+# closes=0 registrations=3 requests=0
+# rows 4 open 4
 dc stop radar
-sleep 15;  dc logs --since 30s bridge-apex | grep "closing Apex socket"    # no output
+sleep 15;  dc logs --since 30s bridge-apex | grep "closing Apex socket"
+# no output
 sleep 115; dc logs --since 150s bridge-apex | grep "closing Apex socket"
-# bridge-apex-1  | 03:17:57 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
+# bridge-apex-1  | 03:55:42 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
+counts; connections
+# closes=1 registrations=3 requests=0
+# rows 4 open 3
+dc start radar
+sleep 30
+counts; connections
+# closes=1 registrations=4 requests=0
+# rows 5 open 4
 ```
 
-**5. T-03 in Apex.** The `Connection` table had 4 rows before the stop and still 4 after the close, with `disconnect_time` set on the radar's row.
-It had 5 rows after `dc start radar`. The second number printed is the count of open connections.
+**5. T-04, short outage.** A router pause of 20 s leaves every socket open.
 
 ```bash
-dc exec -T apex python -c "import sqlite3,glob;p=sorted(glob.glob('/apex/data/*.sqlite'))[-1];c=sqlite3.connect(f'file:{p}?mode=ro',uri=True);print(c.execute('select count(*) from Connection').fetchone());print(c.execute('select count(*) from Connection where disconnect_time is null').fetchone())"
-```
-
-**6. T-04, short outage.** A router pause of 20 s leaves every socket open. The counts are totals since bring-up, so note them before the pause. Neither changed in this run (0 and 3, measured on a rig started 60 s earlier).
-
-```bash
-dc logs bridge-apex | grep -c "closing Apex socket"
-dc logs fusion-node | grep -c "<- registration "
+counts
+# closes=1 registrations=4 requests=0
 dc pause zenohd; sleep 20; dc unpause zenohd; sleep 30
-dc logs bridge-apex | grep -c "closing Apex socket"   # unchanged
-dc logs fusion-node | grep -c "<- registration "      # unchanged
-dc logs --since 60s bridge-apex
-# bridge-apex-1  | 03:43:38 bridge-apex-side: Zenoh transport lost; holding every Apex socket
-# bridge-apex-1  | 03:43:49 bridge-apex-side: Zenoh transport back; checking node tokens
+counts
+# closes=1 registrations=4 requests=0
+dc logs --since 55s bridge-apex
+# bridge-apex-1  | 03:56:33 bridge-apex-side: Zenoh transport lost; holding every Apex socket
+# bridge-apex-1  | 03:56:44 bridge-apex-side: Zenoh transport back; checking node tokens
+dc logs --since 55s bridge-node
+# bridge-node-1  | 03:56:31 bridge-node-side: Zenoh transport lost; keeping every sensor connected
+# bridge-node-1  | 03:56:43 bridge-node-side: Zenoh transport back; tokens and subscriptions restored by the session
+# bridge-node-1  | 03:56:43 bridge-node-side: Zenoh transport lost; keeping every sensor connected
+# bridge-node-1  | 03:56:43 bridge-node-side: Zenoh transport back; tokens and subscriptions restored by the session
 ```
 
-The bridges lose the router about 10 s into the pause, when its lease ends. The Zenoh session reconnects by itself when the router returns and restores its tokens and subscriptions, so the sensors never notice. Messages sent during the outage are lost.
+The bridges lose the router about 10 s into the pause, when its lease ends. The Zenoh session reconnects by itself when the router returns and restores its tokens and subscriptions, so the sensors never notice. Messages sent during the outage are lost. A reconnect can show an extra lost and back pair within the same second, as `bridge-node` did here.
 
-**7. T-05, long outage.** A pause of 150 s outlasts the 120 s hold. Each Apex socket closes when the hold ends, and bridge-apex asks each sensor to register again 3 s after the router returns. The sensors stay connected to bridge-node throughout and are not restarted.
+**6. T-05, long outage.** A pause of 150 s outlasts the 120 s hold.
 
 ```bash
-dc pause zenohd; sleep 150; dc unpause zenohd; sleep 60
-dc logs bridge-apex | grep -c "closing Apex socket"   # 3 more than before the pause
-dc logs fusion-node | grep -c "<- registration "      # 3 more than before the pause
-dc logs --since 215s bridge-apex | grep -v dropping
-# bridge-apex-1  | 03:44:29 bridge-apex-side: Zenoh transport lost; holding every Apex socket
-# bridge-apex-1  | 03:46:29 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001   (one line per sensor)
-# bridge-apex-1  | 03:46:49 bridge-apex-side: Zenoh transport back; checking node tokens
-# bridge-apex-1  | 03:46:52 bridge-apex-side: requested registration from a0000001-0000-4000-8000-000000000001   (one line per sensor)
-# bridge-apex-1  | 03:46:52 bridge-apex-side: connected to Apex at apex:5020                                     (one line per sensor)
+dc pause zenohd; sleep 150; dc unpause zenohd; sleep 40
+counts
+# closes=4 registrations=7 requests=3
+dc logs --since 185s bridge-apex | grep -c "closing Apex socket"
+# 3
+dc logs --since 185s fusion-node | grep -c "<- registration "
+# 3
+dc logs --since 185s bridge-apex | grep -v dropping
+# bridge-apex-1  | 03:57:23 bridge-apex-side: Zenoh transport lost; holding every Apex socket
+# bridge-apex-1  | 03:59:23 bridge-apex-side: closing Apex socket for a0000002-0000-4000-8000-000000000002
+# bridge-apex-1  | 03:59:23 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
+# bridge-apex-1  | 03:59:23 bridge-apex-side: closing Apex socket for a0000003-0000-4000-8000-000000000003
+# bridge-apex-1  | 03:59:44 bridge-apex-side: Zenoh transport back; checking node tokens
+# bridge-apex-1  | 03:59:47 bridge-apex-side: requested registration from a0000002-0000-4000-8000-000000000002
+# bridge-apex-1  | 03:59:47 bridge-apex-side: requested registration from a0000003-0000-4000-8000-000000000003
+# bridge-apex-1  | 03:59:47 bridge-apex-side: requested registration from a0000001-0000-4000-8000-000000000001
+# bridge-apex-1  | 03:59:47 bridge-apex-side: connected to Apex at apex:5020   (three lines, one per sensor)
 ```
+
+Each Apex socket closes when the hold ends, 120 s after the router was lost. `bridge-apex` asks each sensor to register again 3 s after the router returns. The sensors stay connected to `bridge-node` throughout and are not restarted. The `--since 185s` window starts after the pause began, so it cannot include anything from T-04.
 
 To stop the stage, run `dc down`. Don't add `--remove-orphans` or `-v`: the first would remove a running Elasticsearch container that shares this compose project, and the second would delete the archive.
 

@@ -1,0 +1,16 @@
+# Points the sensors from docker-compose.emulators.yml at the node-side bridge, so they reach Apex
+# over Zenoh. Use after docker-compose.emulators.yml and docker-compose.zenoh.yml.
+# The fusion node stays on Apex's Peer port over TCP.
+
+services:
+  radar:
+    environment:
+      APEX_HOST: bridge-node
+
+  camera:
+    environment:
+      APEX_HOST: bridge-node
+
+  vehicle:
+    environment:
+      APEX_HOST: bridge-node
