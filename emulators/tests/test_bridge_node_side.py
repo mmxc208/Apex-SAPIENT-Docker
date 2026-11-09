@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import pytest
 
 import bridge_node_side
+import zenoh_io
 from bridge_node_side import NodeSideBridge
 from conftest import FakeZenohSession
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
@@ -302,7 +303,7 @@ def open_sessions(monkeypatch, sessions):
         return next(remaining)
 
     monkeypatch.setattr(bridge_node_side.ZenohSession, "open", fake_open)
-    monkeypatch.setattr(bridge_node_side, "RECONNECT_SECONDS", 0)
+    monkeypatch.setattr(zenoh_io, "RECONNECT_SECONDS", 0)
     return attempts
 
 

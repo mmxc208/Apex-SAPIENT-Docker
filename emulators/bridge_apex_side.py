@@ -17,11 +17,10 @@ import uuid
 import zenoh
 from google.protobuf.message import DecodeError
 
-from bridge_node_side import open_session
 from sapient_link import Link, new_ulid, setup_logging, stamp
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.task_pb2 import Task
-from zenoh_io import ZenohSession
+from zenoh_io import ZenohSession, open_session
 from zenoh_keys import LIVE_ALL, UP_ALL, down_key, kind_of, node_id_from_live_key, parse_key
 
 

@@ -1,14 +1,17 @@
 import argparse
 import asyncio
+import io
 import logging
+import struct
 import sys
 
 import pytest
 import zenoh
+from google.protobuf.message import DecodeError
 
-import bridge_node_side
 import fake_fusion_node
 import fake_sensor
+import zenoh_io
 from conftest import FakeZenohSession
 from fake_fusion_node import FakeFusionNode
 from fake_sensor import FakeSensor
@@ -376,7 +379,7 @@ async def test_connect_link_retries_until_the_router_is_reachable(
 ):
     session = FakeZenohSession()
     calls = patch_open(monkeypatch, zenoh.ZError("unreachable"), session)
-    monkeypatch.setattr(bridge_node_side, "RECONNECT_SECONDS", 0)
+    monkeypatch.setattr(zenoh_io, "RECONNECT_SECONDS", 0)
     node = node_class(make_args())
 
     link = await asyncio.wait_for(node._connect_link(), TIMEOUT)
@@ -432,6 +435,34 @@ async def test_fusion_drops_an_undecodable_message_and_keeps_receiving(
     await asyncio.gather(loop_task, return_exceptions=True)
     assert session.published[0][0] == down_key(NODE, "registration_ack")
     assert "undecodable message dropped" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "node_class, make_args",
+    [(FakeSensor, sensor_args), (FakeFusionNode, fusion_args)],
+)
+async def test_undecodable_frame_on_tcp_stays_fatal(monkeypatch, caplog, node_class, make_args):
+    """On TCP the node exits, and compose restarts it to register again."""
+
+    async def send_bad_frame(reader, writer):
+        writer.write(struct.pack("<I", len(UNDECODABLE)) + UNDECODABLE)
+        await writer.drain()
+        await reader.read()  # stay open until the node hangs up, so only the bad frame can end it
+        writer.close()
+
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))  # the fusion node's console loop
+    server = await asyncio.start_server(send_bad_frame, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    node = node_class(make_args(transport="tcp", host="127.0.0.1", port=port))
+
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(ExceptionGroup) as failure:
+            await asyncio.wait_for(node.run(), TIMEOUT)
+
+    server.close()
+    await server.wait_closed()
+    assert failure.group_contains(DecodeError)
+    assert "undecodable message dropped" not in caplog.text
 
 
 def run_main(monkeypatch, module, class_name, argv=()):

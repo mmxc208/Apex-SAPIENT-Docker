@@ -13,8 +13,8 @@ import struct
 import zenoh
 from google.protobuf.message import DecodeError
 
-from sapient_link import RECONNECT_SECONDS, Link, setup_logging
-from zenoh_io import ZenohSession
+from sapient_link import Link, setup_logging
+from zenoh_io import ZenohSession, open_session
 from zenoh_keys import DOWN_FOR, kind_of, live_key, up_key
 
 Down = asyncio.Queue[tuple[str, bytes]]
@@ -128,18 +128,6 @@ class NodeSideBridge:
             _, payload = await down.get()
             writer.write(struct.pack("<I", len(payload)) + payload)
             await writer.drain()
-
-
-async def open_session(connect: str, loop: asyncio.AbstractEventLoop, log: logging.Logger) -> ZenohSession:
-    """Open the Zenoh session, retrying every 10 s until the router is reachable."""
-    while True:
-        try:
-            session = await ZenohSession.open(connect, loop)
-            log.info(f"connected to Zenoh router at {connect}")
-            return session
-        except zenoh.ZError as e:
-            log.info(f"cannot reach {connect} ({e}); retrying in {RECONNECT_SECONDS} s")
-            await asyncio.sleep(RECONNECT_SECONDS)
 
 
 async def log_transport_changes(session: ZenohSession, log: logging.Logger) -> None:

@@ -20,6 +20,7 @@ from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from zenoh_keys import kind_of, qos_for
 
 log = logging.getLogger("zenoh-io")
+RECONNECT_SECONDS = 10  # BSI Flex 335 v2.0: retry the connection every 10 s
 
 
 def _config(**settings: Any) -> zenoh.Config:
@@ -135,3 +136,15 @@ class ZenohSession:
                 self._session.close()
         except Exception as e:
             log.info(f"error closing the Zenoh session: {e}")
+
+
+async def open_session(connect: str, loop: asyncio.AbstractEventLoop, log: logging.Logger) -> ZenohSession:
+    """Open the Zenoh session, retrying every 10 s until the router is reachable."""
+    while True:
+        try:
+            session = await ZenohSession.open(connect, loop)
+            log.info(f"connected to Zenoh router at {connect}")
+            return session
+        except zenoh.ZError as e:
+            log.info(f"cannot reach {connect} ({e}); retrying in {RECONNECT_SECONDS} s")
+            await asyncio.sleep(RECONNECT_SECONDS)

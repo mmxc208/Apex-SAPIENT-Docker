@@ -22,7 +22,6 @@ import uuid
 
 from google.protobuf.message import DecodeError
 
-from bridge_node_side import open_session
 from sapient_link import (
     Link,
     ZenohLink,
@@ -40,6 +39,7 @@ from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from sapient_msg.bsi_flex_335_v2_0.task_ack_pb2 import TaskAck
 from sapient_msg.bsi_flex_335_v2_0.task_pb2 import Task
 from sapient_msg.bsi_flex_335_v2_0.velocity_pb2 import ENUVelocity
+from zenoh_io import open_session
 
 TRANSPORTS = ("tcp", "zenoh")
 PLATFORM_TYPES = {"MOBILE_NODE", "POINTABLE_NODE"}
@@ -259,6 +259,8 @@ class FakeSensor:
             try:
                 msg = await self.link.receive()
             except DecodeError:
+                if self.args.transport == "tcp":
+                    raise  # the node exits, and compose restarts it to register again
                 self.log.info("undecodable message dropped")
                 continue
             kind = msg.WhichOneof("content")

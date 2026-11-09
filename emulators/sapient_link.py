@@ -18,11 +18,10 @@ from sapient_msg.bsi_flex_335_v2_0.location_pb2 import (
     Location,
 )
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
-from zenoh_io import ZenohSession
+from zenoh_io import RECONNECT_SECONDS, ZenohSession
 from zenoh_keys import DOWN_FOR, KINDS, UP_ALL, down_key, kind_of, live_key, up_key
 
 TEMPLATES = Path(__file__).parent / "templates"
-RECONNECT_SECONDS = 10  # BSI Flex 335 v2.0: retry the connection every 10 s
 EARTH_RADIUS_M = 6_371_000.0
 
 

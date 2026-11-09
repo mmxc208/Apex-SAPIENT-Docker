@@ -26,7 +26,6 @@ import uuid
 
 from google.protobuf.message import DecodeError
 
-from bridge_node_side import open_session
 from sapient_link import (
     Link,
     ZenohFusionLink,
@@ -41,6 +40,7 @@ from sapient_link import (
 from sapient_msg.bsi_flex_335_v2_0.alert_ack_pb2 import AlertAck
 from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
+from zenoh_io import open_session
 
 TRANSPORTS = ("tcp", "zenoh")
 GATE_M = 100.0  # toy association gate
@@ -223,6 +223,8 @@ class FakeFusionNode:
             try:
                 msg = await self.link.receive()
             except DecodeError:
+                if self.args.transport == "tcp":
+                    raise  # the node exits, and compose restarts it to register again
                 self.log.info("undecodable message dropped")
                 continue
             kind = msg.WhichOneof("content")
