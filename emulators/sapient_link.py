@@ -18,6 +18,8 @@ from sapient_msg.bsi_flex_335_v2_0.location_pb2 import (
     Location,
 )
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
+from zenoh_io import ZenohSession
+from zenoh_keys import DOWN_FOR, KINDS, UP_ALL, down_key, kind_of, live_key, up_key
 
 TEMPLATES = Path(__file__).parent / "templates"
 RECONNECT_SECONDS = 10  # BSI Flex 335 v2.0: retry the connection every 10 s
@@ -151,3 +153,95 @@ class Link:
 
     def close(self):
         self.writer.close()
+
+
+async def _next_sample(
+    session: ZenohSession, samples: asyncio.Queue[tuple[str, bytes]]
+) -> tuple[str, bytes]:
+    """Next (key, payload) from samples; raises ConnectionError once the session is closed."""
+    sample = asyncio.ensure_future(samples.get())
+    closed = asyncio.ensure_future(session.closed.wait())
+    try:
+        await asyncio.wait({sample, closed}, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        sample.cancel()
+        closed.cancel()
+    if session.closed.is_set():
+        raise ConnectionError("the Zenoh session is closed")
+    return sample.result()
+
+
+class ZenohLink:
+    """A node's Zenoh transport, with the same interface as Link."""
+
+    def __init__(
+        self, session: ZenohSession, node_id: str, samples: asyncio.Queue[tuple[str, bytes]]
+    ):
+        self.session = session
+        self.node_id = node_id
+        self.samples = samples
+
+    @classmethod
+    async def connect(cls, session: ZenohSession, node_id: str, log: logging.Logger) -> "ZenohLink":
+        # Subscribe first: the token is what prompts the other side to send down messages.
+        samples = session.subscribe(DOWN_FOR(node_id))
+        session.declare_token(live_key(node_id))
+        log.info(f"joined Zenoh as node {node_id}")
+        return cls(session, node_id, samples)
+
+    async def send(self, msg: SapientMessage):
+        await self.session.publish(up_key(self.node_id, kind_of(msg)), msg)
+
+    async def receive(self) -> SapientMessage:
+        """Next message for this node; raises ConnectionError when the session is closed."""
+        _, payload = await _next_sample(self.session, self.samples)
+        return SapientMessage.FromString(payload)
+
+    def close(self):
+        self.session.undeclare_token(live_key(self.node_id))
+
+
+class ZenohFusionLink:
+    """A fusion node's Zenoh transport, with the same interface as Link."""
+
+    def __init__(
+        self, session: ZenohSession, fusion_id: str, samples: asyncio.Queue[tuple[str, bytes]]
+    ):
+        self.session = session
+        self.fusion_id = fusion_id
+        self.samples = samples
+        self.own_keys = frozenset(up_key(fusion_id, kind) for kind in KINDS)
+
+    @classmethod
+    async def connect(
+        cls, session: ZenohSession, fusion_id: str, log: logging.Logger
+    ) -> "ZenohFusionLink":
+        samples = session.subscribe(UP_ALL)
+        log.info(f"joined Zenoh as fusion node {fusion_id}")
+        return cls(session, fusion_id, samples)
+
+    async def send(self, msg: SapientMessage):
+        """Publish to msg.destination_id if set; otherwise as this fusion node's own output."""
+        kind = kind_of(msg)
+        if msg.destination_id:
+            await self.session.publish(down_key(msg.destination_id, kind), msg)
+        else:
+            await self.session.publish(up_key(self.fusion_id, kind), msg, fused=True)
+
+    async def receive_raw(self) -> tuple[bytes, SapientMessage]:
+        """Next message from a node, with its payload bytes.
+
+        Raises ConnectionError when the session is closed.
+        """
+        while True:
+            key, payload = await _next_sample(self.session, self.samples)
+            # UP_ALL also matches this node's own publications, which zenoh delivers back to it.
+            if key not in self.own_keys:
+                return payload, SapientMessage.FromString(payload)
+
+    async def receive(self) -> SapientMessage:
+        _, msg = await self.receive_raw()
+        return msg
+
+    def close(self):
+        """Nothing to release: a fusion node declares no token, and the session outlives the link."""
