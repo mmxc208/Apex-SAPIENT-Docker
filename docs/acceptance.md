@@ -1,22 +1,22 @@
 # SAPIENT over Zenoh: stage acceptance
 
-This checklist covers the four stages of the plan in `docs/superpowers/plans/2026-11-08-sapient-over-zenoh.md`, up to commit `a04d411` on branch `zenoh`. The stage sections named below are in `README.md`, and each holds the commands and what one run printed.
+This checklist covers the four stages of the plan in `docs/superpowers/plans/2026-11-08-sapient-over-zenoh.md`, up to commit `1aa4ba8` on branch `zenoh`. The stage sections named below are in `README.md`, and each holds the commands and what one run printed.
 
 A ticked box means a run recorded the evidence named on that line. It doesn't mean the spec's whole wording was met, so each line says what was measured and where it falls short. Nothing is signed until the sign-off at the end is filled in.
 
-The rigs were not re-run for this document. Each stage's evidence dates from its last README update, listed below, and later commits changed shared emulator code. The unit suite was run on this tree.
+The rigs named below were re-run on 2026-11-09 UTC at `1aa4ba8`, the final code and README-command commit. The commits after it change only the README's recorded outputs and this file. Stage 3 was not re-run at that commit: its README output dates from `ab0311c`, and later commits changed shared emulator code, including the fusion node's validation and node tracking. Stage 4 runs the same fusion node code paths over mutual TLS.
 
-| Evidence | Last updated at |
+| Evidence | Last run at |
 |---|---|
-| Stage 1 | `03c1282` |
-| Stage 2 | `5ffd4e5` |
-| Stage 3 | `ab0311c` |
-| Stage 4, steps 1 to 7 | `a65614e` |
-| Stage 4, step 8 (T-11 partial) | `2335831`, before `a04d411` changed the fusion node's own status after a re-announced registration |
+| TCP-only rig (`docker-compose.yml` and emulators) | `1aa4ba8` |
+| Stage 1 | `1aa4ba8` |
+| Stage 2 | `1aa4ba8` |
+| Stage 3 | `ab0311c`, not re-run |
+| Stage 4, steps 1 to 9 | `1aa4ba8` |
 
 ## Unit suite
 
-- [x] `python -m pytest -p no:cacheprovider -q -W error tests`, in the emulator image: **240 passed**, no warnings.
+- [x] `python -m pytest -p no:cacheprovider -q -W error tests`, in the emulator image: **265 passed**, no warnings.
 
 ## Router defaults changed (spec §5)
 
@@ -47,18 +47,29 @@ Differences from the spec's sketch:
 
 ## Measured
 
+### TCP-only rig (`docker-compose.yml` and `docker-compose.emulators.yml`)
+
+- [x] **No regression on the TCP path.** At `1aa4ba8`, 60 s after bring-up: 3 registrations at the fusion node, 1 `registration_ack` at the radar, and 3 `<- task_ack` lines at the fusion node (4 at the later check). `smoke_test.py` got `registration_ack` with `acceptance: true`. `fake_sensor.py --transport tcp`, run with `sys.modules["zenoh"] = None`, registered and reported.
+
 ### Stage 1: T-01 to T-05 (README "Stage 1: Option A bridge")
 
 - [x] **T-01, round trip.** The fusion node logged 3 registrations and the radar received its `registration_ack`. The spec also asks for the registration, status and detections to be confirmed in Apex's SQLite, and for the 30 s limit, which the README check doesn't test: it counts log lines after 60 s.
-- [x] **T-02, task path.** The radar logged 2 `task_ack` lines in 120 s, from auto-tasks. The count isn't filtered to `look_at` or to the fusion node (see the deferred list). The spec's pass criterion is the TaskAck appearing at the fusion node, and the README check reads only the radar's own log. The one fusion-side observation is from an earlier run at `600350a`, before the outage fixes: the fusion node logged `<- task_ack a0000001 -> f0000001 TS9R9C` for a `look_at` (task-5-report.md:79). The run recorded in the README didn't check it.
+- [x] **T-02, task path.** The fusion node logged 8 `<- task_ack` lines in 120 s, which is the spec's pass criterion. The count isn't filtered to `look_at`. An earlier run at `600350a`, before the outage fixes, recorded the line for a `look_at` at the fusion node:
+
+  > `fusion-node-1  | 03:14:01 fusion: <- task_ack a0000001 -> f0000001 TS9R9C TASK_STATUS_ACCEPTED ['Pointing at (51.17396, -1.81650)']`
+
 - [x] **T-03, node loss.** After `dc stop radar`, the Apex socket closed at the end of the 120 s hold, not at 15 s, and Apex recorded one fewer open connection (`rows 4 open 3`). The spec's "within 2 × lease" doesn't hold for this design, by ruling: the hold is what §4.9's reconnect window requires. After restart, the radar registered again.
 - [x] **T-04, short outage.** A 20 s router pause gave 0 socket closes and 0 new registrations. Registrations were counted in the fusion node's log, not in Apex as the spec says.
-- [x] **T-05, long outage.** A 150 s pause closed 3 sockets at the end of the hold, and each sensor registered again through a request from `bridge-apex`. Registrations were counted in the fusion node's log, not in Apex as the spec says. The radar log showed no connection loss in the windows checked, which were 60 s covering T-04 and the last 70 s of T-05 (task-5-report.md:671), so "sensors stayed connected" holds only for those windows. The spec's "no hijacked errors" wasn't checked.
+- [x] **T-05, long outage.** A 150 s pause closed 3 sockets at the end of the hold, and each sensor registered again through a request from `bridge-apex`. Registrations were counted in the fusion node's log, not in Apex as the spec says. The radar log showed no connection loss in the windows checked, so "sensors stayed connected" holds only for those windows, and that check was made once, at the earlier run:
+
+  > Hold closed the sockets exactly 120 s after the loss (03:44:29 to 03:46:29). No sensor restarted (`Up 5 minutes`). The radar log showed no `lost` or `cannot reach` line in the windows checked: 60 s covering T-04 and the last 70 s of T-05, and its request Task arrived on the connection it already had.
+
+  The spec's "no hijacked errors" wasn't checked.
 
 ### Stage 2: T-01, T-02 (README "Stage 2: native Zenoh sensors")
 
 - [x] **T-01, round trip.** 3 registrations at the fusion node, and the radar received its `registration_ack`. The same limits as stage 1 apply.
-- [x] **T-02, task path.** 3 `task_ack` lines in 120 s. This can include the ack for a re-registration request, as the README says. The spec's pass criterion, the TaskAck appearing at the fusion node, wasn't observed: this check reads only the radar's log, and no fusion-side line was recorded for stage 2.
+- [x] **T-02, task path.** The fusion node logged 8 `<- task_ack` lines in 120 s, which is the spec's pass criterion. `bridge-apex` also made 3 re-registration requests in this run, and the count matched stage 1's, which had none.
 
 ### Stage 3 (README "Stage 3: Zenoh-native rig without Apex")
 
@@ -71,8 +82,10 @@ Differences from the spec's sketch:
 
 - [x] **Stage 3 checks over mutual TLS (steps 1 to 5).** The router logged 0 errors at bring-up, and the vehicle registered through the bridge.
 - [x] **T-07, access control (step 6).** The radar's certificate was refused when it tried to publish on the camera's down key, report as the camera, and subscribe to the camera's down key. Controls with allowed certificates arrived, and the router logged each denial by certificate name.
-- [x] **T-08, status ordering (step 7).** 0 `Unchanged ... before` lines and 216 logged detections (every 10th per sensor), with 0 invalid messages, over about 2 minutes at 10 Hz per sensor. The plan's 50 Hz can't run: the validator rejects detections less than 80 ms apart. The check can fire only on the first status after a registration, so a pass is limited evidence. The spec names Apex as the judge; here the fusion node makes the check, because stage 4 has no Apex.
-- [x] **T-11, partial (step 8).** One `NODE_TYPE_FUSION_NODE` registration, which Apex's Validator accepted, then 21 detection reports from the fusion node's own ID, and no raw sensor detections on `h1/p1/fusion/up/**`. There is no host fusion node, so the spec's "host fusion acks" is still open.
+- [x] **T-07, payload identity (step 6).** The radar's certificate published a `StatusReport` naming the camera on the radar's own up key, which the router allows. The fusion node dropped it, sent the `Error` to the radar (1 `<- error` at the radar), and logged no status for the camera.
+- [x] **T-08, partial (step 7).** 0 `Unchanged ... before` lines and 216 logged detections (every 10th per sensor), with 0 invalid messages, over about 2 minutes at 10 Hz per sensor. This is partial, not a pass: two senders at 10 Hz is not load, and the check can fire only on the first status after a registration. The 80 ms validator gap limits the rate per sender, so the plan's aggregate rate needs more senders, each with a certificate and ACL rules. The spec names Apex as the judge; here the fusion node makes the check, because stage 4 has no Apex.
+- [x] **T-11, partial (step 8).** One `NODE_TYPE_FUSION_NODE` registration, which Apex's Validator accepted, then 17 detection reports from the fusion node's own ID, and no raw sensor detections on `h1/p1/fusion/up/**`. There is no host fusion node, so the spec's "host fusion acks" is still open.
+- [x] **Node departure (step 9, spec §2).** `dc stop radar`: nothing removed at 15 s, the fusion node removed the radar exactly 120 s after it stopped, and published its registration again 5 s later. A restarted radar registered again. The capability contents after removal are covered by a unit test, not by this run. When the last sensor leaves, no registration is published, because capabilities are mandatory; the previous one stands until a sensor registers.
 
 ## Open
 
@@ -97,8 +110,8 @@ Items for the final review to triage. "Closed:" marks an item that the current t
 - T-05 `--since 200s` window overlaps T-04. Closed: the README now uses `--since 185s`.
 - "Each output is what that run printed" is loose in three places in stage 1.
 - T-04 and T-05 README text goes stale after the code fix. Closed: rewritten from new observations in `03c1282`.
-- The T-02 README check counts bridge-issued request acks too. Filter on the fusion node's ID.
-- The README's host-side venv lacks `eclipse-zenoh` for running `fake_sensor.py` natively.
+- The T-02 README check counts bridge-issued request acks too. Closed: the check now reads `<- task_ack` at the fusion node.
+- The README's host-side venv lacks `eclipse-zenoh` for running `fake_sensor.py` natively. Closed: the TCP path imports nothing from Zenoh.
 - The fusion node's `--status-interval` is missing from the README.
 - The stage 3 README `# 3` bring-up count reads as deterministic, but can be 3 to 6.
 - The stage 3 README softens "never `down -v`" and drops the `--remove-orphans` warning.
@@ -169,7 +182,7 @@ Items for the final review to triage. "Closed:" marks an item that the current t
 
 - Own status may overtake own Registration (await the put first). Closed: `_status_once_registered` waits for it.
 - `received` is stamped at dequeue, not arrival, so a stalled BLOCK put can age samples past 0.9 s.
-- `Error` goes to the claimed `node_id`, not the key owner.
+- `Error` goes to the claimed `node_id`, not the key owner. Closed: a `node_id` that differs from its key's owner is dropped, and the `Error` goes to the key owner.
 - Other fusion nodes on `UP_ALL` are not filtered. Closed: `2335831` leaves their keys out of validation.
 - A router bounce does not re-announce the own Registration. Moved to the host tier by ruling.
 - The `Validator` dict is built per message and never pruned.
@@ -177,7 +190,7 @@ Items for the final review to triage. "Closed:" marks an item that the current t
 - The file keeps growing. A future split could move Zenoh-only validation and peer filtering out of it.
 - The reset test discriminates only through the 80 ms gap check, which is weak on slow hosts. A timestamp-controlled assertion would pin it.
 - A peer fusion node is recognised only from its Registration, so a stale `self.nodes` entry is possible.
-- Departed sensors stay in the aggregate. Liveliness could drive removal.
+- Departed sensors stay in the aggregate. Closed: a node whose token stays gone for the hold is removed, and the aggregate is re-announced, except when the last sensor leaves (see step 9).
 - Dedupe on `(category, type)` keeps the first sensor's value and units (plan-mandated).
 - The republish trigger compares the whole Registration.
 - `dependent_nodes` is not declared.

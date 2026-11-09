@@ -376,7 +376,7 @@ The fusion node stays on Apex's Peer port 5001 over TCP.
 
 The router alone needs only `docker-compose.yml` and `docker-compose.zenoh.yml`. The sensors reach Apex over Zenoh with `docker-compose.zenoh-sensors.yml` added, which is what the commands below use.
 
-The steps below form one sequence, with the default `HOLD_SECONDS` of 120. Run them in order, from the repo root, on a rig that is down. `counts` prints totals since bring-up. The comments show what one run of exactly these commands printed on 2026-11-08.
+The steps below form one sequence, with the default `HOLD_SECONDS` of 120. Run them in order, from the repo root, on a rig that is down. `counts` prints totals since bring-up. The comments show what one run of exactly these commands printed on 2026-11-09 UTC, at commit `1aa4ba8`.
 
 ```bash
 dc() { docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml -f docker-compose.zenoh-sensors.yml "$@"; }
@@ -405,7 +405,7 @@ dc logs radar | grep -c "registration_ack"
 ```bash
 sleep 60
 dc logs --since 120s fusion-node | grep -c "<- task_ack"
-# 2
+# 8
 ```
 
 **4. T-03, node loss.** The Apex socket closes when the hold window ends, 120 s after the sensor goes, so nothing shows at 15 s.
@@ -418,7 +418,7 @@ dc stop radar
 sleep 15;  dc logs --since 30s bridge-apex | grep "closing Apex socket"
 # no output
 sleep 115; dc logs --since 150s bridge-apex | grep "closing Apex socket"
-# bridge-apex-1  | 03:55:42 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
+# bridge-apex-1  | 06:45:54 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
 counts; connections
 # closes=1 registrations=3 requests=0
 # rows 4 open 3
@@ -438,16 +438,14 @@ dc pause zenohd; sleep 20; dc unpause zenohd; sleep 30
 counts
 # closes=1 registrations=4 requests=0
 dc logs --since 55s bridge-apex
-# bridge-apex-1  | 03:56:33 bridge-apex-side: Zenoh transport lost; holding every Apex socket
-# bridge-apex-1  | 03:56:44 bridge-apex-side: Zenoh transport back; checking node tokens
+# bridge-apex-1  | 06:46:51 bridge-apex-side: Zenoh transport lost; holding every Apex socket
+# bridge-apex-1  | 06:47:02 bridge-apex-side: Zenoh transport back; checking node tokens
 dc logs --since 55s bridge-node
-# bridge-node-1  | 03:56:31 bridge-node-side: Zenoh transport lost; keeping every sensor connected
-# bridge-node-1  | 03:56:43 bridge-node-side: Zenoh transport back; tokens and subscriptions restored by the session
-# bridge-node-1  | 03:56:43 bridge-node-side: Zenoh transport lost; keeping every sensor connected
-# bridge-node-1  | 03:56:43 bridge-node-side: Zenoh transport back; tokens and subscriptions restored by the session
+# bridge-node-1  | 06:46:50 bridge-node-side: Zenoh transport lost; keeping every sensor connected
+# bridge-node-1  | 06:47:04 bridge-node-side: Zenoh transport back; tokens and subscriptions restored by the session
 ```
 
-The bridges lose the router about 10 s into the pause, when its lease ends. The Zenoh session reconnects by itself when the router returns and restores its tokens and subscriptions, so the sensors never notice. Messages sent during the outage are lost. A reconnect can show an extra lost and back pair within the same second, as `bridge-node` did here.
+The bridges lose the router about 10 s into the pause, when its lease ends. The Zenoh session reconnects by itself when the router returns and restores its tokens and subscriptions, so the sensors never notice. Messages sent during the outage are lost. A reconnect can show an extra lost and back pair within the same second.
 
 **6. T-05, long outage.** A pause of 150 s outlasts the 120 s hold.
 
@@ -460,15 +458,15 @@ dc logs --since 185s bridge-apex | grep -c "closing Apex socket"
 dc logs --since 185s fusion-node | grep -c "<- registration "
 # 3
 dc logs --since 185s bridge-apex | grep -v dropping
-# bridge-apex-1  | 03:57:23 bridge-apex-side: Zenoh transport lost; holding every Apex socket
-# bridge-apex-1  | 03:59:23 bridge-apex-side: closing Apex socket for a0000002-0000-4000-8000-000000000002
-# bridge-apex-1  | 03:59:23 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
-# bridge-apex-1  | 03:59:23 bridge-apex-side: closing Apex socket for a0000003-0000-4000-8000-000000000003
-# bridge-apex-1  | 03:59:44 bridge-apex-side: Zenoh transport back; checking node tokens
-# bridge-apex-1  | 03:59:47 bridge-apex-side: requested registration from a0000002-0000-4000-8000-000000000002
-# bridge-apex-1  | 03:59:47 bridge-apex-side: requested registration from a0000003-0000-4000-8000-000000000003
-# bridge-apex-1  | 03:59:47 bridge-apex-side: requested registration from a0000001-0000-4000-8000-000000000001
-# bridge-apex-1  | 03:59:47 bridge-apex-side: connected to Apex at apex:5020   (three lines, one per sensor)
+# bridge-apex-1  | 06:47:42 bridge-apex-side: Zenoh transport lost; holding every Apex socket
+# bridge-apex-1  | 06:49:42 bridge-apex-side: closing Apex socket for a0000003-0000-4000-8000-000000000003
+# bridge-apex-1  | 06:49:42 bridge-apex-side: closing Apex socket for a0000002-0000-4000-8000-000000000002
+# bridge-apex-1  | 06:49:42 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
+# bridge-apex-1  | 06:50:02 bridge-apex-side: Zenoh transport back; checking node tokens
+# bridge-apex-1  | 06:50:05 bridge-apex-side: requested registration from a0000002-0000-4000-8000-000000000002
+# bridge-apex-1  | 06:50:05 bridge-apex-side: requested registration from a0000003-0000-4000-8000-000000000003
+# bridge-apex-1  | 06:50:05 bridge-apex-side: requested registration from a0000001-0000-4000-8000-000000000001
+# bridge-apex-1  | 06:50:05 bridge-apex-side: connected to Apex at apex:5020   (three lines, one per sensor)
 ```
 
 Each Apex socket closes when the hold ends, 120 s after the router was lost. `bridge-apex` asks each sensor to register again 3 s after the router returns. The sensors stay connected to `bridge-node` throughout and are not restarted. The `--since 185s` window starts after the pause began, so it cannot include anything from T-04.
@@ -484,7 +482,7 @@ Both emulators take `--transport {tcp,zenoh}` (env `TRANSPORT`, default `tcp`) a
 
 `docker-compose.zenoh.yml` still defines `bridge-node`, so the start command below uses `--scale bridge-node=0` to leave it out. Don't add `docker-compose.zenoh-sensors.yml` here.
 
-Run these in order, from the repo root, on a rig that is down. This `dc` replaces the stage 1 one. The comments show what one run of these commands printed on 2026-11-08.
+Run these in order, from the repo root, on a rig that is down. This `dc` replaces the stage 1 one. The comments show what one run of these commands printed on 2026-11-09 UTC, at commit `1aa4ba8`.
 
 ```bash
 dc() { docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml -f docker-compose.native-sensors.yml "$@"; }
@@ -511,10 +509,10 @@ dc logs radar | grep -c "registration_ack"
 ```bash
 sleep 60
 dc logs --since 120s fusion-node | grep -c "<- task_ack"
-# 3
+# 8
 ```
 
-A sensor that registers before `bridge-apex` is subscribed loses that first registration. `bridge-apex` sees the sensor's liveliness token, asks it to register again about 3 s later, and the sensor answers with a `task_ack`, so this count can include that request.
+A sensor that registers before `bridge-apex` is subscribed loses that first registration. `bridge-apex` sees the sensor's liveliness token and asks it to register again about 3 s later. This run made 3 such requests, and the count was the same 8 as stage 1, which made none: these are the auto-tasks' acknowledgements (2 `look_at`, 1 `move_to`, 1 `follow`, 1 `patrol`, 3 `request:Status`).
 
 To stop the stage, run `dc down`. Don't add `--remove-orphans` or `-v`, for the reasons given in stage 1. If Elasticsearch is running, `dc down` reports that the `apex_default` network is still in use, which is harmless.
 
@@ -619,7 +617,7 @@ The router denies by default and binds each certificate to its own keys. A senso
 
 The compose file is standalone, so don't combine it with the other compose files. It uses the project name `apex-pod1` and takes the image `apex-sapient:4.2.0` built by the earlier stages. The router's port isn't published to the host.
 
-Run these in order, from the repo root, on a rig that is down. The comments show what one run of these commands printed on RESULT-STAGE4-DATE. `dc run` also prints container creation lines, which are left out here.
+Run these in order, from the repo root, on a rig that is down. The comments show what one run of these commands printed on 2026-11-09 UTC, at commit `1aa4ba8`. `dc run` also prints container creation lines, which are left out here.
 
 ```bash
 dc() { docker compose -f docker-compose.pod1.yml "$@"; }
@@ -645,9 +643,9 @@ dc logs radar | grep -c registration_ack
 dc logs fusion-node | grep -c "<- registration "
 # 3
 dc logs vehicle | grep registration_ack | head -1
-# vehicle-1  | 05:46:39 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
+# vehicle-1  | 06:53:55 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
 dc logs bridge-node | grep registered
-# bridge-node-1  | 05:46:39 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
+# bridge-node-1  | 06:53:55 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
 ```
 
 **3. Late joiner.** The restarted fusion node finds the sensors from their liveliness tokens, and the request reaches the vehicle through the bridge.
@@ -658,9 +656,9 @@ sleep 20
 dc logs --since 30s fusion-node | grep -c "<- registration "
 # 3
 dc logs --since 30s radar camera vehicle | grep 'request "Registration"'
-# camera-1  | 05:47:20 camera: <- task f0000001 -> a0000002 GN3BKV request "Registration"
-# radar-1   | 05:47:20 radar: <- task f0000001 -> a0000001 JKB9G5 request "Registration"
-# vehicle-1  | 05:47:20 vehicle: <- task f0000001 -> a0000003 AKJWEQ request "Registration"
+# camera-1   | 06:54:39 camera: <- task f0000001 -> a0000002 QC41ZM request "Registration"
+# vehicle-1  | 06:54:39 vehicle: <- task f0000001 -> a0000003 4KR6PH request "Registration"
+# radar-1    | 06:54:39 radar: <- task f0000001 -> a0000001 6FDBM6 request "Registration"
 dc logs radar camera vehicle | grep -c "lost; reconnecting"
 # 0
 ```
@@ -669,10 +667,10 @@ dc logs radar camera vehicle | grep -c "lost; reconnecting"
 
 ```bash
 dc exec -T recorder sh -c 'wc -l /data/records/*.jsonl'
-# 123416 /data/records/2026-11-09.jsonl
+# 127657 /data/records/2026-11-09.jsonl
 sleep 10
 dc exec -T recorder sh -c 'wc -l /data/records/*.jsonl'
-# 123453 /data/records/2026-11-09.jsonl
+# 127694 /data/records/2026-11-09.jsonl
 dc exec -T recorder sh -c 'head -c 120 /data/records/*.jsonl'; echo
 # {"t": "2026-11-09T05:11:40.211+00:00", "key": "h1/p1/sapient/v2/f0000001-0000-4000-8000-000000000001/up/registration", "
 ```
@@ -772,7 +770,7 @@ The radar's certificate tries to task the camera. The camera must not log it.
 
 ```bash
 dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR task
-# published task ZCCCY1
+# published task JVW8CZ
 sleep 10
 dc logs --since 20s camera | grep -c "<- task a0000001"
 # 0
@@ -799,9 +797,10 @@ sleep 3
 dc logs --since 15s fusion-node | grep -c "a0000002.*T07-FORGED"
 # 0
 dc logs --since 15s fusion-node | grep "does not match"
-# RESULT-T07-FORGE
+# fusion-node-1  | 06:56:07 fusion: invalid message from 'a0000002' dropped: node_id a0000002-0000-4000-8000-000000000002 does not match the owner of its key, a0000001-0000-4000-8000-000000000001
+# fusion-node-1  | 06:56:07 fusion: -> error f0000001 -> a0000001 node_id a0000002-0000-4000-8000-000000000002 does not match the owner of its key, a0000001-0000-4000-8000-000000000001
 dc logs --since 15s radar | grep -c "<- error"
-# RESULT-T07-RADAR-ERROR
+# 1
 ```
 
 Two controls show the same probes do arrive when the certificate is allowed. The radar reports as itself, and the fusion certificate tasks the camera while the radar's certificate tries to listen on the camera's down key.
@@ -811,7 +810,7 @@ dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR status
 # published status as a0000001
 sleep 3
 dc logs --since 15s fusion-node | grep "a0000001.*T07-PROBE"
-# fusion-node-1  | 05:48:51 fusion: <- status_report a0000001 SYSTEM_OK INFO_NEW mode=T07-PROBE
+# fusion-node-1  | 06:56:13 fusion: <- status_report a0000001 SYSTEM_OK INFO_NEW mode=T07-PROBE
 dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR listen &
 sleep 3
 TASK=$(dc run --rm --no-deps -T fusion-node python -c "$PROBE" $FUSION task | awk '{print $3}')
@@ -854,8 +853,8 @@ dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR unchanged
 # registered and reported Unchanged as a0000001
 sleep 3
 dc logs --since 15s fusion-node | grep "Unchanged.*before"
-# fusion-node-1  | 05:51:49 fusion: Unchanged status from a0000001 before any New status since it registered
-# fusion-node-1  | 05:51:52 fusion: Unchanged status from a0000001 before any New status since it registered
+# fusion-node-1  | 06:59:17 fusion: Unchanged status from a0000001 before any New status since it registered
+# fusion-node-1  | 06:59:20 fusion: Unchanged status from a0000001 before any New status since it registered
 ```
 
 Return the sensors to their normal rate.
@@ -926,19 +925,19 @@ async def main():
 
 asyncio.run(main())
 EOF
-# subscribed h1/p1/fusion/up/** at 06:02:33
-# +  9.1s h1/p1/fusion/up/registration node_id=f0000001-0000-4000-8000-000000000001
+# subscribed h1/p1/fusion/up/** at 06:59:42
+# + 12.1s h1/p1/fusion/up/registration node_id=f0000001-0000-4000-8000-000000000001
 #   node_type=['NODE_TYPE_FUSION_NODE'] capabilities=[('EMS', 'Chaff, noise jamming, fa')] commands=['COMMAND_TYPE_PATROL'] status_interval=10.0 TIME_UNITS_SECONDS validator_errors=[]
-# +  9.6s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=ZXKVRC
-# + 10.6s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=ZXKVRC
-# + 11.6s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=ZXKVRC
-# counts by key: {'h1/p1/fusion/up/registration': 1, 'h1/p1/fusion/up/detection_report': 21}
-# (kind, node_id): {'registration/f0000001-0000-4000-8000-000000000001': 1, 'detection_report/f0000001-0000-4000-8000-000000000001': 21}
+# + 12.9s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=CFQ5J0
+# + 13.9s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=CFQ5J0
+# + 14.9s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=CFQ5J0
+# counts by key: {'h1/p1/fusion/up/registration': 1, 'h1/p1/fusion/up/detection_report': 17}
+# (kind, node_id): {'registration/f0000001-0000-4000-8000-000000000001': 1, 'detection_report/f0000001-0000-4000-8000-000000000001': 17}
 # every sender is the fusion node: True
 # first message is the registration: True
 ```
 
-**9. A departed node is forgotten.** The radar's token goes when it stops. After the 120 s hold the fusion node removes it and, 5 s later, announces the registration again without the radar's capabilities. Restarting the radar brings it back.
+**9. A departed node is forgotten.** The radar's token goes when it stops. After the 120 s hold the fusion node removes it and, 5 s later, announces the registration again. The log shows only that it did; a unit test pins that the radar's capabilities are gone from it. Restarting the radar brings it back.
 
 ```bash
 dc stop radar
@@ -947,11 +946,12 @@ dc logs --since 30s fusion-node | grep -c "removed"
 # 0
 sleep 115
 dc logs --since 135s fusion-node | grep -E "removed|-> registration f0000001"
-# RESULT-STEP9-REMOVED
+# fusion-node-1  | 07:02:22 fusion: node a0000001 gone for 120 s; removed
+# fusion-node-1  | 07:02:27 fusion: -> registration f0000001 "fake fusion node" [FUSION_NODE]
 dc start radar
 sleep 15
 dc logs --since 20s fusion-node | grep -c "<- registration a0000001"
-# RESULT-STEP9-BACK
+# 1
 ```
 
 To stop the stage, run `dc down`. The recordings stay in the `apex-pod1_records` volume. Don't add `-v` unless you mean to delete them.
