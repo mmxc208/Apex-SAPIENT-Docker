@@ -24,7 +24,27 @@ It should also work on Linux, and with Docker Desktop instead of Colima.
 | `smoke_test.py` | Sends one v2.0 Registration and prints Apex's reply |
 | `docker-compose.emulators.yml` | Adds a fake fusion node, radar, camera and vehicle (see "Fake sensors and fusion node") |
 | `apex_config.emulators.json` | Apex config for the emulators: v2.0 Peer port, `sendRegistrationAck: false` |
-| `emulators/` | The fake nodes (`fake_sensor.py`, `fake_fusion_node.py`, `sapient_link.py`) and the Test Harness message templates they use |
+| `emulators/` | The fake nodes (`fake_sensor.py`, `fake_fusion_node.py`, `sapient_link.py`), the Test Harness message templates they use, the Zenoh bridges (`bridge_node_side.py`, `bridge_apex_side.py`), `recorder.py`, the Zenoh helpers (`zenoh_io.py`, `zenoh_keys.py`) and the unit tests |
+| `docker-compose.zenoh.yml` | Adds the `zenohd` router and both bridges (stages 1 and 2) |
+| `docker-compose.zenoh-sensors.yml` | Points the TCP sensors at `bridge-node` (stage 1) |
+| `docker-compose.native-sensors.yml` | Makes the sensors speak Zenoh directly (stage 2) |
+| `docker-compose.native.yml` | Standalone Zenoh-only rig, no Apex (stage 3) |
+| `docker-compose.pod1.yml` | Standalone pod with mutual TLS and access control (stage 4) |
+| `zenoh/` | Router configs (`router-plain.json5`, `router-pod1.json5`) and `pki/make_certs.sh` |
+| `docs/acceptance.md` | What has been measured for each stage, what is still open, and the sign-off |
+
+## SAPIENT over Zenoh: the four stages
+
+Stages 1 to 4 move the rig from TCP to a hardened Zenoh pod, one change at a time. Each stage has its own section below, with the commands to run and what one run printed. Bring a stage down before starting the next. `docs/acceptance.md` records what passed and what is open.
+
+| Stage | What changes | Compose files | Project | Checks |
+|---|---|---|---|---|
+| [1](#stage-1-option-a-bridge) | TCP sensors reach Apex over Zenoh through two bridges | `docker-compose.yml`, `docker-compose.emulators.yml`, `docker-compose.zenoh.yml`, `docker-compose.zenoh-sensors.yml` | `apex` | T-01 to T-05 |
+| [2](#stage-2-native-zenoh-sensors) | Sensors speak Zenoh directly; start with `--scale bridge-node=0` | `docker-compose.yml`, `docker-compose.emulators.yml`, `docker-compose.zenoh.yml`, `docker-compose.native-sensors.yml` | `apex` | T-01, T-02 |
+| [3](#stage-3-zenoh-native-rig-without-apex) | No Apex and no bridges; the fusion node validates, and a recorder keeps every message | `docker-compose.native.yml` | `apex-native` | Registrations, late joiner, recorder, validation |
+| [4](#stage-4-pod-1-with-mutual-tls-and-access-control) | Mutual TLS, access control per certificate, a legacy sensor behind the bridge, and the pod registering upward | `docker-compose.pod1.yml` | `apex-pod1` | The stage 3 checks, T-07, T-08, T-11 (partial) |
+
+Unit tests: `docker compose -f docker-compose.yml -f docker-compose.emulators.yml run --rm --no-deps radar python -m pytest -p no:cacheprovider -q -W error tests`.
 
 ## 1. Install the tools (once)
 
@@ -342,7 +362,7 @@ The fake sensors keep running. When the new fusion node connects, Apex replays e
 - The fusion node's "fusion" only joins detections within 100 m of each other. It's there to exercise the messages, not to track well.
 - The camera doesn't move with the vehicle that carries it. `dependent_nodes` is only declared.
 - `follow` steers the vehicle to the drone's true position, worked out from the shared clock, not from detections.
-- Hierarchy (a child fusion node registering upward as `FUSION_NODE`) isn't emulated.
+- Hierarchy (a child fusion node registering upward as `FUSION_NODE`) isn't emulated on the Apex and TCP rig. Stage 4 publishes that registration on the pod's `fusion/up` keys, but nothing consumes it yet.
 - Apex logs `ERROR … translate_v2_to_v1 failed` for the vehicle's registration and for `move_to`, `follow` and `patrol` tasks.
   Apex converts every message to v1.0 to fill the `xml` column of its archive (`sapient_apex_server/parse_proto.py` in the Apex repo), and v2.0-only content can't convert.
   The messages themselves are forwarded unchanged; only the archive's XML copy is missing.
@@ -598,7 +618,7 @@ The router denies by default and binds each certificate to its own keys. A senso
 
 The compose file is standalone, so don't combine it with the other compose files. It uses the project name `apex-pod1` and takes the image `apex-sapient:4.2.0` built by the earlier stages. The router's port isn't published to the host.
 
-Run these in order, from the repo root, on a rig that is down. The comments show what one run of these commands printed on 2026-11-09 UTC. `dc run` also prints container creation lines, which are left out here.
+Run these in order, from the repo root, on a rig that is down. The comments in steps 1 to 7 show what one run of these commands printed on 2026-11-09 UTC, and step 8 says where its output comes from. `dc run` also prints container creation lines, which are left out here.
 
 ```bash
 dc() { docker compose -f docker-compose.pod1.yml "$@"; }
@@ -820,6 +840,82 @@ Return the sensors to their normal rate.
 
 ```bash
 dc up -d radar camera
+```
+
+**8. T-11 (partial): the pod registers upward.** Zenoh keeps no history, so a subscriber that joins a settled rig would never see the registration. This stops the fusion node, starts a subscriber on the pod's upward keys with the recorder's certificate, and starts the fusion node again 4 s later. There is no host fusion node in this rig, so this shows only what the pod publishes.
+
+This step comes from a separate run on 2026-11-09 UTC at commit `2335831`, not from the run above, and it wasn't repeated after commit `a04d411`.
+
+```bash
+docker compose -f docker-compose.pod1.yml stop fusion-node
+( sleep 4; docker compose -f docker-compose.pod1.yml start fusion-node ) &
+PKI=$PWD/zenoh/pki/out
+docker run --rm -i --network apex-pod1_default --entrypoint python -w /emulators \
+  -v "$PWD/emulators:/emulators:ro" \
+  -v "$PKI/ca.pem:/certs/ca.pem:ro" \
+  -v "$PKI/recorder.p1.h1.pem:/certs/recorder.p1.h1.pem:ro" \
+  -v "$PKI/recorder.p1.h1.key:/certs/recorder.p1.h1.key:ro" \
+  -e ZENOH_KEY_PREFIX=h1/p1/ -e ZENOH_TLS_CA=/certs/ca.pem \
+  -e ZENOH_TLS_CERT=/certs/recorder.p1.h1.pem -e ZENOH_TLS_KEY=/certs/recorder.p1.h1.key \
+  -e PYTHONDONTWRITEBYTECODE=1 \
+  apex-sapient:4.2.0 - <<'EOF'
+import asyncio, collections, time
+from datetime import datetime, timezone
+from fake_fusion_node import VALIDATION_OPTIONS
+from sapient_apex_server.validate_proto import Validator
+from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
+from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
+from zenoh_io import ZenohSession, tls_from_env
+
+FUSION = "f0000001-0000-4000-8000-000000000001"
+
+async def main():
+    session = await ZenohSession.open("tls/router.p1.h1:7447", asyncio.get_running_loop(), tls_from_env())
+    samples = session.subscribe("h1/p1/fusion/up/**")
+    print(f"subscribed h1/p1/fusion/up/** at {datetime.now(timezone.utc):%H:%M:%S}", flush=True)
+    start, counts, senders, order = time.monotonic(), collections.Counter(), collections.Counter(), []
+    while (left := 30 - (time.monotonic() - start)) > 0:
+        try:
+            key, payload = await asyncio.wait_for(samples.get(), left)
+        except asyncio.TimeoutError:
+            break
+        msg = SapientMessage.FromString(payload)
+        kind = msg.WhichOneof("content")
+        counts[key] += 1
+        senders[(kind, msg.node_id)] += 1
+        order.append(kind)
+        at = time.monotonic() - start
+        if kind == "registration":
+            reg = msg.registration
+            errors = []
+            Validator(VALIDATION_OPTIONS).validate_sapient_message(msg, datetime.now(timezone.utc).replace(tzinfo=None), errors)
+            print(f"+{at:5.1f}s {key} node_id={msg.node_id}", flush=True)
+            print(f"  node_type={[Registration.NodeType.Name(d.node_type) for d in reg.node_definition]}"
+                  f" capabilities={[(c.category, c.type[:24]) for c in reg.capabilities]}"
+                  f" commands={[Registration.CommandType.Name(c.type) for c in reg.mode_definition[0].task.command]}"
+                  f" status_interval={reg.status_definition.status_interval.value}"
+                  f" {Registration.TimeUnits.Name(reg.status_definition.status_interval.units)}"
+                  f" validator_errors={[e.full_str() for e in errors]}", flush=True)
+        elif counts[key] <= 3:
+            print(f"+{at:5.1f}s {key} node_id={msg.node_id} object={msg.detection_report.object_id[-6:]}", flush=True)
+    print("counts by key:", dict(counts))
+    print("(kind, node_id):", {f"{k}/{n}": v for (k, n), v in senders.items()})
+    print("every sender is the fusion node:", all(n == FUSION for (_, n) in senders))
+    print("first message is the registration:", order[:1] == ["registration"])
+    session.close()
+
+asyncio.run(main())
+EOF
+# subscribed h1/p1/fusion/up/** at 06:02:33
+# +  9.1s h1/p1/fusion/up/registration node_id=f0000001-0000-4000-8000-000000000001
+#   node_type=['NODE_TYPE_FUSION_NODE'] capabilities=[('EMS', 'Chaff, noise jamming, fa')] commands=['COMMAND_TYPE_PATROL'] status_interval=10.0 TIME_UNITS_SECONDS validator_errors=[]
+# +  9.6s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=ZXKVRC
+# + 10.6s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=ZXKVRC
+# + 11.6s h1/p1/fusion/up/detection_report node_id=f0000001-0000-4000-8000-000000000001 object=ZXKVRC
+# counts by key: {'h1/p1/fusion/up/registration': 1, 'h1/p1/fusion/up/detection_report': 21}
+# (kind, node_id): {'registration/f0000001-0000-4000-8000-000000000001': 1, 'detection_report/f0000001-0000-4000-8000-000000000001': 21}
+# every sender is the fusion node: True
+# first message is the registration: True
 ```
 
 To stop the stage, run `dc down`. The recordings stay in the `apex-pod1_records` volume. Don't add `-v` unless you mean to delete them.
