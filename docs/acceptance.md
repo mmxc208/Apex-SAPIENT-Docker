@@ -22,16 +22,18 @@ The rigs were not re-run for this document. Each stage's evidence dates from its
 
 All values are in `zenoh/router-pod1.json5`, used by stage 4. Defaults are from `DEFAULT_CONFIG.json5` at zenoh 1.10.2. Stages 1 to 3 use `zenoh/router-plain.json5`, which has no TLS or access control by design and changes only the listen endpoint (`tcp/0.0.0.0:7447`), multicast and gossip scouting (off) and the adminspace (read-only).
 
+In this table only, `[x]` means verified live: a run exercised the setting. `[ ] set in file` means the value is in the config file and no run tested its effect.
+
 | | Setting | Default | Pod 1 value | Line | Live evidence |
 |---|---|---|---|---|---|
 | [x] | Listen endpoint | `tcp/[::]:7447` | `tls/0.0.0.0:7447` | 6 | Every client in Stage 4 connects over `tls/`. |
-| [x] | Multicast scouting | on | off | 9 | Configuration only, not observed separately. |
-| [x] | Gossip scouting | on | off | 10 | Configuration only. The spec's sketch leaves gossip on; a pod with one router has no use for it. |
-| [x] | Adminspace | off | on, read-only | 13, 14 | Configuration only. |
-| [x] | Link lease | 10000 ms | 5000 ms | 19 | Configuration only: the router starts with it (Stage 4 step 1), but the 5 s lease was not timed. |
+| [ ] set in file | Multicast scouting | on | off | 9 | Not observed separately. |
+| [ ] set in file | Gossip scouting | on | off | 10 | Not observed separately. The spec's sketch leaves gossip on; a pod with one router has no use for it. |
+| [ ] set in file | Adminspace | off | on, read-only | 13, 14 | Not queried in any run. |
+| [ ] set in file | Link lease | 10000 ms | 5000 ms | 19 | The router starts with it (Stage 4 step 1), but the 5 s lease was not timed. |
 | [x] | TLS certificates | none | CA, router key and certificate | 22 to 24 | Stage 4 step 1 and every later step. |
 | [x] | Mutual TLS | off | on | 25 | Stage 4 clients connect with their own certificates. No README step tries a client without one. During Task 11 a client that withheld its certificate was refused (`peer sent no certificates`). |
-| [x] | Close link on certificate expiry | off | on | 26 | Configuration only. |
+| [ ] set in file | Close link on certificate expiry | off | on | 26 | No certificate expired during a run. |
 | [x] | Access control | off | on | 31 | Stage 4 step 6 (T-07). |
 | [x] | Default permission | deny | deny, stated explicitly | 32 | Stage 4 step 6 (T-07). The rules, subjects and policies are at lines 33 to 110, 111 to 117 and 118 to 124. |
 
@@ -48,15 +50,15 @@ Differences from the spec's sketch:
 ### Stage 1: T-01 to T-05 (README "Stage 1: Option A bridge")
 
 - [x] **T-01, round trip.** The fusion node logged 3 registrations and the radar received its `registration_ack`. The spec also asks for the registration, status and detections to be confirmed in Apex's SQLite, and for the 30 s limit, which the README check doesn't test: it counts log lines after 60 s.
-- [x] **T-02, task path.** The radar logged 2 `task_ack` lines in 120 s, from auto-tasks. The count isn't filtered to `look_at` or to the fusion node (see the deferred list).
+- [x] **T-02, task path.** The radar logged 2 `task_ack` lines in 120 s, from auto-tasks. The count isn't filtered to `look_at` or to the fusion node (see the deferred list). The spec's pass criterion is the TaskAck appearing at the fusion node, and the README check reads only the radar's own log. The one fusion-side observation is from an earlier run at `600350a`, before the outage fixes: the fusion node logged `<- task_ack a0000001 -> f0000001 TS9R9C` for a `look_at` (task-5-report.md:79). The run recorded in the README didn't check it.
 - [x] **T-03, node loss.** After `dc stop radar`, the Apex socket closed at the end of the 120 s hold, not at 15 s, and Apex recorded one fewer open connection (`rows 4 open 3`). The spec's "within 2 × lease" doesn't hold for this design, by ruling: the hold is what §4.9's reconnect window requires. After restart, the radar registered again.
-- [x] **T-04, short outage.** A 20 s router pause gave 0 socket closes and 0 new registrations.
-- [x] **T-05, long outage.** A 150 s pause closed 3 sockets at the end of the hold, and each sensor registered again through a request from `bridge-apex`. Sensors stayed connected to `bridge-node`. The spec's "no hijacked errors" wasn't checked.
+- [x] **T-04, short outage.** A 20 s router pause gave 0 socket closes and 0 new registrations. Registrations were counted in the fusion node's log, not in Apex as the spec says.
+- [x] **T-05, long outage.** A 150 s pause closed 3 sockets at the end of the hold, and each sensor registered again through a request from `bridge-apex`. Registrations were counted in the fusion node's log, not in Apex as the spec says. The radar log showed no connection loss in the windows checked, which were 60 s covering T-04 and the last 70 s of T-05 (task-5-report.md:671), so "sensors stayed connected" holds only for those windows. The spec's "no hijacked errors" wasn't checked.
 
 ### Stage 2: T-01, T-02 (README "Stage 2: native Zenoh sensors")
 
 - [x] **T-01, round trip.** 3 registrations at the fusion node, and the radar received its `registration_ack`. The same limits as stage 1 apply.
-- [x] **T-02, task path.** 3 `task_ack` lines in 120 s. This can include the ack for a re-registration request, as the README says.
+- [x] **T-02, task path.** 3 `task_ack` lines in 120 s. This can include the ack for a re-registration request, as the README says. The spec's pass criterion, the TaskAck appearing at the fusion node, wasn't observed: this check reads only the radar's log, and no fusion-side line was recorded for stage 2.
 
 ### Stage 3 (README "Stage 3: Zenoh-native rig without Apex")
 
@@ -87,11 +89,11 @@ Items for the final review to triage. "Closed:" marks an item that the current t
 
 ### Compose, operations and README
 
-- Orphan-warning note and `--remove-orphans`.
+- Orphan-warning note and `--remove-orphans`. Closed: the stage 1 README warns against `--remove-orphans`.
 - Port 7447 is published on all interfaces. Bind it to 127.0.0.1 unless there are off-host peers. This also applies to `docker-compose.native.yml`, where it is plan-mandated.
 - `zenohd` is left running.
 - Sensors lack `depends_on` for `bridge-node`, so their first retry takes 10 s.
-- The pod 1 compose comment says `zenoh=debug` shows denials, which needs the interceptor trace level.
+- The pod 1 compose comment says `zenoh=debug` shows denials, which needs the interceptor trace level. Closed: `docker-compose.pod1.yml` now names the interceptor trace filter.
 - T-05 `--since 200s` window overlaps T-04. Closed: the README now uses `--since 185s`.
 - "Each output is what that run printed" is loose in three places in stage 1.
 - T-04 and T-05 README text goes stale after the code fix. Closed: rewritten from new observations in `03c1282`.
