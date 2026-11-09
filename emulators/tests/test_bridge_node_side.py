@@ -290,8 +290,8 @@ async def test_run_raises_when_the_port_cannot_be_bound(monkeypatch, fake_sessio
     assert fake_session.closed.is_set()
 
 
-async def test_run_retries_the_router_and_reopens_after_session_loss(monkeypatch, templates):
-    sessions = [FakeZenohSession(), FakeZenohSession()]
+def open_sessions(monkeypatch, sessions):
+    """Make the first ZenohSession.open fail, then hand out sessions; returns the attempts."""
     remaining = iter(sessions)
     attempts = []
 
@@ -303,25 +303,86 @@ async def test_run_retries_the_router_and_reopens_after_session_loss(monkeypatch
 
     monkeypatch.setattr(bridge_node_side.ZenohSession, "open", fake_open)
     monkeypatch.setattr(bridge_node_side, "RECONNECT_SECONDS", 0)
+    return attempts
+
+
+async def test_run_retries_the_router_and_survives_transport_loss(monkeypatch, templates, caplog):
+    caplog.set_level(logging.INFO, logger=log.name)
+    session = FakeZenohSession()
+    attempts = open_sessions(monkeypatch, [session])
     port = free_port()
     runner = asyncio.create_task(bridge_node_side.run(port, "tcp/router:7447", log))
     try:
         reader, writer = await connect_when_listening(port)
         send(writer, registration(templates))
-        await until(lambda: sessions[0].published)
+        await until(lambda: session.published)
         assert attempts == ["tcp/router:7447", "tcp/router:7447"]
 
-        sessions[0].closed.set()
+        session.lose_transport()
+        await until(lambda: "transport lost" in caplog.text)
+        session.restore_transport()
+        await until(lambda: "transport back" in caplog.text)
 
-        assert await read_eof(reader) == b""
-        writer.close()
-        assert sessions[0].tokens == set()
+        assert not runner.done()
+        assert live_key(NODE) in session.tokens
+        assert len(attempts) == 2  # no reconnect of our own: the binding does it
 
-        reader, writer = await connect_when_listening(port)
-        send(writer, registration(templates))
-        await until(lambda: sessions[1].published)
-        assert live_key(NODE) in sessions[1].tokens
+        # The sensor never noticed: its connection works in both directions.
+        task_bytes = templates("fusion_node", "Task.Request.Status").SerializeToString()
+        session.inject(down_key(NODE, "task"), task_bytes)
+        assert await read_frame(reader) == task_bytes
+        send(writer, status_report(templates))
+        await until(lambda: len(session.published) == 2)
         writer.close()
     finally:
         runner.cancel()
         await asyncio.gather(runner, return_exceptions=True)
+
+
+async def test_run_ends_and_drops_nodes_when_the_session_is_closed(monkeypatch, templates):
+    session = FakeZenohSession()
+    open_sessions(monkeypatch, [session])
+    port = free_port()
+    runner = asyncio.create_task(bridge_node_side.run(port, "tcp/router:7447", log))
+    try:
+        reader, writer = await connect_when_listening(port)
+        send(writer, registration(templates))
+        await until(lambda: session.published)
+
+        session.closed.set()
+
+        await asyncio.wait_for(runner, TIMEOUT)
+        assert await read_eof(reader) == b""
+        assert session.tokens == set()
+        writer.close()
+    finally:
+        runner.cancel()
+        await asyncio.gather(runner, return_exceptions=True)
+
+
+async def test_failed_publish_keeps_the_sensor_connected(templates, caplog):
+    caplog.set_level(logging.INFO, logger=log.name)
+
+    class FlakySession(FakeZenohSession):
+        failing = False
+
+        async def publish(self, key, msg, fused=False):
+            if self.failing:
+                self.failing = False
+                raise bridge_node_side.zenoh.ZError("no route")
+            await super().publish(key, msg, fused)
+
+    session = FlakySession()
+    async with serving(session) as (bridge, connect):
+        _, writer = await connect()
+        send(writer, registration(templates))
+        await until(lambda: session.published)
+
+        session.failing = True
+        send(writer, status_report(templates))  # lost to the session error
+        send(writer, templates("sensor", "Alert"))
+        await until(lambda: len(session.published) == 2)
+
+        assert session.published[1][0] == up_key(NODE, "alert")
+        assert NODE in bridge.nodes
+        assert "no route" in caplog.text

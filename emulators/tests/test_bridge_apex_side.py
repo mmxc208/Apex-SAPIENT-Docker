@@ -370,13 +370,14 @@ async def test_publish_failure_surfaces_from_run(templates):
         assert bridge.links == {}
 
 
-async def test_run_reopens_the_session_after_it_is_lost(monkeypatch, templates):
-    sessions = [FakeZenohSession(), FakeZenohSession()]
-    remaining = iter(sessions)
+async def test_run_keeps_links_through_transport_loss_and_ends_on_close(monkeypatch, templates):
+    session = FakeZenohSession()
+    opened = []
 
     async def fake_open(connect, loop):
         assert connect == "tcp/router:7447"
-        return next(remaining)
+        opened.append(connect)
+        return session
 
     monkeypatch.setattr(ZenohSession, "open", fake_open)
     async with FakeApex() as apex:
@@ -384,15 +385,23 @@ async def test_run_reopens_the_session_after_it_is_lost(monkeypatch, templates):
             bridge_apex_side.run("127.0.0.1", apex.port, "tcp/router:7447", HOLD, GRACE, log, BRIDGE)
         )
         try:
-            await until(lambda: sessions[0]._subscriptions and sessions[0]._liveliness)
-            first = await register(sessions[0], templates, apex)
+            await until(lambda: session._subscriptions and session._liveliness)
+            session.declare_token(live_key(NODE))
+            first = await register(session, templates, apex)
 
-            sessions[0].closed.set()
+            session.lose_transport()
+            await asyncio.sleep(HOLD / 4)
+            session.restore_transport()
+            await asyncio.sleep(HOLD * 1.5)
+
+            assert first.open
+            assert not runner.done()
+            assert len(opened) == 1
+            assert len(apex.connections) == 1
+
+            session.closed.set()
+            await asyncio.wait_for(runner, TIMEOUT)
             await until(lambda: not first.open)
-
-            await until(lambda: sessions[1]._subscriptions and sessions[1]._liveliness)
-            inject_up(sessions[1], registration(templates))
-            await until(lambda: len(apex.connections) == 2 and apex.connections[1].frames)
         finally:
             runner.cancel()
             await asyncio.gather(runner, return_exceptions=True)
@@ -738,3 +747,137 @@ async def test_registration_cancels_the_request_even_while_its_link_is_still_con
 
         gate.set()
         await until(lambda: apex.connections and apex.connections[0].frames)
+
+
+async def test_transport_blip_shorter_than_the_hold_keeps_the_link_and_publishes_nothing(
+    fake_session, templates, caplog
+):
+    caplog.set_level(logging.INFO, logger=log.name)
+    fake_session.declare_token(live_key(NODE))
+    async with bridged(fake_session) as (bridge, apex):
+        connection = await register(fake_session, templates, apex)
+        link = bridge.links[NODE]
+        await asyncio.sleep(GRACE * 2)
+
+        fake_session.lose_transport()
+        await asyncio.sleep(HOLD / 4)
+        fake_session.restore_transport()
+        await asyncio.sleep(HOLD * 1.5)  # past when an uncancelled timer would have fired
+
+        assert connection.open
+        assert bridge.links[NODE] is link
+        assert len(apex.connections) == 1
+        assert fake_session.published == []
+        assert "closing Apex socket" not in caplog.text
+
+
+async def test_transport_return_consults_alive_when_no_liveliness_is_reported(fake_session, templates):
+    fake_session.declare_token(live_key(NODE))
+    async with bridged(fake_session) as (bridge, apex):
+        connection = await register(fake_session, templates, apex)
+
+        fake_session.lose_transport()
+        await asyncio.sleep(HOLD / 4)
+        fake_session.restore_transport(report_tokens=False)
+        await asyncio.sleep(HOLD * 1.5)
+
+        assert connection.open
+        assert NODE in bridge.links
+        assert fake_session.published == []
+
+
+async def test_transport_loss_holds_a_link_whose_token_was_never_reported(fake_session, templates):
+    async with bridged(fake_session) as (bridge, apex):
+        connection = await register(fake_session, templates, apex)
+
+        fake_session.lose_transport()
+        await asyncio.sleep(HOLD / 4)
+        assert connection.open  # the hold window is still running
+
+        await until(lambda: apex.open_count == 0)
+        assert bridge.links == {}
+
+
+async def test_node_gone_during_the_outage_closes_after_the_hold(fake_session, templates):
+    fake_session.declare_token(live_key(NODE))
+    async with bridged(fake_session) as (bridge, apex):
+        await register(fake_session, templates, apex)
+
+        fake_session.lose_transport()
+        fake_session.undeclare_token(live_key(NODE))
+        await asyncio.sleep(HOLD / 4)
+        fake_session.restore_transport()
+
+        await until(lambda: apex.open_count == 0)
+        assert bridge.links == {}
+        assert fake_session.published == []
+
+
+async def test_outage_longer_than_the_hold_requests_registration_when_the_router_returns(
+    fake_session, templates, caplog
+):
+    caplog.set_level(logging.INFO, logger=log.name)
+    fake_session.declare_token(live_key(NODE))
+    async with bridged(fake_session) as (bridge, apex):
+        await register(fake_session, templates, apex)
+
+        fake_session.lose_transport()
+        await until(lambda: apex.open_count == 0)
+        assert bridge.links == {}
+        assert f"closing Apex socket for {NODE}" in caplog.text
+        assert fake_session.published == []  # nobody to ask until the router is back
+
+        fake_session.restore_transport(report_tokens=False)
+        await until(lambda: fake_session.published)
+        await asyncio.sleep(GRACE * 2)
+
+        published = requests_published(fake_session)
+        assert [key for key, _ in published] == [down_key(NODE, "task")]
+        assert_is_registration_request(published[0][1], NODE)
+
+        inject_up(fake_session, registration(templates))
+        await until(lambda: len(apex.connections) == 2 and apex.connections[1].frames)
+
+
+async def test_session_errors_do_not_stop_the_bridge(templates, caplog):
+    caplog.set_level(logging.INFO, logger=log.name)
+
+    class FlakySession(FakeZenohSession):
+        failing = False
+
+        async def publish(self, key, msg, fused=False):
+            if self.failing:
+                raise bridge_apex_side.zenoh.ZError("no route")
+            await super().publish(key, msg, fused)
+
+        async def alive(self, keyexpr):
+            if self.failing:
+                raise bridge_apex_side.zenoh.ZError("query failed")
+            return await super().alive(keyexpr)
+
+    session = FlakySession()
+    session.declare_token(live_key(OTHER_NODE))
+    session.failing = True  # from the startup alive() on
+    async with FakeApex() as apex:
+        bridge = ApexSideBridge(
+            session, "127.0.0.1", apex.port, HOLD, log=log, bridge_node_id=BRIDGE, request_grace_seconds=GRACE
+        )
+        runner = asyncio.create_task(bridge.run())
+        try:
+            await until(lambda: session._subscriptions and session._liveliness)
+            connection = await register(session, templates, apex)
+
+            connection.reply(templates("fusion_node", "RegistrationAck"))  # publish fails
+            await until(lambda: "no route" in caplog.text)
+            session.lose_transport()
+            session.restore_transport(report_tokens=False)  # alive() fails
+            await until(lambda: "query failed" in caplog.text)
+            await asyncio.sleep(GRACE * 2)  # OTHER_NODE's request publish fails too
+
+            assert not runner.done()
+            session.failing = False
+            inject_up(session, status_report(templates))
+            await until(lambda: len(connection.frames) == 2)
+        finally:
+            runner.cancel()
+            await asyncio.gather(runner, return_exceptions=True)

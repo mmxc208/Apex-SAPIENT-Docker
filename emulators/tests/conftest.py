@@ -25,6 +25,8 @@ class FakeZenohSession:
         self.published: list[tuple[str, bytes, tuple]] = []
         self.tokens: set[str] = set()
         self.closed = asyncio.Event()
+        self.transport_changes: asyncio.Queue[bool] = asyncio.Queue()
+        self._transport_up = True
         self._subscriptions: list[tuple[str, asyncio.Queue]] = []
         self._liveliness: list[tuple[str, asyncio.Queue]] = []
 
@@ -45,6 +47,8 @@ class FakeZenohSession:
         return queue
 
     def _report_liveliness(self, key: str, appeared: bool) -> None:
+        if not self._transport_up:
+            return
         for keyexpr, queue in self._liveliness:
             if _matches(keyexpr, key):
                 queue.put_nowait((key, appeared))
@@ -68,7 +72,24 @@ class FakeZenohSession:
         return queue
 
     async def alive(self, keyexpr: str) -> list[str]:
+        if not self._transport_up:
+            return []
         return [key for key in self.tokens if _matches(keyexpr, key)]
+
+    def lose_transport(self) -> None:
+        """As zenoh 1.10 does when the router goes: every token reported gone, declarations kept."""
+        for key in self.tokens:
+            self._report_liveliness(key, False)
+        self._transport_up = False
+        self.transport_changes.put_nowait(False)
+
+    def restore_transport(self, report_tokens: bool = True) -> None:
+        """The binding reconnects and replays; report_tokens=False leaves only alive() to tell."""
+        self._transport_up = True
+        if report_tokens:
+            for key in self.tokens:
+                self._report_liveliness(key, True)
+        self.transport_changes.put_nowait(True)
 
     def close(self) -> None:
         for key in list(self.tokens):

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import pytest
 import zenoh
@@ -66,7 +67,7 @@ async def test_liveliness_history_alive_and_undeclare():
 
 
 @pytest.mark.integration
-async def test_closed_is_set_by_close_and_by_losing_the_transport():
+async def test_closed_is_set_only_by_close():
     loop = asyncio.get_running_loop()
     router = await ZenohSession.open_peer_listen("tcp/127.0.0.1:17450", loop)
     leaving = await ZenohSession.open("tcp/127.0.0.1:17450", loop)
@@ -75,10 +76,69 @@ async def test_closed_is_set_by_close_and_by_losing_the_transport():
     assert leaving.closed.is_set()
     await asyncio.sleep(0.5)
     assert not staying.closed.is_set()  # another client leaving is not this client's transport
+    assert staying.transport_changes.empty()
     assert not router.closed.is_set()
     router.close()
-    await asyncio.wait_for(staying.closed.wait(), 15)
+    assert await asyncio.wait_for(staying.transport_changes.get(), 15) is False
+    assert not staying.closed.is_set()  # losing the router is not a close
     staying.close()
+    assert staying.closed.is_set()
+
+
+async def open_router_when_port_is_free(listen, loop):
+    for _ in range(50):
+        try:
+            return await ZenohSession.open_peer_listen(listen, loop)
+        except zenoh.ZError:
+            await asyncio.sleep(0.2)
+    raise AssertionError(f"could not listen on {listen} again")
+
+
+@pytest.mark.integration
+async def test_router_returning_restores_subscriptions_and_tokens_with_no_redeclare():
+    loop = asyncio.get_running_loop()
+    listen = "tcp/127.0.0.1:17451"
+    router = await ZenohSession.open_peer_listen(listen, loop)
+    client = await ZenohSession.open(listen, loop)
+    client.declare_token(live_key(NODE))
+    samples = client.subscribe("probe/**")
+    router.close()
+    assert await asyncio.wait_for(client.transport_changes.get(), 15) is False
+
+    router = await open_router_when_port_is_free(listen, loop)
+    assert await asyncio.wait_for(client.transport_changes.get(), 15) is True
+
+    async def tokens_replayed():
+        while live_key(NODE) not in await router.alive("sapient/v2/live/*"):
+            await asyncio.sleep(0.1)
+
+    await asyncio.wait_for(tokens_replayed(), 10)
+
+    async def subscription_replayed():
+        while samples.empty():
+            router._session.put("probe/x", b"1")
+            await asyncio.sleep(0.1)
+
+    await asyncio.wait_for(subscription_replayed(), 10)
+    assert await samples.get() == ("probe/x", b"1")
+    assert not client.closed.is_set()
+    client.close()
+    router.close()
+
+
+async def test_close_never_raises_and_still_marks_the_session_closed(caplog):
+    class TimingOut:
+        def is_closed(self):
+            return False
+
+        def close(self):
+            raise zenoh.ZError("close operation timed out!")
+
+    session = ZenohSession(TimingOut(), asyncio.get_running_loop())
+    with caplog.at_level(logging.INFO):
+        session.close()
+    assert session.closed.is_set()
+    assert "close operation timed out!" in caplog.text
 
 
 async def test_fake_session_fans_out(templates):
@@ -124,3 +184,23 @@ async def test_fake_session_inject_tokens_and_close():
     assert early.get_nowait() == (key, False)  # closing a session drops its tokens
     assert fake.tokens == set()
     assert fake.closed.is_set()
+
+
+async def test_fake_session_simulates_transport_loss_and_return():
+    fake = FakeZenohSession()
+    key = live_key(NODE)
+    fake.declare_token(key)
+    live = fake.liveliness("sapient/v2/live/*")
+    assert live.get_nowait() == (key, True)
+
+    fake.lose_transport()
+    assert live.get_nowait() == (key, False)
+    assert fake.transport_changes.get_nowait() is False
+    assert await fake.alive("sapient/v2/live/*") == []
+    assert fake.tokens == {key}  # the declaration survives the outage
+    assert not fake.closed.is_set()
+
+    fake.restore_transport()
+    assert live.get_nowait() == (key, True)
+    assert fake.transport_changes.get_nowait() is True
+    assert await fake.alive("sapient/v2/live/*") == [key]

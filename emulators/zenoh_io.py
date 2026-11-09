@@ -2,17 +2,24 @@
 
 The binding runs callbacks on its own threads, so they only ever reach asyncio objects through
 loop.call_soon_threadsafe. Calls that can block on the network run in worker threads.
+
+A client session survives losing its router: the binding reconnects by itself and replays every
+subscription and liveliness token (measured on zenoh 1.10.2), so nothing here re-declares them.
+While the router is away, liveliness subscribers report every token gone, then present again.
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any, Callable
 
 import zenoh
 
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from zenoh_keys import kind_of, qos_for
+
+log = logging.getLogger("zenoh-io")
 
 
 def _config(**settings: Any) -> zenoh.Config:
@@ -33,14 +40,16 @@ class ZenohSession:
         self._subscribers: list[zenoh.Subscriber] = []
         self._tokens: dict[str, zenoh.LivelinessToken] = {}
         self._transport_listener: zenoh.TransportEventsListener | None = None
-        self.closed: asyncio.Event = asyncio.Event()
+        self.closed: asyncio.Event = asyncio.Event()  # set only by close(), never by a lost router
+        # True when the transport to the router comes back, False when it goes. One reader only.
+        self.transport_changes: asyncio.Queue[bool] = asyncio.Queue()
 
     @classmethod
     async def open(cls, connect: str, loop: asyncio.AbstractEventLoop) -> ZenohSession:
         """Open a client session to the router at connect, like tcp/zenohd:7447."""
         config = _config(mode="client", connect__endpoints=[connect])
         self = cls(await asyncio.to_thread(zenoh.open, config), loop)
-        # A client has exactly one transport, the one to its router, so losing it ends the session.
+        # A client has exactly one transport, the one to its router.
         self._transport_listener = self._session.info.declare_transport_events_listener(
             self._on_transport_event
         )
@@ -60,8 +69,7 @@ class ZenohSession:
             pass  # the loop has shut down, so nobody is left to receive this
 
     def _on_transport_event(self, event: zenoh.TransportEvent) -> None:
-        if event.kind == zenoh.SampleKind.DELETE:
-            self._call_in_loop(self.closed.set)
+        self._call_in_loop(self.transport_changes.put_nowait, event.kind == zenoh.SampleKind.PUT)
 
     async def publish(self, key: str, msg: SapientMessage, fused: bool = False) -> None:
         priority, congestion_control, express = qos_for(kind_of(msg), fused)
@@ -120,6 +128,10 @@ class ZenohSession:
         return await asyncio.to_thread(query)
 
     def close(self) -> None:
+        """Close the session. Never raises: with the router away the binding's close times out."""
         self.closed.set()
-        if not self._session.is_closed():
-            self._session.close()
+        try:
+            if not self._session.is_closed():
+                self._session.close()
+        except Exception as e:
+            log.info(f"error closing the Zenoh session: {e}")

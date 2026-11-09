@@ -2,6 +2,8 @@
 
 Accepts length-prefixed SapientMessages, republishes them on the node's up keys and declares a
 liveliness token per node. Messages on the node's down keys are written back to the socket.
+Losing the router leaves every sensor connected: the session restores the tokens and subscriptions
+when the router returns, and what the sensors send meanwhile is lost.
 """
 import asyncio
 import logging
@@ -116,7 +118,10 @@ class NodeSideBridge:
     async def _forward_up(self, link: Link, node_id: str) -> None:
         while True:
             msg = await link.receive()
-            await self.session.publish(up_key(node_id, kind_of(msg)), msg)
+            try:
+                await self.session.publish(up_key(node_id, kind_of(msg)), msg)
+            except zenoh.ZError as e:
+                self.log.info(f"lost a message from {node_id}: {e}")
 
     async def _forward_down(self, writer: asyncio.StreamWriter, down: Down) -> None:
         while True:
@@ -137,27 +142,36 @@ async def open_session(connect: str, loop: asyncio.AbstractEventLoop, log: loggi
             await asyncio.sleep(RECONNECT_SECONDS)
 
 
-async def run(port: int, connect: str, log: logging.Logger) -> None:
-    """Serve until the Zenoh session is lost, drop every node, then reopen and serve again.
-
-    A listener failure raises, so the process exits and the container's restart policy applies.
-    """
-    loop = asyncio.get_running_loop()
+async def log_transport_changes(session: ZenohSession, log: logging.Logger) -> None:
     while True:
-        session = await open_session(connect, loop, log)
-        bridge = NodeSideBridge(session, log)
-        server = asyncio.create_task(bridge.serve(port))
-        session_lost = asyncio.create_task(session.closed.wait())
-        try:
-            await asyncio.wait({server, session_lost}, return_when=asyncio.FIRST_COMPLETED)
-            if server.done():
-                server.result()
-            log.info("Zenoh session lost; dropping all nodes and reconnecting")
-        finally:
-            server.cancel()
-            session_lost.cancel()
-            await asyncio.gather(server, session_lost, bridge.close_all(), return_exceptions=True)
-            session.close()
+        if await session.transport_changes.get():
+            log.info("Zenoh transport back; tokens and subscriptions restored by the session")
+        else:
+            log.info("Zenoh transport lost; keeping every sensor connected")
+
+
+async def run(port: int, connect: str, log: logging.Logger) -> None:
+    """Serve until the listener fails, which raises, or the session is closed, which returns.
+
+    Either way the process exits and the container's restart policy applies. A lost router ends
+    nothing: the session reconnects by itself.
+    """
+    session = await open_session(connect, asyncio.get_running_loop(), log)
+    bridge = NodeSideBridge(session, log)
+    server = asyncio.create_task(bridge.serve(port))
+    transport = asyncio.create_task(log_transport_changes(session, log))
+    closed = asyncio.create_task(session.closed.wait())
+    tasks = (server, transport, closed)
+    try:
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for failable in (server, transport):
+            if failable.done():
+                failable.result()
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, bridge.close_all(), return_exceptions=True)
+        session.close()
 
 
 def main() -> None:
