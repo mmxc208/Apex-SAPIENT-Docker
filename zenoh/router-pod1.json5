@@ -31,6 +31,8 @@
     enabled: true,
     default_permission: "deny",
     rules: [
+      // Each certificate may publish only as its own node, and listen only to its own down keys.
+      // Node IDs here must match the NODE_ID values in docker-compose.pod1.yml.
       {
         id: "fusion-down",
         messages: ["put"],
@@ -39,11 +41,11 @@
         key_exprs: ["h1/p1/sapient/v2/*/down/**", "h1/p1/fusion/**"],
       },
       {
-        id: "node-up",
+        id: "fusion-own-up",  // the fusion node's own output and status
         messages: ["put", "liveliness_token"],
         flows: ["ingress"],
         permission: "allow",
-        key_exprs: ["h1/p1/sapient/v2/*/up/**", "h1/p1/sapient/v2/live/*"],
+        key_exprs: ["h1/p1/sapient/v2/f0000001-0000-4000-8000-000000000001/up/**", "h1/p1/sapient/v2/live/f0000001-0000-4000-8000-000000000001"],
       },
       {
         id: "read-all",
@@ -51,6 +53,48 @@
         flows: ["ingress"],
         permission: "allow",
         key_exprs: ["h1/p1/**"],
+      },
+      {
+        id: "radar-up",  // radar.p1.h1
+        messages: ["put", "liveliness_token"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/a0000001-0000-4000-8000-000000000001/up/**", "h1/p1/sapient/v2/live/a0000001-0000-4000-8000-000000000001"],
+      },
+      {
+        id: "radar-down",
+        messages: ["declare_subscriber"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/a0000001-0000-4000-8000-000000000001/down/**"],
+      },
+      {
+        id: "camera-up",  // camera.p1.h1
+        messages: ["put", "liveliness_token"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/a0000002-0000-4000-8000-000000000002/up/**", "h1/p1/sapient/v2/live/a0000002-0000-4000-8000-000000000002"],
+      },
+      {
+        id: "camera-down",
+        messages: ["declare_subscriber"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/a0000002-0000-4000-8000-000000000002/down/**"],
+      },
+      {
+        id: "vehicle-up",  // bridge.p1.h1, carrying the legacy vehicle
+        messages: ["put", "liveliness_token"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/a0000003-0000-4000-8000-000000000003/up/**", "h1/p1/sapient/v2/live/a0000003-0000-4000-8000-000000000003"],
+      },
+      {
+        id: "vehicle-down",
+        messages: ["declare_subscriber"],
+        flows: ["ingress"],
+        permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/a0000003-0000-4000-8000-000000000003/down/**"],
       },
       // With default_permission "deny", zenohd also filters egress, so leaving it allowed takes a rule.
       {
@@ -66,12 +110,16 @@
     ],
     subjects: [
       { id: "fusion", cert_common_names: ["fusion.p1.h1"] },
-      { id: "nodes", cert_common_names: ["radar.p1.h1", "camera.p1.h1", "vehicle.p1.h1", "bridge.p1.h1"] },
+      { id: "radar", cert_common_names: ["radar.p1.h1"] },
+      { id: "camera", cert_common_names: ["camera.p1.h1"] },
+      { id: "bridge", cert_common_names: ["bridge.p1.h1"] },
       { id: "recorder", cert_common_names: ["recorder.p1.h1"] },
     ],
     policies: [
-      { id: "fusion", rules: ["fusion-down", "read-all", "egress-all"], subjects: ["fusion"] },
-      { id: "nodes", rules: ["node-up", "read-all", "egress-all"], subjects: ["nodes"] },
+      { id: "fusion", rules: ["fusion-down", "fusion-own-up", "read-all", "egress-all"], subjects: ["fusion"] },
+      { id: "radar", rules: ["radar-up", "radar-down", "egress-all"], subjects: ["radar"] },
+      { id: "camera", rules: ["camera-up", "camera-down", "egress-all"], subjects: ["camera"] },
+      { id: "bridge", rules: ["vehicle-up", "vehicle-down", "egress-all"], subjects: ["bridge"] },
       { id: "recorder", rules: ["read-all", "egress-all"], subjects: ["recorder"] },
     ],
   },

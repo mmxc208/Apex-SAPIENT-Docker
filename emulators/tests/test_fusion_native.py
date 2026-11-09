@@ -3,6 +3,7 @@ import argparse
 import asyncio
 import io
 import logging
+import re
 import sys
 
 import pytest
@@ -254,6 +255,45 @@ async def test_own_status_new_then_unchanged(fusion, fake_session):
     assert first.status_report.report_id != second.status_report.report_id
     assert first.status_report.system == StatusReport.SYSTEM_OK
     assert fusion.validate(first) is None
+
+
+def status_report(templates, info, node_id=NODE):
+    msg = stamp(templates("sensor", "StatusReport"), node_id)
+    msg.status_report.report_id = new_ulid()
+    msg.status_report.info = info
+    return msg
+
+
+async def test_unchanged_status_before_any_new_is_logged(fusion, templates, caplog):
+    await fusion._on_registration(registration(templates))
+    with caplog.at_level(logging.INFO):
+        fusion._on_status(status_report(templates, StatusReport.INFO_UNCHANGED))
+    assert re.search("Unchanged.*before", caplog.text)
+
+
+async def test_unchanged_after_new_is_not_logged(fusion, templates, caplog):
+    await fusion._on_registration(registration(templates))
+    with caplog.at_level(logging.INFO):
+        fusion._on_status(status_report(templates, StatusReport.INFO_NEW))
+        fusion._on_status(status_report(templates, StatusReport.INFO_UNCHANGED))
+        fusion._on_status(status_report(templates, StatusReport.INFO_UNCHANGED))
+    assert "before" not in caplog.text
+
+
+async def test_unchanged_after_a_re_registration_with_no_new_is_logged(fusion, templates, caplog):
+    await fusion._on_registration(registration(templates))
+    fusion._on_status(status_report(templates, StatusReport.INFO_NEW))
+    await fusion._on_registration(registration(templates))
+    with caplog.at_level(logging.INFO):
+        fusion._on_status(status_report(templates, StatusReport.INFO_UNCHANGED))
+    assert re.search("Unchanged.*before", caplog.text)
+
+
+def test_unchanged_from_a_node_not_yet_registered_is_not_logged(fusion, templates, caplog):
+    """A restarted fusion node hears running sensors before they register again."""
+    with caplog.at_level(logging.INFO):
+        fusion._on_status(status_report(templates, StatusReport.INFO_UNCHANGED))
+    assert "before" not in caplog.text
 
 
 def test_own_registration_describes_a_fusion_node(fusion):

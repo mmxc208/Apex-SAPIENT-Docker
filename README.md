@@ -590,6 +590,234 @@ asyncio.run(main())
 
 To stop the stage, run `dc down`. The recordings stay in the `apex-native_records` volume. Don't add `-v` unless you mean to delete them.
 
+## Stage 4: pod 1 with mutual TLS and access control
+
+This stage hardens the Zenoh router and gives every node its own identity. `docker-compose.pod1.yml` runs the router from `zenoh/router-pod1.json5`, the fusion node, radar, camera and recorder over mutual TLS, and the vehicle as a legacy TCP node behind `bridge-node`, which holds the certificate on its behalf. Keys are prefixed `h1/p1/`.
+
+The router denies by default and binds each certificate to its own keys. A sensor can publish only on its own up keys and liveliness token, and can subscribe only to its own down keys. Only the fusion node can publish on down keys. Only the fusion node and the recorder can read everything. Each container mounts `ca.pem` and its own certificate and key, and `ca.key` is mounted nowhere. The node IDs in the router rules must match the `NODE_ID` values in the compose file.
+
+The compose file is standalone, so don't combine it with the other compose files. It uses the project name `apex-pod1` and takes the image `apex-sapient:4.2.0` built by the earlier stages. The router's port isn't published to the host.
+
+Run these in order, from the repo root, on a rig that is down. The comments show what one run of these commands printed on 2026-11-09 UTC. `dc run` also prints container creation lines, which are left out here.
+
+```bash
+dc() { docker compose -f docker-compose.pod1.yml "$@"; }
+```
+
+**1. Certificates and start.** The output directory is git-ignored, and the script keeps certificates that are still valid.
+
+```bash
+zenoh/pki/make_certs.sh zenoh/pki/out
+# certificates in zenoh/pki/out
+dc up -d
+sleep 3
+dc logs zenohd | grep -ci error
+# 0
+```
+
+**2. Registrations and acknowledgements**, including the vehicle through the bridge.
+
+```bash
+sleep 27
+dc logs radar | grep -c registration_ack
+# 1
+dc logs fusion-node | grep -c "<- registration "
+# 3
+dc logs vehicle | grep registration_ack | head -1
+# vehicle-1  | 05:28:26 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
+dc logs bridge-node | grep registered
+# bridge-node-1  | 05:28:26 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
+```
+
+**3. Late joiner.** The restarted fusion node finds the sensors from their liveliness tokens, and the request reaches the vehicle through the bridge.
+
+```bash
+dc restart fusion-node
+sleep 20
+dc logs --since 30s fusion-node | grep -c "<- registration "
+# 3
+dc logs --since 30s radar camera vehicle | grep 'request "Registration"'
+# vehicle-1  | 05:29:07 vehicle: <- task f0000001 -> a0000003 8D6MF5 request "Registration"
+# camera-1   | 05:29:07 camera: <- task f0000001 -> a0000002 D8152G request "Registration"
+# radar-1    | 05:29:07 radar: <- task f0000001 -> a0000001 TRYNTC request "Registration"
+dc logs radar camera vehicle | grep -c "lost; reconnecting"
+# 0
+```
+
+**4. Recorder.** The volume survives `dc down`, so the count includes any earlier run on the same UTC day, as it did here.
+
+```bash
+dc exec -T recorder sh -c 'wc -l /data/records/*.jsonl'
+# 69319 /data/records/2026-11-09.jsonl
+sleep 10
+dc exec -T recorder sh -c 'wc -l /data/records/*.jsonl'
+# 69356 /data/records/2026-11-09.jsonl
+dc exec -T recorder sh -c 'head -c 120 /data/records/*.jsonl'; echo
+# {"t": "2026-11-09T05:11:40.211+00:00", "key": "h1/p1/sapient/v2/f0000001-0000-4000-8000-000000000001/up/registration", "
+```
+
+**5. Validation.** As in stage 3, with the radar's certificate on its own keys.
+
+```bash
+dc run --rm --no-deps -T radar python -c '
+import asyncio, logging, os, time
+from sapient_link import load_template, new_ulid
+from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
+from zenoh_io import open_session
+from zenoh_keys import up_key, down_key
+NODE = "a0000001-0000-4000-8000-000000000001"
+async def main():
+    session = await open_session(os.environ["ZENOH_CONNECT"], asyncio.get_running_loop(), logging.getLogger("probe"))
+    errors = session.subscribe(down_key(NODE, "error"))
+    await asyncio.sleep(1)
+    msg = load_template("sensor", "StatusReport")
+    msg.status_report.report_id = new_ulid()
+    msg.timestamp.GetCurrentTime()
+    msg.ClearField("node_id")
+    await session.publish(up_key(NODE, "status_report"), msg)
+    count, deadline = 0, time.monotonic() + 5
+    while (left := deadline - time.monotonic()) > 0:
+        try:
+            key, payload = await asyncio.wait_for(errors.get(), left)
+        except asyncio.TimeoutError:
+            break
+        count += 1
+        print(key, list(SapientMessage.FromString(payload).error.error_message))
+    print("errors received:", count)
+    session.close()
+asyncio.run(main())
+'
+# h1/p1/sapient/v2/a0000001-0000-4000-8000-000000000001/down/error ['node_id (mandatory fields present): Missing mandatory field: node_id']
+# errors received: 1
+```
+
+**6. T-07: access control.** A denied publication looks like a success to the publisher, so the proof is what the other side saw and what the router logged. The router names denials only at trace level, so this step restarts it with that filter, and the last command returns it to `info`.
+
+```bash
+ZENOHD_RUST_LOG=zenoh=debug,zenoh::net::routing::interceptor=trace dc up -d zenohd
+sleep 25
+PROBE='
+import asyncio, logging, os, sys
+from sapient_link import load_template, new_ulid, stamp
+from zenoh_io import open_session
+from zenoh_keys import down_key, up_key
+CAMERA = "a0000002-0000-4000-8000-000000000002"
+sender, kind = sys.argv[1], sys.argv[2]
+async def main():
+    session = await open_session(os.environ["ZENOH_CONNECT"], asyncio.get_running_loop(), logging.getLogger("probe"))
+    await asyncio.sleep(1)
+    if kind == "task":  # a Task from sender to the camera, on the camera key
+        msg = stamp(load_template("fusion_node", "Task.Request.Status"), sender, CAMERA)
+        msg.task.task_id = new_ulid()
+        await session.publish(down_key(CAMERA, "task"), msg)
+        print("published task", msg.task.task_id[-6:])
+    elif kind == "listen":  # count what this certificate can hear on the camera down key
+        heard = session.subscribe(down_key(CAMERA, "task"))
+        await asyncio.sleep(8)
+        print("heard on the camera down key:", heard.qsize())
+    elif kind == "unchanged":  # registers as sender, then reports Unchanged with no New
+        msg = stamp(load_template("sensor", "Registration"), sender)
+        await session.publish(up_key(sender, "registration"), msg)
+        await asyncio.sleep(0.5)
+        msg = stamp(load_template("sensor", "StatusReport"), sender)
+        msg.status_report.report_id = new_ulid()
+        msg.status_report.info = msg.status_report.INFO_UNCHANGED
+        await session.publish(up_key(sender, "status_report"), msg)
+        print("registered and reported Unchanged as", sender[:8])
+    else:  # a StatusReport from sender, on the up key of sender
+        msg = stamp(load_template("sensor", "StatusReport"), sender)
+        msg.status_report.report_id = new_ulid()
+        msg.status_report.info = msg.status_report.INFO_NEW
+        msg.status_report.mode = "T07-PROBE"
+        await session.publish(up_key(sender, "status_report"), msg)
+        print("published status as", sender[:8])
+    await asyncio.sleep(1)
+    session.close()
+asyncio.run(main())
+'
+RADAR=a0000001-0000-4000-8000-000000000001
+CAMERA=a0000002-0000-4000-8000-000000000002
+FUSION=f0000001-0000-4000-8000-000000000001
+```
+
+The radar's certificate tries to task the camera. The camera must not log it.
+
+```bash
+dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR task
+# published task NHA4N8
+sleep 10
+dc logs --since 20s camera | grep -c "<- task a0000001"
+# 0
+```
+
+The radar's certificate tries to report as the camera, on the camera's up key. Neither the fusion node nor the recorder may see it.
+
+```bash
+dc run --rm --no-deps -T radar python -c "$PROBE" $CAMERA status
+# published status as a0000002
+sleep 3
+dc logs --since 15s fusion-node | grep -c "a0000002.*T07-PROBE"
+# 0
+dc exec -T recorder sh -c 'cat /data/records/*.jsonl | grep -c "a0000002.*T07-PROBE"'
+# 0
+```
+
+Two controls show the same probes do arrive when the certificate is allowed. The radar reports as itself, and the fusion certificate tasks the camera while the radar's certificate tries to listen on the camera's down key.
+
+```bash
+dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR status
+# published status as a0000001
+sleep 3
+dc logs --since 15s fusion-node | grep "a0000001.*T07-PROBE"
+# fusion-node-1  | 05:30:38 fusion: <- status_report a0000001 SYSTEM_OK INFO_NEW mode=T07-PROBE
+dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR listen &
+sleep 3
+TASK=$(dc run --rm --no-deps -T fusion-node python -c "$PROBE" $FUSION task | awk '{print $3}')
+wait
+# heard on the camera down key: 0
+dc logs --since 20s camera | grep -c "$TASK"   # the task and the camera's ack
+# 2
+```
+
+The router's own record of the denials, by certificate:
+
+```bash
+dc logs --no-color zenohd | grep 'CertCommonName(radar.p1.h1)' | grep a0000002 | grep -E 'unauthorized to (Put|Declare/Undeclare Subscriber) ' | sed -E 's/.*CertCommonName\(([^)]*)\).* is (unauthorized.*)/\1 \2/' | sort -u
+# radar.p1.h1 unauthorized to Declare/Undeclare Subscriber (ingress) on h1/p1/sapient/v2/a0000002-0000-4000-8000-000000000002/down/task
+# radar.p1.h1 unauthorized to Put (ingress) on h1/p1/sapient/v2/a0000002-0000-4000-8000-000000000002/down/task
+# radar.p1.h1 unauthorized to Put (ingress) on h1/p1/sapient/v2/a0000002-0000-4000-8000-000000000002/up/status_report
+dc up -d zenohd
+sleep 25
+```
+
+**7. T-08: status ordering under load.** The radar and camera report detections every 20 ms for about 2 minutes. The fusion node logs `Unchanged status ... before any New status` when a node reports `INFO_UNCHANGED` after registering and before any `INFO_NEW`. The window covers the sensors' start, which is when that order can go wrong.
+
+```bash
+DETECTION_INTERVAL=0.02 dc up -d radar camera
+sleep 115
+dc logs --since 2m fusion-node | grep -c "Unchanged.*before"
+# 0
+dc logs --since 2m fusion-node | grep -c "invalid message from"
+# 9489
+dc logs --since 2m fusion-node | grep -c "<- detection_report"
+# 0
+```
+
+At this rate the check covers the status path only. The fusion node's validator requires 80 ms between detections from one sensor and rejects every one sent every 20 ms, so the fusion node answers each with an `Error` and no detection reaches a track. Restore the normal rate with `dc up -d radar camera`.
+
+This confirms the check can fire. A probe registers as the radar and then reports `INFO_UNCHANGED` with no `INFO_NEW`. The second log line is the real radar's next status, which also arrives before a New.
+
+```bash
+dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR unchanged
+# registered and reported Unchanged as a0000001
+sleep 3
+dc logs --since 15s fusion-node | grep "Unchanged.*before"
+# fusion-node-1  | 05:33:36 fusion: Unchanged status from a0000001 before any New status since it registered
+# fusion-node-1  | 05:33:39 fusion: Unchanged status from a0000001 before any New status since it registered
+```
+
+To stop the stage, run `dc down`. The recordings stay in the `apex-pod1_records` volume. Don't add `-v` unless you mean to delete them.
+
 ## Optional: Elasticsearch and the REST API
 
 The REST API on port 8080 reads from Elasticsearch. Without it, every data endpoint returns `503 {"detail":"Database Service Unavailable or not started."}`, and only `/` and `/docs` work. Apex doesn't need Elasticsearch to route or record messages, because SQLite always records everything.

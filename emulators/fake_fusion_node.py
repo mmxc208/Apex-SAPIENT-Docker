@@ -321,7 +321,9 @@ class FakeFusionNode:
         self.validators.pop(msg.node_id, None)  # a (re)registering sender starts afresh, as on a new Apex connection
         known = msg.node_id in self.nodes
         self.nodes.setdefault(msg.node_id, {"location": None})
-        self.nodes[msg.node_id].update(name=reg.name, short_name=reg.short_name, types=node_types(reg))
+        self.nodes[msg.node_id].update(
+            name=reg.name, short_name=reg.short_name, types=node_types(reg), awaiting_new_status=True
+        )
         ack = load_template("fusion_node", "RegistrationAck")
         ack.registration_ack.acceptance = True
         ack.registration_ack.ack_response_reason[:] = ["Accepted by fake fusion node" + (" (re-registration)" if known else "")]
@@ -332,6 +334,10 @@ class FakeFusionNode:
         node = self.nodes.setdefault(msg.node_id, {"name": msg.node_id[:8], "types": set(), "location": None})
         if report.HasField("node_location"):
             node["location"] = report.node_location
+        if report.info == StatusReport.INFO_NEW:
+            node["awaiting_new_status"] = False
+        elif report.info == StatusReport.INFO_UNCHANGED and node.get("awaiting_new_status"):
+            self.log.info(f"Unchanged status from {msg.node_id[:8]} before any New status since it registered")
         return report.info == StatusReport.INFO_NEW
 
     async def _on_detection(self, msg):

@@ -1,0 +1,154 @@
+# Stage 4, pod 1: a hardened router (mutual TLS, access control by certificate), native fusion node
+# and sensors, and the vehicle as a legacy TCP node behind the node-side bridge.
+# Standalone: use this file alone. Certificates first:
+#   zenoh/pki/make_certs.sh zenoh/pki/out
+#   docker compose -f docker-compose.pod1.yml up -d
+# See "Stage 4: pod 1 with mutual TLS and access control" in README.md.
+
+name: apex-pod1   # never the "apex" project, which holds other containers
+
+x-emulator: &emulator
+  image: apex-sapient:4.2.0   # has Python, sapient_msg, zenoh and Apex's Validator
+  working_dir: /emulators
+  depends_on:
+    - zenohd
+  restart: unless-stopped
+
+x-emulator-env: &emulator-env
+  TRANSPORT: zenoh
+  ZENOH_CONNECT: tls/router.p1.h1:7447
+  ZENOH_KEY_PREFIX: h1/p1/
+  ZENOH_TLS_CA: /certs/ca.pem
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+services:
+  zenohd:
+    image: eclipse/zenoh:1.10.2
+    command: ["-c", "/config/router.json5"]
+    environment:
+      RUST_LOG: ${ZENOHD_RUST_LOG:-info}   # zenoh=debug shows access-control denials
+    volumes:
+      - ./zenoh/router-pod1.json5:/config/router.json5:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/router.p1.h1.pem:/certs/router.p1.h1.pem:ro
+      - ./zenoh/pki/out/router.p1.h1.key:/certs/router.p1.h1.key:ro
+    networks:
+      default:
+        aliases:
+          - router.p1.h1   # the name in the router's certificate
+    restart: unless-stopped
+
+  fusion-node:
+    <<: *emulator
+    command: python fake_fusion_node.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/fusion.p1.h1.pem:/certs/fusion.p1.h1.pem:ro
+      - ./zenoh/pki/out/fusion.p1.h1.key:/certs/fusion.p1.h1.key:ro
+    environment:
+      <<: *emulator-env
+      ZENOH_TLS_CERT: /certs/fusion.p1.h1.pem
+      ZENOH_TLS_KEY: /certs/fusion.p1.h1.key
+      NODE_ID: "f0000001-0000-4000-8000-000000000001"   # must match the rules in router-pod1.json5
+      AUTO_TASK: "look_at,move_to,follow,patrol,request:Status"
+      TASK_INTERVAL: "20"
+    stdin_open: true   # docker attach apex-pod1-fusion-node-1, then type 'help'
+    tty: true
+
+  radar:
+    <<: *emulator
+    command: python fake_sensor.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/radar.p1.h1.pem:/certs/radar.p1.h1.pem:ro
+      - ./zenoh/pki/out/radar.p1.h1.key:/certs/radar.p1.h1.key:ro
+    environment:
+      <<: *emulator-env
+      ZENOH_TLS_CERT: /certs/radar.p1.h1.pem
+      ZENOH_TLS_KEY: /certs/radar.p1.h1.key
+      NODE_ID: "a0000001-0000-4000-8000-000000000001"   # must match the rules in router-pod1.json5
+      NODE_NAME: "Fake radar"
+      NODE_SHORT_NAME: "radar"
+      NODE_TYPE: "RADAR"
+      NODE_LAT: "51.1739"
+      NODE_LON: "-1.8224"
+      DETECTION_INTERVAL: ${DETECTION_INTERVAL:-1}
+
+  camera:
+    <<: *emulator
+    command: python fake_sensor.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/camera.p1.h1.pem:/certs/camera.p1.h1.pem:ro
+      - ./zenoh/pki/out/camera.p1.h1.key:/certs/camera.p1.h1.key:ro
+    environment:
+      <<: *emulator-env
+      ZENOH_TLS_CERT: /certs/camera.p1.h1.pem
+      ZENOH_TLS_KEY: /certs/camera.p1.h1.key
+      NODE_ID: "a0000002-0000-4000-8000-000000000002"   # must match the rules in router-pod1.json5
+      NODE_NAME: "Fake camera on vehicle"
+      NODE_SHORT_NAME: "camera"
+      NODE_TYPE: "CAMERA"
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+      DETECTION_INTERVAL: ${DETECTION_INTERVAL:-1}
+
+  # The legacy node: plain TCP SAPIENT to the bridge next to it, which holds the certificate.
+  vehicle:
+    image: apex-sapient:4.2.0
+    working_dir: /emulators
+    command: python fake_sensor.py
+    depends_on:
+      - bridge-node
+    restart: unless-stopped
+    volumes:
+      - ./emulators:/emulators:ro
+    environment:
+      TRANSPORT: tcp
+      APEX_HOST: bridge-node
+      APEX_PORT: "5020"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      NODE_ID: "a0000003-0000-4000-8000-000000000003"   # must match the rules in router-pod1.json5
+      NODE_NAME: "Fake vehicle (mobile platform)"
+      NODE_SHORT_NAME: "vehicle"
+      NODE_TYPE: "MOBILE_NODE"
+      DEPENDENT_NODES: "a0000002-0000-4000-8000-000000000002"   # carries the camera
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+
+  bridge-node:
+    <<: *emulator
+    command: python bridge_node_side.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/bridge.p1.h1.pem:/certs/bridge.p1.h1.pem:ro
+      - ./zenoh/pki/out/bridge.p1.h1.key:/certs/bridge.p1.h1.key:ro
+    environment:
+      <<: *emulator-env
+      ZENOH_TLS_CERT: /certs/bridge.p1.h1.pem
+      ZENOH_TLS_KEY: /certs/bridge.p1.h1.key
+      LISTEN_PORT: "5020"
+
+  recorder:
+    <<: *emulator
+    command: python recorder.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/recorder.p1.h1.pem:/certs/recorder.p1.h1.pem:ro
+      - ./zenoh/pki/out/recorder.p1.h1.key:/certs/recorder.p1.h1.key:ro
+      - records:/data/records
+    environment:
+      <<: *emulator-env
+      ZENOH_TLS_CERT: /certs/recorder.p1.h1.pem
+      ZENOH_TLS_KEY: /certs/recorder.p1.h1.key
+      RECORD_DIR: /data/records
+
+volumes:
+  records:
