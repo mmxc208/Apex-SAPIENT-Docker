@@ -12,16 +12,17 @@ from google.protobuf.message import DecodeError
 import fake_fusion_node
 from conftest import FakeZenohSession
 from fake_fusion_node import FakeFusionNode
-from sapient_link import ZenohFusionLink, new_ulid, stamp
+from sapient_link import ZenohFusionLink, load_template, new_ulid, stamp
 from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from zenoh_io import ZenohSession
-from zenoh_keys import UP_ALL, down_key, live_key, up_key
+from zenoh_keys import UP_ALL, down_key, fusion_up_key, live_key, qos_for, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
 OTHER = "a0000002-0000-4000-8000-000000000002"
 FUSION = "f0000001-0000-4000-8000-000000000001"
+PEER_FUSION = "f0000002-0000-4000-8000-000000000002"
 TIMEOUT = 5
 UNDECODABLE = b"\xff\xff\xff"
 
@@ -61,6 +62,16 @@ async def receiving(fusion):
     await asyncio.gather(task, return_exceptions=True)
 
 
+@pytest.fixture
+async def republishing(receiving, monkeypatch):
+    """The fusion node re-announcing itself with no debounce delay."""
+    monkeypatch.setattr(fake_fusion_node, "REGISTRATION_DEBOUNCE_SECONDS", 0)
+    task = asyncio.create_task(receiving._registration_loop())
+    yield receiving
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
 def published_on(session, key) -> list[SapientMessage]:
     return [SapientMessage.FromString(payload) for k, payload, _ in session.published if k == key]
 
@@ -75,6 +86,33 @@ async def until(condition):
 
 def registration(templates, node_id=NODE):
     return stamp(templates("sensor", "Registration"), node_id)
+
+
+def with_capabilities(msg, *pairs):
+    del msg.registration.capabilities[:]
+    for category, capability_type in pairs:
+        msg.registration.capabilities.add(category=category, type=capability_type, value="1", units="u")
+    return msg
+
+
+def with_commands(msg, *commands):
+    task = msg.registration.mode_definition[0].task
+    stock = Registration.Command()
+    stock.CopyFrom(task.command[0])
+    del task.command[:]
+    for command_type, units in commands:
+        command = task.command.add()
+        command.CopyFrom(stock)
+        command.type = command_type
+        command.units = units
+    return msg
+
+
+def fusion_typed_registration(templates, node_id=PEER_FUSION):
+    msg = registration(templates, node_id)
+    del msg.registration.node_definition[:]
+    msg.registration.node_definition.add(node_type=Registration.NodeType.NODE_TYPE_FUSION_NODE)
+    return msg
 
 
 def detection(templates, node_id=NODE):
@@ -296,8 +334,8 @@ def test_unchanged_from_a_node_not_yet_registered_is_not_logged(fusion, template
     assert "before" not in caplog.text
 
 
-def test_own_registration_describes_a_fusion_node(fusion):
-    msg = fusion._own_registration()
+def test_fusion_registration_describes_a_fusion_node(fusion):
+    msg = fusion.build_fusion_registration()
 
     reg = msg.registration
     assert msg.node_id == FUSION
@@ -305,35 +343,284 @@ def test_own_registration_describes_a_fusion_node(fusion):
     assert [d.node_type for d in reg.node_definition] == [Registration.NodeType.NODE_TYPE_FUSION_NODE]
     assert (reg.name, reg.short_name) == ("fake fusion node", "fusion")
     assert reg.icd_version == "BSI Flex 335 v2.0"
-    assert reg.status_definition.status_interval.value == pytest.approx(0.01)
-    assert not reg.capabilities
     assert not reg.dependent_nodes
 
 
-def test_own_registration_only_lacks_the_capabilities_stage_4_fills(fusion):
-    description = fusion.validate(fusion._own_registration())
+def test_fusion_registration_reports_its_status_interval_in_seconds():
+    reg = FakeFusionNode(fusion_args(status_interval=10.0)).build_fusion_registration().registration
 
-    assert description.count("Missing") == 1
-    assert "registration.capabilities" in description
+    assert reg.status_definition.status_interval.value == 10.0
+    assert reg.status_definition.status_interval.units == Registration.TIME_UNITS_SECONDS
 
 
-async def test_run_on_zenoh_registers_and_requests_registrations(monkeypatch, fake_session):
+async def test_fusion_registration_aggregates_capabilities(fusion, templates):
+    first = with_capabilities(registration(templates, NODE), ("A", "x"), ("B", "y"))
+    second = with_capabilities(registration(templates, OTHER), ("B", "y"), ("C", "z"))
+    await fusion._on_registration(first)
+    await fusion._on_registration(second)
+
+    reg = fusion.build_fusion_registration().registration
+
+    assert [(c.category, c.type) for c in reg.capabilities] == [("A", "x"), ("B", "y"), ("C", "z")]
+    assert [d.node_type for d in reg.node_definition] == [Registration.NodeType.NODE_TYPE_FUSION_NODE]
+
+
+async def test_fusion_registration_dedupes_on_category_and_type_only(fusion, templates):
+    first = with_capabilities(registration(templates, NODE), ("A", "x"), ("A", "y"))
+    await fusion._on_registration(first)
+
+    reg = fusion.build_fusion_registration().registration
+
+    assert [(c.category, c.type) for c in reg.capabilities] == [("A", "x"), ("A", "y")]
+
+
+async def test_fusion_registration_unions_task_commands(fusion, templates):
+    patrol, look_at, move_to = (Registration.COMMAND_TYPE_PATROL, Registration.COMMAND_TYPE_LOOK_AT, Registration.COMMAND_TYPE_MOVE_TO)
+    await fusion._on_registration(with_commands(registration(templates, NODE), (patrol, "Status"), (look_at, "Status")))
+    await fusion._on_registration(with_commands(registration(templates, OTHER), (patrol, "Status"), (move_to, "Status")))
+
+    commands = fusion.build_fusion_registration().registration.mode_definition[0].task.command
+
+    assert [c.type for c in commands] == [patrol, look_at, move_to]
+
+
+async def test_fusion_registration_passes_apex_validator_once_a_sensor_is_registered(fusion, templates):
+    await fusion._on_registration(registration(templates))
+
+    assert fusion.validate(fusion.build_fusion_registration()) is None
+
+
+def test_fusion_registration_without_sensors_would_fail_validation(fusion):
+    """Why nothing is published until the first sensor registers: capabilities are mandatory."""
+    assert "registration.capabilities" in fusion.validate(fusion.build_fusion_registration())
+
+
+async def test_no_registration_published_until_a_sensor_registers(fusion, fake_session):
+    await fusion._announce()
+
+    assert not published_on(fake_session, fusion_up_key("registration"))
+    assert not published_on(fake_session, up_key(FUSION, "registration"))
+    assert not fusion.own_registered.is_set()
+
+
+async def test_announce_publishes_at_once_when_sensors_are_already_known(fusion, fake_session, templates):
+    """After a reconnect the registry is still full, so there is nothing to wait for."""
+    await fusion._on_registration(registration(templates))
+
+    await fusion._announce()
+
+    assert len(published_on(fake_session, fusion_up_key("registration"))) == 1
+    assert fusion.own_registered.is_set()
+
+
+async def test_fusion_registration_goes_to_both_keys(fusion, fake_session, templates):
+    await fusion._on_registration(registration(templates))
+
+    await fusion._publish_registration()
+
+    [upward] = published_on(fake_session, fusion_up_key("registration"))
+    [own] = published_on(fake_session, up_key(FUSION, "registration"))
+    assert upward == own
+    assert upward.node_id == FUSION
+
+
+@pytest.mark.usefixtures("republishing")
+async def test_fusion_registration_republished_on_new_node(fusion, fake_session):
+    key = fusion_up_key("registration")
+
+    fake_session.inject(up_key(NODE, "registration"), registration(load_template, NODE).SerializeToString())
+    await until(lambda: len(published_on(fake_session, key)) == 1)
+    fake_session.inject(up_key(OTHER, "registration"), registration(load_template, OTHER).SerializeToString())
+    await until(lambda: len(published_on(fake_session, key)) == 2)
+
+    assert {NODE, OTHER} <= set(fusion.nodes)
+
+
+@pytest.mark.usefixtures("republishing")
+async def test_fusion_registration_republished_when_a_node_changes_its_capabilities(fusion, fake_session, templates):
+    key = fusion_up_key("registration")
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: len(published_on(fake_session, key)) == 1)
+
+    changed = with_capabilities(registration(templates), ("New", "capability"))
+    fake_session.inject(up_key(NODE, "registration"), changed.SerializeToString())
+    await until(lambda: len(published_on(fake_session, key)) == 2)
+
+    assert [c.category for c in published_on(fake_session, key)[1].registration.capabilities] == ["New"]
+
+
+@pytest.mark.usefixtures("republishing")
+async def test_identical_re_registration_does_not_republish(fusion, fake_session, templates):
+    key = fusion_up_key("registration")
+    acks = lambda: published_on(fake_session, down_key(NODE, "registration_ack"))
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: len(published_on(fake_session, key)) == 1)
+
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: len(acks()) == 2)
+
+    assert not fusion.registry_changed.is_set()
+    assert len(published_on(fake_session, key)) == 1
+
+
+def test_registration_debounce_is_five_seconds():
+    assert fake_fusion_node.REGISTRATION_DEBOUNCE_SECONDS == 5
+
+
+async def test_registrations_inside_the_debounce_window_publish_once(receiving, fake_session, templates, monkeypatch):
+    monkeypatch.setattr(fake_fusion_node, "REGISTRATION_DEBOUNCE_SECONDS", 0.05)
+    key = fusion_up_key("registration")
+    task = asyncio.create_task(receiving._registration_loop())
+
+    first = with_capabilities(registration(templates, NODE), ("A", "x"))
+    second = with_capabilities(registration(templates, OTHER), ("B", "y"))
+    fake_session.inject(up_key(NODE, "registration"), first.SerializeToString())
+    fake_session.inject(up_key(OTHER, "registration"), second.SerializeToString())
+    await until(lambda: published_on(fake_session, key))
+    await asyncio.sleep(0.15)
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    [reg] = published_on(fake_session, key)
+    assert [c.category for c in reg.registration.capabilities] == ["A", "B"]
+
+
+async def test_own_status_waits_for_own_registration(fusion, fake_session, templates):
+    status_key = up_key(FUSION, "status_report")
+    task = asyncio.create_task(fusion._status_once_registered())
+    for _ in range(20):
+        await asyncio.sleep(0)
+    assert not published_on(fake_session, status_key)
+
+    await fusion._on_registration(registration(templates))
+    await fusion._publish_registration()
+    await until(lambda: published_on(fake_session, status_key))
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    keys = [key for key, _, _ in fake_session.published]
+    assert keys.index(up_key(FUSION, "registration")) < keys.index(status_key)
+
+
+async def test_no_track_before_own_registration(receiving, fake_session, templates):
+    """A restarted node hears detections during the debounce, before it has registered upward."""
+    receiving.args.publish_tracks = True
+
+    fake_session.inject(up_key(NODE, "detection_report"), detection(templates).SerializeToString())
+    await until(lambda: NODE in receiving.detection_counts)
+
+    assert not published_on(fake_session, fusion_up_key("detection_report"))
+    assert not published_on(fake_session, up_key(FUSION, "detection_report"))
+
+
+async def test_tracks_flow_once_registered(receiving, fake_session, templates):
+    receiving.args.publish_tracks = True
+    await receiving._on_registration(registration(templates))
+    await receiving._publish_registration()
+
+    fake_session.inject(up_key(NODE, "detection_report"), detection(templates).SerializeToString())
+    await until(lambda: published_on(fake_session, fusion_up_key("detection_report")))
+
+    keys = [key for key, _, _ in fake_session.published]
+    assert keys.index(fusion_up_key("registration")) < keys.index(fusion_up_key("detection_report"))
+
+
+async def test_tcp_tracks_do_not_wait_for_an_own_registration(fake_session, templates):
+    """Over TCP, Apex is the parent and this node publishes no Registration of its own."""
+    node = FakeFusionNode(fusion_args(transport="tcp", publish_tracks=True))
+    node.link = ZenohFusionLink(fake_session, FUSION, fake_session.subscribe(UP_ALL))
+
+    await node._on_detection(detection(templates))
+
+    assert published_on(fake_session, up_key(FUSION, "detection_report"))
+    assert not published_on(fake_session, fusion_up_key("detection_report"))
+
+
+async def test_fused_track_is_mirrored_to_the_fusion_key(receiving, fake_session, templates):
+    receiving.args.publish_tracks = True
+    await receiving._on_registration(registration(templates))
+    await receiving._publish_registration()
+    raw = detection(templates)
+
+    fake_session.inject(up_key(NODE, "detection_report"), raw.SerializeToString())
+    await until(lambda: published_on(fake_session, fusion_up_key("detection_report")))
+
+    [mirrored] = published_on(fake_session, fusion_up_key("detection_report"))
+    [own] = published_on(fake_session, up_key(FUSION, "detection_report"))
+    assert mirrored == own
+    assert mirrored.node_id == FUSION
+    assert mirrored.detection_report.report_id != raw.detection_report.report_id
+    qos = [q for key, _, q in fake_session.published if key == fusion_up_key("detection_report")]
+    assert qos == [qos_for("detection_report", fused=True)]
+
+
+async def test_raw_detection_with_tracks_off_reaches_no_fusion_key(receiving, fake_session, templates):
+    fake_session.inject(up_key(NODE, "detection_report"), detection(templates).SerializeToString())
+    await until(lambda: NODE in receiving.detection_counts)
+
+    assert not published_on(fake_session, fusion_up_key("detection_report"))
+
+
+async def test_other_fusion_nodes_registration_is_not_validated(receiving, fake_session, templates):
+    """Its registration is no sensor joining this node: no Error, no ack, no share of the aggregate."""
+    invalid = fusion_typed_registration(templates)
+    invalid.registration.ClearField("capabilities")
+
+    fake_session.inject(up_key(PEER_FUSION, "registration"), invalid.SerializeToString())
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "registration_ack")))
+
+    assert not published_on(fake_session, down_key(PEER_FUSION, "error"))
+    assert not published_on(fake_session, down_key(PEER_FUSION, "registration_ack"))
+    assert PEER_FUSION not in receiving.nodes
+
+
+async def test_other_fusion_nodes_later_messages_are_not_validated(receiving, fake_session, templates):
+    fake_session.inject(up_key(PEER_FUSION, "registration"), fusion_typed_registration(templates).SerializeToString())
+    bad = detection(templates, PEER_FUSION)
+    bad.ClearField("timestamp")
+    fake_session.inject(up_key(PEER_FUSION, "detection_report"), bad.SerializeToString())
+    fake_session.inject(up_key(PEER_FUSION, "status_report"), UNDECODABLE)
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "registration_ack")))
+
+    assert not published_on(fake_session, down_key(PEER_FUSION, "error"))
+    assert PEER_FUSION not in receiving.detection_counts
+
+
+async def test_fusion_typed_registration_without_node_id_filters_only_its_key_owner(receiving, fake_session, templates):
+    """A missing node_id must not silence every other message that lacks one."""
+    nameless = fusion_typed_registration(templates)
+    nameless.ClearField("node_id")
+    broken = registration(templates)
+    broken.ClearField("node_id")
+
+    fake_session.inject(up_key(PEER_FUSION, "registration"), nameless.SerializeToString())
+    fake_session.inject(up_key(NODE, "registration"), broken.SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "error")))
+
+    assert not published_on(fake_session, down_key(PEER_FUSION, "error"))
+
+
+async def test_run_on_zenoh_registers_and_requests_registrations(monkeypatch, fake_session, templates):
     async def fake_open(connect, loop, tls=None):
         return fake_session
 
     monkeypatch.setattr(ZenohSession, "open", fake_open)
     monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    monkeypatch.setattr(fake_fusion_node, "REGISTRATION_DEBOUNCE_SECONDS", 0)
     fake_session.declare_token(live_key(NODE))
     task = asyncio.create_task(FakeFusionNode(fusion_args()).run())
 
-    await until(
-        lambda: published_on(fake_session, up_key(FUSION, "status_report"))
-        and published_on(fake_session, down_key(NODE, "task"))
-    )
+    await until(lambda: published_on(fake_session, down_key(NODE, "task")))
+    assert not published_on(fake_session, up_key(FUSION, "status_report"))
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: published_on(fake_session, up_key(FUSION, "status_report")))
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
 
     assert len(published_on(fake_session, up_key(FUSION, "registration"))) == 1
+    assert len(published_on(fake_session, fusion_up_key("registration"))) == 1
 
 
 async def test_receive_raw_still_raises_decode_error_and_keeps_the_sample(fake_session):

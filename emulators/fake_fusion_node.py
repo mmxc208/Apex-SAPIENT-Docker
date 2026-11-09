@@ -15,8 +15,10 @@ What it does:
   - reads commands from stdin (attach to the container): nodes, tracks, task <kind> [node], help.
 
 With --transport zenoh Apex is not on the path, so the node also validates every message with
-Apex's own validator (replying with an Error), registers itself as a child Fusion_Node, asks every
-live node to re-register, and sends its own status reports.
+Apex's own validator (replying with an Error), asks every live node to re-register, and sends its
+own status reports. It registers upward as a child Fusion_Node (BSI Flex 335 v2.0 clause 4.11) with
+the union of its sensors' capabilities and task commands, once the first sensor has registered and
+again whenever the registered sensors change, and mirrors its tracks onto the pod's fusion keys.
 
 Usage: python fake_fusion_node.py --port 5001 --auto-task look_at,move_to,follow
 """
@@ -67,6 +69,7 @@ TASK_TEMPLATES = {
     "classification_threshold": "Task.ClassificationThreshold.Medium",
 }
 OWN_MODE = "Default"
+REGISTRATION_DEBOUNCE_SECONDS = 5
 # The validationOptions block of apex_config.emulators.json.
 VALIDATION_OPTIONS = ValidationOptions.from_config_dict({
     "validationTypes": [
@@ -91,17 +94,36 @@ def node_types(registration) -> set[str]:
     return {Registration.NodeType.Name(d.node_type).removeprefix("NODE_TYPE_") for d in registration.node_definition}
 
 
+def key_owner(key: str) -> str | None:
+    """The node a SAPIENT key names, or None for a malformed key."""
+    try:
+        return parse_key(key)[0]
+    except ValueError:
+        return None
+
+
 def error_recipient(node_id: str, key: str) -> str | None:
     """Who to send an Error to: the message's node_id, else the node its key names, else nobody."""
     try:
         live_key(node_id)  # raises ValueError unless node_id is a canonical UUID
         return node_id
     except ValueError:
-        pass
-    try:
-        return parse_key(key)[0]
-    except ValueError:
-        return None
+        return key_owner(key)
+
+
+def declares_fusion_node(msg: SapientMessage) -> bool:
+    """Whether msg is a Registration of a fusion node. Safe on a message not yet validated."""
+    return msg.WhichOneof("content") == "registration" and any(
+        d.node_type == Registration.NodeType.NODE_TYPE_FUSION_NODE for d in msg.registration.node_definition
+    )
+
+
+def unique(items, key) -> list:
+    """items without repeats of key(item), keeping the first of each in order."""
+    seen = {}
+    for item in items:
+        seen.setdefault(key(item), item)
+    return list(seen.values())
 
 
 def distance_m(a, b) -> float:
@@ -126,11 +148,14 @@ class FakeFusionNode:
         self.log = setup_logging("fusion")
         self.link = None
         self.zenoh_session = None
-        self.nodes = {}  # node_id -> {"name", "types", "location"}
+        self.nodes = {}  # node_id -> {"name", "types", "location", "registration"}
         self.tracks = []
         self.detection_counts = {}
         self.auto_tasks = [t for t in args.auto_task.split(",") if t]
         self.validators = {}  # node_id -> Validator
+        self.other_fusion_nodes = set()  # owners of up keys that have declared a fusion node
+        self.registry_changed = asyncio.Event()  # the registered sensors differ from the last announcement
+        self.own_registered = asyncio.Event()  # this connection has published this node's Registration
 
     # ---- outgoing ------------------------------------------------------------------------
 
@@ -217,8 +242,13 @@ class FakeFusionNode:
             if msg is not None:
                 await self.send(msg)
 
-    def _own_registration(self):
-        """This node's Registration as a child Fusion_Node; stage 4 fills the capabilities."""
+    def _registrations(self) -> list:
+        """The Registration of every node that has registered (a status report alone doesn't count)."""
+        return [node["registration"] for node in self.nodes.values() if "registration" in node]
+
+    def build_fusion_registration(self) -> SapientMessage:
+        """This node's Registration as a child Fusion_Node, standing for its registered sensors."""
+        registrations = self._registrations()
         msg = load_template("sensor", "Registration")
         reg = msg.registration
         del reg.node_definition[:]
@@ -227,8 +257,20 @@ class FakeFusionNode:
         reg.name = "fake fusion node"
         reg.short_name = "fusion"
         del reg.capabilities[:]
+        reg.capabilities.extend(
+            unique((c for r in registrations for c in r.capabilities), lambda c: (c.category, c.type))
+        )
+        reg.status_definition.status_interval.units = Registration.TIME_UNITS_SECONDS
         reg.status_definition.status_interval.value = self.args.status_interval
-        reg.mode_definition[0].mode_name = OWN_MODE
+        mode = reg.mode_definition[0]
+        mode.mode_name = OWN_MODE
+        del mode.task.command[:]
+        mode.task.command.extend(
+            unique(
+                (c for r in registrations for m in r.mode_definition for c in m.task.command),
+                lambda c: (c.type, c.units),
+            )
+        )
         del reg.dependent_nodes[:]
         del reg.config_data[:]
         reg.config_data.add(
@@ -269,9 +311,34 @@ class FakeFusionNode:
                 self.log.info(f"ignoring malformed liveliness token {key!r}")
         await self.send_task("request:Registration", node_ids)
 
+    async def _publish_registration(self):
+        """Publish this node's Registration, unless no sensor has registered yet.
+
+        Capabilities are mandatory, so until then there is nothing valid to say.
+        """
+        self.registry_changed.clear()
+        if not self._registrations():
+            return
+        msg = self.build_fusion_registration()
+        await self.send(msg)
+        await self.link.send_upward(msg)
+        self.own_registered.set()
+
     async def _announce(self):
-        await self.send(self._own_registration())
+        await self._publish_registration()  # after a reconnect the sensors are already known
         await self.request_registrations()
+
+    async def _registration_loop(self):
+        """Publish this node's Registration again when the registered sensors change, debounced."""
+        while True:
+            await self.registry_changed.wait()
+            await asyncio.sleep(REGISTRATION_DEBOUNCE_SECONDS)
+            await self._publish_registration()
+
+    async def _status_once_registered(self):
+        """A node's first status report must not overtake its Registration."""
+        await self.own_registered.wait()
+        await self._own_status_loop()
 
     async def _send_error(self, packet: bytes, description: str, node_id: str, key: str):
         recipient = error_recipient(node_id, key)
@@ -306,8 +373,12 @@ class FakeFusionNode:
                 packet, msg = await self.link.receive_raw()
             except DecodeError:
                 key, packet = self.link.last_sample
+                if key_owner(key) in self.other_fusion_nodes:
+                    continue
                 self.log.info(f"undecodable message dropped (key {key})")
                 await self._send_error(packet, "undecodable message", "", key)
+                continue
+            if self._from_other_fusion_node(msg):
                 continue
             description = self.validate(msg)
             if description is None:
@@ -316,13 +387,28 @@ class FakeFusionNode:
             self.log.info(f"invalid message from {msg.node_id[:8]!r} dropped: {description}")
             await self._send_error(packet, description, msg.node_id, key)
 
+    def _from_other_fusion_node(self, msg) -> bool:
+        """Whether the latest sample is another fusion node's: it is a peer, not a sensor of this one.
+
+        Goes by the key's owner, which the router authenticates, because node_id may be missing.
+        """
+        owner = key_owner(self.link.last_sample[0])
+        if owner is None:
+            return False
+        if declares_fusion_node(msg) and owner not in self.other_fusion_nodes:
+            self.other_fusion_nodes.add(owner)
+            self.log.info(f"ignoring another fusion node {owner[:8]}")
+        return owner in self.other_fusion_nodes
+
     async def _on_registration(self, msg):
         reg = msg.registration
         self.validators.pop(msg.node_id, None)  # a (re)registering sender starts afresh, as on a new Apex connection
         known = msg.node_id in self.nodes
         self.nodes.setdefault(msg.node_id, {"location": None})
+        if self.nodes[msg.node_id].get("registration") != reg:
+            self.registry_changed.set()
         self.nodes[msg.node_id].update(
-            name=reg.name, short_name=reg.short_name, types=node_types(reg), awaiting_new_status=True
+            name=reg.name, short_name=reg.short_name, types=node_types(reg), awaiting_new_status=True, registration=reg
         )
         ack = load_template("fusion_node", "RegistrationAck")
         ack.registration_ack.acceptance = True
@@ -340,6 +426,10 @@ class FakeFusionNode:
             self.log.info(f"Unchanged status from {msg.node_id[:8]} before any New status since it registered")
         return report.info == StatusReport.INFO_NEW
 
+    def _may_publish_tracks(self) -> bool:
+        """Over Zenoh, as with status reports, tracks wait until this node has registered upward."""
+        return self.args.publish_tracks and (self.args.transport == "tcp" or self.own_registered.is_set())
+
     async def _on_detection(self, msg):
         det = msg.detection_report
         count = self.detection_counts.get(msg.node_id, 0)
@@ -355,7 +445,7 @@ class FakeFusionNode:
         nearest.detection = det
         nearest.sources.add(msg.node_id)
         nearest.updated = time.time()
-        if self.args.publish_tracks and time.time() - nearest.published >= TRACK_PUBLISH_SECONDS:
+        if self._may_publish_tracks() and time.time() - nearest.published >= TRACK_PUBLISH_SECONDS:
             nearest.published = time.time()
             track = load_template("sensor", "DetectionReport")
             track.detection_report.CopyFrom(det)
@@ -363,6 +453,8 @@ class FakeFusionNode:
             track.detection_report.object_id = nearest.track_id
             track.detection_report.ClearField("task_id")
             await self.link.send(stamp(track, self.node_id))
+            if self.args.transport == "zenoh":
+                await self.link.send_upward(track)
         return count % 10 == 0
 
     async def _receive_loop(self):
@@ -453,8 +545,10 @@ class FakeFusionNode:
                     group.create_task(self._receive_loop())
                     group.create_task(self._auto_task_loop())
                     if self.args.transport == "zenoh":
+                        self.own_registered.clear()
                         group.create_task(self._announce())
-                        group.create_task(self._own_status_loop())
+                        group.create_task(self._registration_loop())
+                        group.create_task(self._status_once_registered())
             except* (asyncio.IncompleteReadError, ConnectionError):
                 self.log.info("connection to Apex lost; reconnecting")
             finally:

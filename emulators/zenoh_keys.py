@@ -4,6 +4,9 @@ Keys hold only fixed-width node UUIDs, never report IDs, task IDs or timestamps:
     <PREFIX>sapient/v2/<node_id>/up/<kind>
     <PREFIX>sapient/v2/<node_id>/down/<kind>
     <PREFIX>sapient/v2/live/<node_id>
+A pod's fusion node also faces a future host on:
+    <PREFIX>fusion/up/<kind>
+    <PREFIX>fusion/down/<kind>
 <kind> is the SapientMessage.content oneof field name.
 """
 import os
@@ -74,6 +77,14 @@ def down_key(node_id: str, kind: str) -> str:
 
 def live_key(node_id: str) -> str:
     return _checked_key(f"{_LIVE}/{_checked_node_id(node_id)}")
+
+
+def fusion_up_key(kind: str) -> str:
+    return _checked_key(f"{PREFIX}fusion/up/{_checked_kind(kind)}")
+
+
+def fusion_down_key(kind: str) -> str:
+    return _checked_key(f"{PREFIX}fusion/down/{_checked_kind(kind)}")
 
 
 def DOWN_FOR(node_id: str) -> str:

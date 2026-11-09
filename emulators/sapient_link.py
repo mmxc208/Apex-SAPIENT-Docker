@@ -19,7 +19,7 @@ from sapient_msg.bsi_flex_335_v2_0.location_pb2 import (
 )
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from zenoh_io import RECONNECT_SECONDS, ZenohSession
-from zenoh_keys import DOWN_FOR, KINDS, UP_ALL, down_key, kind_of, live_key, up_key
+from zenoh_keys import DOWN_FOR, KINDS, UP_ALL, down_key, fusion_up_key, kind_of, live_key, up_key
 
 TEMPLATES = Path(__file__).parent / "templates"
 EARTH_RADIUS_M = 6_371_000.0
@@ -227,6 +227,10 @@ class ZenohFusionLink:
             await self.session.publish(down_key(msg.destination_id, kind), msg)
         else:
             await self.session.publish(up_key(self.fusion_id, kind), msg, fused=True)
+
+    async def send_upward(self, msg: SapientMessage):
+        """Publish on the pod's fusion keys, where a host would listen to this child Fusion_Node."""
+        await self.session.publish(fusion_up_key(kind_of(msg)), msg, fused=True)
 
     async def receive_raw(self) -> tuple[bytes, SapientMessage]:
         """Next message from a node, with its payload bytes.

@@ -10,6 +10,8 @@ from zenoh_keys import (
     LIVE_ALL,
     UP_ALL,
     down_key,
+    fusion_down_key,
+    fusion_up_key,
     kind_of,
     live_key,
     node_id_from_live_key,
@@ -183,6 +185,28 @@ def test_prefix_from_env(keys_with_prefix):
     assert keys.UP_ALL == "h1/p1/sapient/v2/*/up/**"
     assert keys.parse_key(keys.down_key(NODE, "task")) == (NODE, "down", "task")
     assert keys.node_id_from_live_key(keys.live_key(NODE)) == NODE
+
+
+def test_fusion_keys():
+    assert fusion_up_key("registration") == "fusion/up/registration"
+    assert fusion_down_key("task") == "fusion/down/task"
+
+
+def test_fusion_keys_take_the_prefix_once(keys_with_prefix):
+    keys = keys_with_prefix("h1/p1/")
+    assert keys.fusion_up_key("registration") == "h1/p1/fusion/up/registration"
+    assert keys.fusion_down_key("task") == "h1/p1/fusion/down/task"
+
+
+@pytest.mark.parametrize("build", [fusion_up_key, fusion_down_key])
+def test_fusion_keys_reject_an_unknown_kind(build):
+    with pytest.raises(ValueError):
+        build("bogus")
+
+
+def test_a_fusion_key_is_not_on_the_node_namespace():
+    """The pod fusion node subscribes to UP_ALL; its upward keys must not loop back to it."""
+    assert not zenoh.KeyExpr(UP_ALL).intersects(zenoh.KeyExpr(fusion_up_key("detection_report")))
 
 
 def test_prefix_without_trailing_slash_rejected(keys_with_prefix):
