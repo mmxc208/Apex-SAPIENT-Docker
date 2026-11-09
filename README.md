@@ -624,9 +624,9 @@ dc logs radar | grep -c registration_ack
 dc logs fusion-node | grep -c "<- registration "
 # 3
 dc logs vehicle | grep registration_ack | head -1
-# vehicle-1  | 05:28:26 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
+# vehicle-1  | 05:46:39 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
 dc logs bridge-node | grep registered
-# bridge-node-1  | 05:28:26 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
+# bridge-node-1  | 05:46:39 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
 ```
 
 **3. Late joiner.** The restarted fusion node finds the sensors from their liveliness tokens, and the request reaches the vehicle through the bridge.
@@ -637,9 +637,9 @@ sleep 20
 dc logs --since 30s fusion-node | grep -c "<- registration "
 # 3
 dc logs --since 30s radar camera vehicle | grep 'request "Registration"'
-# vehicle-1  | 05:29:07 vehicle: <- task f0000001 -> a0000003 8D6MF5 request "Registration"
-# camera-1   | 05:29:07 camera: <- task f0000001 -> a0000002 D8152G request "Registration"
-# radar-1    | 05:29:07 radar: <- task f0000001 -> a0000001 TRYNTC request "Registration"
+# camera-1  | 05:47:20 camera: <- task f0000001 -> a0000002 GN3BKV request "Registration"
+# radar-1   | 05:47:20 radar: <- task f0000001 -> a0000001 JKB9G5 request "Registration"
+# vehicle-1  | 05:47:20 vehicle: <- task f0000001 -> a0000003 AKJWEQ request "Registration"
 dc logs radar camera vehicle | grep -c "lost; reconnecting"
 # 0
 ```
@@ -648,10 +648,10 @@ dc logs radar camera vehicle | grep -c "lost; reconnecting"
 
 ```bash
 dc exec -T recorder sh -c 'wc -l /data/records/*.jsonl'
-# 69319 /data/records/2026-11-09.jsonl
+# 123416 /data/records/2026-11-09.jsonl
 sleep 10
 dc exec -T recorder sh -c 'wc -l /data/records/*.jsonl'
-# 69356 /data/records/2026-11-09.jsonl
+# 123453 /data/records/2026-11-09.jsonl
 dc exec -T recorder sh -c 'head -c 120 /data/records/*.jsonl'; echo
 # {"t": "2026-11-09T05:11:40.211+00:00", "key": "h1/p1/sapient/v2/f0000001-0000-4000-8000-000000000001/up/registration", "
 ```
@@ -744,7 +744,7 @@ The radar's certificate tries to task the camera. The camera must not log it.
 
 ```bash
 dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR task
-# published task NHA4N8
+# published task ZCCCY1
 sleep 10
 dc logs --since 20s camera | grep -c "<- task a0000001"
 # 0
@@ -769,7 +769,7 @@ dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR status
 # published status as a0000001
 sleep 3
 dc logs --since 15s fusion-node | grep "a0000001.*T07-PROBE"
-# fusion-node-1  | 05:30:38 fusion: <- status_report a0000001 SYSTEM_OK INFO_NEW mode=T07-PROBE
+# fusion-node-1  | 05:48:51 fusion: <- status_report a0000001 SYSTEM_OK INFO_NEW mode=T07-PROBE
 dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR listen &
 sleep 3
 TASK=$(dc run --rm --no-deps -T fusion-node python -c "$PROBE" $FUSION task | awk '{print $3}')
@@ -790,20 +790,20 @@ dc up -d zenohd
 sleep 25
 ```
 
-**7. T-08: status ordering under load.** The radar and camera report detections every 20 ms for about 2 minutes. The fusion node logs `Unchanged status ... before any New status` when a node reports `INFO_UNCHANGED` after registering and before any `INFO_NEW`. The window covers the sensors' start, which is when that order can go wrong.
+**7. T-08: status ordering under load.** The radar and camera report detections every 100 ms (10 Hz each) for about 2 minutes. The fusion node logs `Unchanged status ... before any New status` when a node reports `INFO_UNCHANGED` after registering and before any `INFO_NEW`. The window covers the sensors' start, which is when that order can go wrong.
 
 ```bash
-DETECTION_INTERVAL=0.02 dc up -d radar camera
+DETECTION_INTERVAL=0.1 dc up -d radar camera
 sleep 115
 dc logs --since 2m fusion-node | grep -c "Unchanged.*before"
 # 0
 dc logs --since 2m fusion-node | grep -c "invalid message from"
-# 9489
-dc logs --since 2m fusion-node | grep -c "<- detection_report"
 # 0
+dc logs --since 2m fusion-node | grep -c "<- detection_report"   # the fusion node logs every 10th per sensor
+# 216
 ```
 
-At this rate the check covers the status path only. The fusion node's validator requires 80 ms between detections from one sensor and rejects every one sent every 20 ms, so the fusion node answers each with an `Error` and no detection reaches a track. Restore the normal rate with `dc up -d radar camera`.
+The check passes with 0 `Unchanged` lines and accepted detections in the log. An interval of 0.02 s can't be run here, because the fusion node's validator requires 80 ms between detections from one sensor and rejects every one sent faster.
 
 This confirms the check can fire. A probe registers as the radar and then reports `INFO_UNCHANGED` with no `INFO_NEW`. The second log line is the real radar's next status, which also arrives before a New.
 
@@ -812,8 +812,14 @@ dc run --rm --no-deps -T radar python -c "$PROBE" $RADAR unchanged
 # registered and reported Unchanged as a0000001
 sleep 3
 dc logs --since 15s fusion-node | grep "Unchanged.*before"
-# fusion-node-1  | 05:33:36 fusion: Unchanged status from a0000001 before any New status since it registered
-# fusion-node-1  | 05:33:39 fusion: Unchanged status from a0000001 before any New status since it registered
+# fusion-node-1  | 05:51:49 fusion: Unchanged status from a0000001 before any New status since it registered
+# fusion-node-1  | 05:51:52 fusion: Unchanged status from a0000001 before any New status since it registered
+```
+
+Return the sensors to their normal rate.
+
+```bash
+dc up -d radar camera
 ```
 
 To stop the stage, run `dc down`. The recordings stay in the `apex-pod1_records` volume. Don't add `-v` unless you mean to delete them.

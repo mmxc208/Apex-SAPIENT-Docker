@@ -27,7 +27,7 @@ services:
     image: eclipse/zenoh:1.10.2
     command: ["-c", "/config/router.json5"]
     environment:
-      RUST_LOG: ${ZENOHD_RUST_LOG:-info}   # zenoh=debug shows access-control denials
+      RUST_LOG: ${ZENOHD_RUST_LOG:-info}   # zenoh::net::routing::interceptor=trace shows access-control denials
     volumes:
       - ./zenoh/router-pod1.json5:/config/router.json5:ro
       - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
