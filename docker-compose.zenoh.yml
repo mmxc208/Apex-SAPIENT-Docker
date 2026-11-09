@@ -1,5 +1,14 @@
-# Eclipse Zenoh router. Use together with docker-compose.yml:
+# Eclipse Zenoh router and the stage 1 sidecar bridges. The router alone:
 #   docker compose -f docker-compose.yml -f docker-compose.zenoh.yml up -d zenohd
+# The TCP sensors over Zenoh (see "Stage 1: Option A bridge" in README.md):
+#   docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml up -d --build
+
+x-bridge: &bridge
+  image: apex-sapient:4.2.0   # built by docker-compose.yml; has Python, protobuf, sapient_msg and zenoh
+  working_dir: /emulators
+  volumes:
+    - ./emulators:/emulators:ro
+  restart: unless-stopped
 
 services:
   zenohd:
@@ -10,3 +19,41 @@ services:
     ports:
       - "7447:7447"
     restart: unless-stopped
+
+  bridge-node:
+    <<: *bridge
+    command: python bridge_node_side.py
+    environment:
+      ZENOH_CONNECT: tcp/zenohd:7447
+      LISTEN_PORT: "5020"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      - zenohd
+
+  bridge-apex:
+    <<: *bridge
+    command: python bridge_apex_side.py
+    environment:
+      ZENOH_CONNECT: tcp/zenohd:7447
+      APEX_HOST: apex
+      APEX_PORT: "5020"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      - zenohd
+      - apex
+
+  # The sensors from docker-compose.emulators.yml reach Apex through the bridge.
+  # The fusion node stays on Apex's Peer port over TCP.
+  radar:
+    environment:
+      APEX_HOST: bridge-node
+
+  camera:
+    environment:
+      APEX_HOST: bridge-node
+
+  vehicle:
+    environment:
+      APEX_HOST: bridge-node

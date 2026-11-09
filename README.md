@@ -347,6 +347,75 @@ The fake sensors keep running. When the new fusion node connects, Apex replays e
   Apex converts every message to v1.0 to fill the `xml` column of its archive (`sapient_apex_server/parse_proto.py` in the Apex repo), and v2.0-only content can't convert.
   The messages themselves are forwarded unchanged; only the archive's XML copy is missing.
 
+## Stage 1: Option A bridge
+
+This stage carries the fake TCP sensors over Eclipse Zenoh without changing them.
+Each sensor connects to `bridge-node` instead of Apex. `bridge-node` publishes its traffic to the `zenohd` router, and `bridge-apex` opens one Child socket per node to Apex's port 5020.
+The fusion node stays on Apex's Peer port 5001 over TCP.
+
+The checks below were run on 2026-11-08 with the default `HOLD_SECONDS` of 120. Each output is what that run printed.
+Set this first, then run the commands from the repo root:
+
+```bash
+dc() { docker compose -f docker-compose.yml -f docker-compose.emulators.yml -f docker-compose.zenoh.yml "$@"; }
+```
+
+**1. Start everything.** The sensors register about 10 s later, on their first connection retry.
+
+```bash
+dc up -d --build
+```
+
+**2. T-01, round trip.** Run about 60 s after step 1. The first count is three registrations, the second is the radar's acknowledgement.
+
+```bash
+dc logs fusion-node | grep -c "<- registration "   # 3
+dc logs radar | grep -c "registration_ack"         # 1
+```
+
+**3. T-02, task path.** Run about 2 minutes after step 1, when the fusion node has sent its auto-tasks every 20 s.
+
+```bash
+dc logs --since 120s radar | grep -c "task_ack"    # 2
+```
+
+**4. T-03, node loss.** The Apex socket closes when the hold window ends, 120 s after the sensor goes, so nothing shows at 15 s.
+
+```bash
+dc stop radar
+sleep 15;  dc logs --since 30s bridge-apex | grep "closing Apex socket"    # no output
+sleep 115; dc logs --since 150s bridge-apex | grep "closing Apex socket"
+# bridge-apex-1  | 03:17:57 bridge-apex-side: closing Apex socket for a0000001-0000-4000-8000-000000000001
+```
+
+**5. T-03 in Apex.** The `Connection` table had 4 rows before the stop and still 4 after the close, with `disconnect_time` set on the radar's row.
+It had 5 rows after `dc start radar`. The second number printed is the count of open connections.
+
+```bash
+dc exec -T apex python -c "import sqlite3,glob;p=sorted(glob.glob('/apex/data/*.sqlite'))[-1];c=sqlite3.connect(f'file:{p}?mode=ro',uri=True);print(c.execute('select count(*) from Connection').fetchone());print(c.execute('select count(*) from Connection where disconnect_time is null').fetchone())"
+```
+
+**6. T-04, short outage. This check currently fails.** A router pause of 20 s should leave every socket open, but it does not.
+
+```bash
+dc pause zenohd; sleep 20; dc unpause zenohd; sleep 20
+dc logs --since 60s bridge-apex | grep -c "closing Apex socket"   # 3 (want 0)
+dc logs --since 60s fusion-node | grep -ci registration           # 6 (want 0): three registrations and three acks
+```
+
+Both bridges treat the loss of their router connection, about 10 s into the pause, as the end of the session. They drop every node at once, without the hold window, and then exit with `zenoh.ZError: close operation timed out!`.
+Docker's restart policy brings them back. A 5 s pause, shorter than the 10 s lease, closes nothing and causes no new registration.
+
+**7. T-05, long outage.** Sockets close about 9 s into the pause, for the reason given in step 6. Each sensor registers again about 10 to 20 s after the unpause, with no sensor restart.
+
+```bash
+dc pause zenohd; sleep 150; dc unpause zenohd; sleep 20
+dc logs --since 200s bridge-apex | grep -c "closing Apex socket"   # 3
+dc logs --since 60s fusion-node | grep -ci "<- registration "      # 3
+```
+
+To stop the stage, run `dc down`. Don't add `--remove-orphans` or `-v`: the first would remove a running Elasticsearch container that shares this compose project, and the second would delete the archive.
+
 ## Optional: Elasticsearch and the REST API
 
 The REST API on port 8080 reads from Elasticsearch. Without it, every data endpoint returns `503 {"detail":"Database Service Unavailable or not started."}`, and only `/` and `/docs` work. Apex doesn't need Elasticsearch to route or record messages, because SQLite always records everything.
