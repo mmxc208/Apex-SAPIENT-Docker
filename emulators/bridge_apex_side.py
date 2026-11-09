@@ -3,17 +3,20 @@
 Apex binds a node's identity to its connection and requires a registration first, so each node_id
 gets exactly one socket, opened by its first registration. Apex's replies go back on the node's
 down keys. A socket outlives a liveliness flap: it is closed only after the token has been gone
-for the whole hold window.
+for the whole hold window. A node seen alive with no socket is asked to register again, which
+covers nodes that registered before this bridge started or whose socket was closed.
 """
 import asyncio
 import logging
 import os
+import uuid
 
 from google.protobuf.message import DecodeError
 
 from bridge_node_side import open_session
-from sapient_link import Link, setup_logging
+from sapient_link import Link, new_ulid, setup_logging, stamp
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
+from sapient_msg.bsi_flex_335_v2_0.task_pb2 import Task
 from zenoh_io import ZenohSession
 from zenoh_keys import LIVE_ALL, UP_ALL, down_key, kind_of, node_id_from_live_key, parse_key
 
@@ -28,6 +31,7 @@ class ApexSideBridge:
         max_bytes: int = 1024 * 1024,
         *,
         log: logging.Logger,
+        bridge_node_id: str,
     ) -> None:
         self.session = session
         self.apex_host = apex_host
@@ -35,9 +39,11 @@ class ApexSideBridge:
         self.hold_seconds = hold_seconds
         self.max_bytes = max_bytes
         self.log = log
+        self.bridge_node_id = bridge_node_id
         self.links: dict[str, Link] = {}
         self._readers: dict[str, asyncio.Task] = {}
         self._hold_timers: dict[str, asyncio.TimerHandle] = {}
+        self._token_alive: dict[str, bool] = {}  # the last state reported; absent until first reported
         self._reader_failed: asyncio.Future[None] | None = None
 
     async def run(self) -> None:
@@ -46,8 +52,13 @@ class ApexSideBridge:
         Raises if forwarding fails for a reason other than one link's socket, so the process exits.
         """
         self._reader_failed = asyncio.get_running_loop().create_future()
-        up = asyncio.create_task(self._forward_up(self.session.subscribe(UP_ALL)))
-        live = asyncio.create_task(self._track_liveliness(self.session.liveliness(LIVE_ALL)))
+        samples = self.session.subscribe(UP_ALL)
+        changes = self.session.liveliness(LIVE_ALL)
+        # Before the loops start, so the same tokens replayed by the subscription count as known.
+        for key in await self.session.alive(LIVE_ALL):
+            await self._on_liveliness(key, True)
+        up = asyncio.create_task(self._forward_up(samples))
+        live = asyncio.create_task(self._track_liveliness(changes))
         closed = asyncio.create_task(self.session.closed.wait())
         watched = {up, live, closed, self._reader_failed}
         try:
@@ -62,7 +73,11 @@ class ApexSideBridge:
             await self._close_all()
 
     async def _forward_up(self, samples: asyncio.Queue[tuple[str, bytes]]) -> None:
-        """Handle samples strictly in order, so a node's messages cannot overtake its registration."""
+        """Handle samples strictly in order, so a node's messages cannot overtake its registration.
+
+        All nodes share this loop: while Apex is unreachable or one node's socket stops draining,
+        every node waits and samples queue without limit.
+        """
         while True:
             key, payload = await samples.get()
             await self._handle_sample(key, payload)
@@ -101,6 +116,9 @@ class ApexSideBridge:
         reader = asyncio.create_task(self._forward_replies(node_id, link))
         reader.add_done_callback(self._on_reader_done)
         self._readers[node_id] = reader
+        if self._token_alive.get(node_id) is False:
+            # The token went during the connect, and its hold window may already have run out.
+            self._start_hold(node_id)
         return link
 
     async def _forward_replies(self, node_id: str, link: Link) -> None:
@@ -138,15 +156,32 @@ class ApexSideBridge:
     async def _track_liveliness(self, changes: asyncio.Queue[tuple[str, bool]]) -> None:
         while True:
             key, alive = await changes.get()
-            try:
-                node_id = node_id_from_live_key(key)
-            except ValueError:
-                self.log.info(f"ignoring liveliness on bad key {key!r}")
-                continue
-            if alive:
-                self._stop_hold(node_id)
-            else:
-                self._start_hold(node_id)
+            await self._on_liveliness(key, alive)
+
+    async def _on_liveliness(self, key: str, alive: bool) -> None:
+        try:
+            node_id = node_id_from_live_key(key)
+        except ValueError:
+            self.log.info(f"ignoring liveliness on bad key {key!r}")
+            return
+        already_alive = self._token_alive.get(node_id) is True
+        self._token_alive[node_id] = alive
+        if not alive:
+            self._start_hold(node_id)
+            return
+        self._stop_hold(node_id)
+        if not already_alive and node_id not in self.links:
+            await self._request_registration(node_id)
+
+    async def _request_registration(self, node_id: str) -> None:
+        task = Task(
+            task_id=new_ulid(),
+            task_name="bridge: request registration",
+            command=Task.Command(request="Registration"),
+        )
+        request = stamp(SapientMessage(task=task), self.bridge_node_id, node_id)
+        await self.session.publish(down_key(node_id, "task"), request)
+        self.log.info(f"requested registration from {node_id}")
 
     def _start_hold(self, node_id: str) -> None:
         # Armed even with no link yet: a registration still in flight may open one after the token went.
@@ -174,7 +209,9 @@ class ApexSideBridge:
         await asyncio.gather(*readers, return_exceptions=True)
 
 
-async def run(apex_host: str, apex_port: int, connect: str, hold_seconds: float, log: logging.Logger) -> None:
+async def run(
+    apex_host: str, apex_port: int, connect: str, hold_seconds: float, log: logging.Logger, bridge_node_id: str
+) -> None:
     """Bridge until the Zenoh session is lost, drop every link, then reopen and bridge again.
 
     A bridge failure raises, so the process exits and the container's restart policy applies.
@@ -182,7 +219,7 @@ async def run(apex_host: str, apex_port: int, connect: str, hold_seconds: float,
     loop = asyncio.get_running_loop()
     while True:
         session = await open_session(connect, loop, log)
-        bridge = ApexSideBridge(session, apex_host, apex_port, hold_seconds, log=log)
+        bridge = ApexSideBridge(session, apex_host, apex_port, hold_seconds, log=log, bridge_node_id=bridge_node_id)
         try:
             await bridge.run()
             log.info("Zenoh session lost; dropping all links and reconnecting")
@@ -196,8 +233,9 @@ def main() -> None:
     apex_port = int(os.environ.get("APEX_PORT", "5020"))
     connect = os.environ.get("ZENOH_CONNECT", "tcp/zenohd:7447")
     hold_seconds = float(os.environ.get("HOLD_SECONDS", "120"))
+    bridge_node_id = os.environ.get("BRIDGE_NODE_ID") or str(uuid.uuid4())
     try:
-        asyncio.run(run(apex_host, apex_port, connect, hold_seconds, log))
+        asyncio.run(run(apex_host, apex_port, connect, hold_seconds, log, bridge_node_id))
     except KeyboardInterrupt:
         pass
 
