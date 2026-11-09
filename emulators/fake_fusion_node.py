@@ -318,6 +318,7 @@ class FakeFusionNode:
 
     async def _on_registration(self, msg):
         reg = msg.registration
+        self.validators.pop(msg.node_id, None)  # a (re)registering sender starts afresh, as on a new Apex connection
         known = msg.node_id in self.nodes
         self.nodes.setdefault(msg.node_id, {"location": None})
         self.nodes[msg.node_id].update(name=reg.name, short_name=reg.short_name, types=node_types(reg))

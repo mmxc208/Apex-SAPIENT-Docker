@@ -34,6 +34,7 @@ def fusion_args(**overrides):
         transport="zenoh",
         zenoh_connect="tcp/zenohd:7447",
         status_interval=0.01,
+        publish_tracks=False,
     )
     return argparse.Namespace(**{**values, **overrides})
 
@@ -147,6 +148,27 @@ async def test_invalid_message_gets_error_reply_on_down_key(receiving, fake_sess
     assert (reply.node_id, reply.destination_id) == (FUSION, NODE)
     assert NODE not in receiving.nodes
     assert not published_on(fake_session, down_key(NODE, "registration_ack"))
+
+
+async def test_valid_registration_resets_the_senders_detection_state(
+    receiving, fake_session, templates
+):
+    errors = lambda: published_on(fake_session, down_key(NODE, "error"))
+    ahead = detection(templates)
+    ahead.timestamp.FromSeconds(ahead.timestamp.seconds + 3600)
+
+    fake_session.inject(up_key(NODE, "detection_report"), ahead.SerializeToString())
+    await until(lambda: len(errors()) == 1)
+    fake_session.inject(up_key(NODE, "detection_report"), detection(templates).SerializeToString())
+    await until(lambda: len(errors()) == 2)
+    assert "earlier than previous" in errors()[1].error.error_message[0]
+
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "registration_ack")))
+    fake_session.inject(up_key(NODE, "detection_report"), detection(templates).SerializeToString())
+    await until(lambda: NODE in receiving.detection_counts)
+
+    assert len(errors()) == 2
 
 
 async def test_error_goes_to_the_key_owner_when_the_message_has_no_node_id(
