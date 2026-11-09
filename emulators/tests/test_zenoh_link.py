@@ -422,7 +422,7 @@ async def test_fusion_drops_an_undecodable_message_and_keeps_receiving(
     loop_task = asyncio.create_task(fusion._receive_loop())
 
     async def acknowledged():
-        while not session.published:
+        while len(session.published) < 2:
             await asyncio.sleep(0)
 
     with caplog.at_level(logging.INFO):
@@ -433,7 +433,10 @@ async def test_fusion_drops_an_undecodable_message_and_keeps_receiving(
 
     loop_task.cancel()
     await asyncio.gather(loop_task, return_exceptions=True)
-    assert session.published[0][0] == down_key(NODE, "registration_ack")
+    assert [key for key, _, _ in session.published] == [
+        down_key(NODE, "error"),
+        down_key(NODE, "registration_ack"),
+    ]
     assert "undecodable message dropped" in caplog.text
 
 
@@ -477,6 +480,7 @@ def run_main(monkeypatch, module, class_name, argv=()):
             pass
 
     monkeypatch.setattr(module, class_name, Capture)
+    monkeypatch.setattr(asyncio, "run", lambda coroutine: coroutine.close())  # a real run leaks a loop under pytest-asyncio
     monkeypatch.setattr(sys, "argv", ["prog", *argv])
     module.main()
     return captured[0]

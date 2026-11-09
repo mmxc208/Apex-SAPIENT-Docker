@@ -14,6 +14,10 @@ What it does:
       request:Status, mode_change:<mode>, detection_threshold, ... -> every node
   - reads commands from stdin (attach to the container): nodes, tracks, task <kind> [node], help.
 
+With --transport zenoh Apex is not on the path, so the node also validates every message with
+Apex's own validator (replying with an Error), registers itself as a child Fusion_Node, asks every
+live node to re-register, and sends its own status reports.
+
 Usage: python fake_fusion_node.py --port 5001 --auto-task look_at,move_to,follow
 """
 import argparse
@@ -23,9 +27,12 @@ import os
 import sys
 import time
 import uuid
+from datetime import datetime, timezone
 
 from google.protobuf.message import DecodeError
 
+from fake_sensor import use_lat_lng
+from sapient_apex_server.validate_proto import ValidationOptions, Validator
 from sapient_link import (
     Link,
     ZenohFusionLink,
@@ -38,9 +45,12 @@ from sapient_link import (
     summary,
 )
 from sapient_msg.bsi_flex_335_v2_0.alert_ack_pb2 import AlertAck
+from sapient_msg.bsi_flex_335_v2_0.error_pb2 import Error
 from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
+from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from zenoh_io import open_session
+from zenoh_keys import LIVE_ALL, live_key, node_id_from_live_key, parse_key
 
 TRANSPORTS = ("tcp", "zenoh")
 GATE_M = 100.0  # toy association gate
@@ -56,10 +66,42 @@ TASK_TEMPLATES = {
     "detection_report_rate": "Task.DetectionReportRate.Medium",
     "classification_threshold": "Task.ClassificationThreshold.Medium",
 }
+OWN_MODE = "Default"
+# The validationOptions block of apex_config.emulators.json.
+VALIDATION_OPTIONS = ValidationOptions.from_config_dict({
+    "validationTypes": [
+        "mandatory_fields_present",
+        "mandatory_oneof_present",
+        "mandatory_repeated_present",
+        "no_unknown_fields",
+        "no_unknown_enum_values",
+        "id_format_valid",
+        "message_timestamp_reasonable",
+        "detection_timestamp_reasonable",
+        "supported_icd_version",
+    ],
+    "strictIdFormat": True,
+    "messageTimestampRange": [-0.9, 0.1],
+    "detectionMinimumGap": 0.08,
+    "supportedIcdVersions": ["BSI Flex 335 v1.0", "BSI Flex 335 v2.0"],
+})
 
 
 def node_types(registration) -> set[str]:
     return {Registration.NodeType.Name(d.node_type).removeprefix("NODE_TYPE_") for d in registration.node_definition}
+
+
+def error_recipient(node_id: str, key: str) -> str | None:
+    """Who to send an Error to: the message's node_id, else the node its key names, else nobody."""
+    try:
+        live_key(node_id)  # raises ValueError unless node_id is a canonical UUID
+        return node_id
+    except ValueError:
+        pass
+    try:
+        return parse_key(key)[0]
+    except ValueError:
+        return None
 
 
 def distance_m(a, b) -> float:
@@ -88,6 +130,7 @@ class FakeFusionNode:
         self.tracks = []
         self.detection_counts = {}
         self.auto_tasks = [t for t in args.auto_task.split(",") if t]
+        self.validators = {}  # node_id -> Validator
 
     # ---- outgoing ------------------------------------------------------------------------
 
@@ -174,7 +217,104 @@ class FakeFusionNode:
             if msg is not None:
                 await self.send(msg)
 
+    def _own_registration(self):
+        """This node's Registration as a child Fusion_Node; stage 4 fills the capabilities."""
+        msg = load_template("sensor", "Registration")
+        reg = msg.registration
+        del reg.node_definition[:]
+        reg.node_definition.add(node_type=Registration.NodeType.NODE_TYPE_FUSION_NODE)
+        reg.icd_version = "BSI Flex 335 v2.0"
+        reg.name = "fake fusion node"
+        reg.short_name = "fusion"
+        del reg.capabilities[:]
+        reg.status_definition.status_interval.value = self.args.status_interval
+        reg.mode_definition[0].mode_name = OWN_MODE
+        del reg.dependent_nodes[:]
+        del reg.config_data[:]
+        reg.config_data.add(
+            manufacturer="Apex docker emulator",
+            model="fake-fusion-node",
+            serial_number=self.node_id[:8],
+            software_version="1.0",
+        )
+        use_lat_lng(reg)
+        return stamp(msg, self.node_id)
+
+    def _own_status(self, info):
+        msg = load_template("sensor", "StatusReport")
+        report = msg.status_report
+        report.report_id = new_ulid()
+        report.system = StatusReport.SYSTEM_OK
+        report.info = info
+        report.mode = OWN_MODE
+        # A fusion node has no position or sensor coverage of its own to report
+        for field in ("active_task_id", "power", "node_location", "field_of_view", "coverage", "obscuration", "status"):
+            report.ClearField(field)
+        return stamp(msg, self.node_id)
+
+    async def _own_status_loop(self):
+        info = StatusReport.INFO_NEW
+        while True:
+            await self.send(self._own_status(info))
+            info = StatusReport.INFO_UNCHANGED
+            await asyncio.sleep(self.args.status_interval)
+
+    async def request_registrations(self):
+        """Ask every live node to register again, since this node has just (re)started."""
+        node_ids = []
+        for key in await self.link.session.alive(LIVE_ALL):
+            try:
+                node_ids.append(node_id_from_live_key(key))
+            except ValueError:
+                self.log.info(f"ignoring malformed liveliness token {key!r}")
+        await self.send_task("request:Registration", node_ids)
+
+    async def _announce(self):
+        await self.send(self._own_registration())
+        await self.request_registrations()
+
+    async def _send_error(self, packet: bytes, description: str, node_id: str, key: str):
+        recipient = error_recipient(node_id, key)
+        if recipient is None:
+            self.log.info(f"nobody to tell about a message on {key!r}: {description}")
+            return
+        reply = SapientMessage(error=Error(packet=packet, error_message=[description]))
+        await self.send(stamp(reply, self.node_id, recipient))
+
     # ---- incoming ------------------------------------------------------------------------
+
+    def validate(self, msg: SapientMessage) -> str | None:
+        """Apex's checks on a message just received: an error description, or None if it passes."""
+        if self.args.transport != "zenoh":
+            return None  # Apex validates on TCP
+        # One Validator per sender, as Apex has one per connection: it remembers the last detection time.
+        validator = self.validators.setdefault(msg.node_id, Validator(VALIDATION_OPTIONS))
+        errors = []
+        received = datetime.now(timezone.utc).replace(tzinfo=None)  # protobuf timestamps convert to naive UTC
+        try:
+            validator.validate_sapient_message(msg, received, errors)
+        except Exception as e:  # e.g. no icd_version, or a timestamp too big to convert
+            return f"message could not be validated: {e!r}"
+        return "; ".join(error.full_str() for error in errors) or None
+
+    async def _next_message(self):
+        """The next message to act on. Over Zenoh, a bad message is answered with an Error and skipped."""
+        if self.args.transport == "tcp":
+            return await self.link.receive()  # a DecodeError ends the node; compose restarts it
+        while True:
+            try:
+                packet, msg = await self.link.receive_raw()
+            except DecodeError:
+                key, packet = self.link.last_sample
+                self.log.info(f"undecodable message dropped (key {key})")
+                await self._send_error(packet, "undecodable message", "", key)
+                continue
+            description = self.validate(msg)
+            if description is None:
+                return msg
+            key, _ = self.link.last_sample
+            self.log.info(f"invalid message from {msg.node_id[:8]!r} dropped: {description}")
+            await self._send_error(packet, description, msg.node_id, key)
 
     async def _on_registration(self, msg):
         reg = msg.registration
@@ -220,13 +360,7 @@ class FakeFusionNode:
 
     async def _receive_loop(self):
         while True:
-            try:
-                msg = await self.link.receive()
-            except DecodeError:
-                if self.args.transport == "tcp":
-                    raise  # the node exits, and compose restarts it to register again
-                self.log.info("undecodable message dropped")
-                continue
+            msg = await self._next_message()
             kind = msg.WhichOneof("content")
             show = True
             if kind == "registration":
@@ -311,6 +445,9 @@ class FakeFusionNode:
                 async with asyncio.TaskGroup() as group:
                     group.create_task(self._receive_loop())
                     group.create_task(self._auto_task_loop())
+                    if self.args.transport == "zenoh":
+                        group.create_task(self._announce())
+                        group.create_task(self._own_status_loop())
             except* (asyncio.IncompleteReadError, ConnectionError):
                 self.log.info("connection to Apex lost; reconnecting")
             finally:
@@ -330,6 +467,8 @@ def main():
     parser.add_argument("--auto-task", default=env("AUTO_TASK", "look_at,move_to,follow,patrol,request:Status"),
                         help="comma-separated task kinds to cycle through; empty to disable")
     parser.add_argument("--task-interval", type=float, default=float(env("TASK_INTERVAL", "20")))
+    parser.add_argument("--status-interval", type=float, default=float(env("STATUS_INTERVAL", "10")),
+                        help="seconds between this node's own status reports, used with --transport zenoh")
     parser.add_argument("--no-publish-tracks", dest="publish_tracks", action="store_false",
                         default=env("PUBLISH_TRACKS", "1") != "0")
     args = parser.parse_args()

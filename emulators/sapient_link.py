@@ -210,6 +210,7 @@ class ZenohFusionLink:
         self.fusion_id = fusion_id
         self.samples = samples
         self.own_keys = frozenset(up_key(fusion_id, kind) for kind in KINDS)
+        self.last_sample: tuple[str, bytes] = ("", b"")  # (key, payload) of the latest message from a node
 
     @classmethod
     async def connect(
@@ -230,12 +231,14 @@ class ZenohFusionLink:
     async def receive_raw(self) -> tuple[bytes, SapientMessage]:
         """Next message from a node, with its payload bytes.
 
-        Raises ConnectionError when the session is closed.
+        Raises ConnectionError when the session is closed, and DecodeError for an undecodable
+        message; last_sample then still holds its key and payload.
         """
         while True:
             key, payload = await _next_sample(self.session, self.samples)
             # UP_ALL also matches this node's own publications, which zenoh delivers back to it.
             if key not in self.own_keys:
+                self.last_sample = (key, payload)
                 return payload, SapientMessage.FromString(payload)
 
     async def receive(self) -> SapientMessage:
