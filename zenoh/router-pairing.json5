@@ -1,0 +1,22 @@
+// Minimal mutual-TLS router for the G1-01 version pairing probe (docker-compose.pairing.yml).
+// No access control: the probe checks only that the binding and the router image interoperate.
+{
+  mode: "router",
+  listen: {
+    endpoints: ["tls/0.0.0.0:7447"],
+  },
+  scouting: {
+    multicast: { enabled: false },
+    gossip: { enabled: false },
+  },
+  transport: {
+    link: {
+      tls: {
+        root_ca_certificate: "/certs/ca.pem",
+        listen_private_key: "/certs/router.p1.h1.key",
+        listen_certificate: "/certs/router.p1.h1.pem",
+        enable_mtls: true,
+      },
+    },
+  },
+}

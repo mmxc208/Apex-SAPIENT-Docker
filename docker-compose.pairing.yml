@@ -1,0 +1,39 @@
+# G1-01: does the Python binding (zenoh 1.10.2, in apex-sapient:4.2.0) work with the fabric router image?
+# Certificates first: zenoh/pki/make_certs.sh zenoh/pki/out
+# Run: docker compose -f docker-compose.pairing.yml up -d zenohd && docker compose -f docker-compose.pairing.yml run --rm probe
+
+name: apex-pairing   # never the "apex" project, which holds other containers
+
+services:
+  zenohd:
+    image: ${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}
+    command: ["-c", "/config/router.json5"]
+    volumes:
+      - ./zenoh/router-pairing.json5:/config/router.json5:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/router.p1.h1.pem:/certs/router.p1.h1.pem:ro
+      - ./zenoh/pki/out/router.p1.h1.key:/certs/router.p1.h1.key:ro
+    networks:
+      default:
+        aliases:
+          - router.p1.h1   # the name in the router's certificate
+
+  probe:
+    image: apex-sapient:4.2.0
+    working_dir: /emulators
+    command: python probe_pairing.py
+    depends_on:
+      - zenohd
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/pki/out/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/pki/out/radar.p1.h1.pem:/certs/radar.p1.h1.pem:ro
+      - ./zenoh/pki/out/radar.p1.h1.key:/certs/radar.p1.h1.key:ro
+    environment:
+      ZENOH_CONNECT: tls/router.p1.h1:7447
+      ZENOH_TLS_CA: /certs/ca.pem
+      ZENOH_TLS_CERT: /certs/radar.p1.h1.pem
+      ZENOH_TLS_KEY: /certs/radar.p1.h1.key
+      PROBE_WAIT_RESTART: ${PROBE_WAIT_RESTART:-0}
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
