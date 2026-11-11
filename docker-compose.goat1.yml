@@ -1,0 +1,295 @@
+# Goat step 1: pod 1 to host. Pod 1 (its own router, fusion node, sensors, vehicle behind the
+# node-side bridge, recorder) reaches the host's fabric router through the pod bridge. The host
+# runs a fusion node and a recorder on the fabric.
+# Generate the routers' configurations and certificates first, then use this file alone:
+#   python3 emulators/goatgen.py goat1/registry.toml zenoh/goat1
+#   docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml up -d
+# See "Goat step 1: pod 1 to host" in README.md.
+
+name: apex-goat1   # never the "apex" project, which holds other containers
+
+x-emulator: &emulator
+  image: apex-sapient:4.2.0   # has Python, sapient_msg, zenoh and Apex's Validator
+  working_dir: /emulators
+  restart: unless-stopped
+
+x-pod-emulator: &pod-emulator
+  <<: *emulator
+  depends_on:
+    - zenohd-pod
+  networks:
+    - pod1
+
+x-host-emulator: &host-emulator
+  <<: *emulator
+  depends_on:
+    - zenohd-fabric
+  networks:
+    - host
+
+x-pod-env: &pod-env
+  TRANSPORT: zenoh
+  ZENOH_CONNECT: tls/router.p1.h1:7447
+  ZENOH_KEY_PREFIX: h1/p1/
+  ZENOH_TLS_CA: /certs/ca.pem
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+x-host-env: &host-env
+  ZENOH_CONNECT: tls/router.fabric.h1:7447
+  ZENOH_TLS_CA: /certs/ca.pem
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+services:
+  # ---------------------------------------------------------------- pod 1
+  zenohd-pod:
+    image: eclipse/zenoh:1.10.2
+    command: ["-c", "/config/router.json5"]
+    environment:
+      RUST_LOG: ${ZENOHD_RUST_LOG:-info}   # zenoh::net::routing::interceptor=trace shows access-control denials
+    volumes:
+      - ./zenoh/goat1/router-pod1.json5:/config/router.json5:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/router.pem:/certs/router.pem:ro
+      - ./zenoh/goat1/pki/pod1/router.key:/certs/router.key:ro
+    networks:
+      pod1:
+        aliases:
+          - router.p1.h1   # the name in the router's certificate
+    restart: unless-stopped
+
+  fusion-node:
+    <<: *pod-emulator
+    command: python fake_fusion_node.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/fusion.pem:/certs/fusion.pem:ro
+      - ./zenoh/goat1/pki/pod1/fusion.key:/certs/fusion.key:ro
+    environment:
+      <<: *pod-env
+      ZENOH_TLS_CERT: /certs/fusion.pem
+      ZENOH_TLS_KEY: /certs/fusion.key
+      NODE_ID: ${POD1_FUSION_NODE_ID}   # must match the rules in zenoh/goat1/router-pod1.json5
+      AUTO_TASK: ""   # the pod's fusion node only relays tasks from the host
+    stdin_open: true   # docker attach apex-goat1-fusion-node-1, then type 'help'
+    tty: true
+
+  radar:
+    <<: *pod-emulator
+    command: python fake_sensor.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/radar.pem:/certs/radar.pem:ro
+      - ./zenoh/goat1/pki/pod1/radar.key:/certs/radar.key:ro
+    environment:
+      <<: *pod-env
+      ZENOH_TLS_CERT: /certs/radar.pem
+      ZENOH_TLS_KEY: /certs/radar.key
+      NODE_ID: ${POD1_RADAR_ID}   # the common name of the radar's slot certificate
+      NODE_NAME: "Fake radar"
+      NODE_SHORT_NAME: "radar"
+      NODE_TYPE: "RADAR"
+      NODE_LAT: "51.1739"
+      NODE_LON: "-1.8224"
+      DETECTION_INTERVAL: ${DETECTION_INTERVAL:-1}
+
+  camera:
+    <<: *pod-emulator
+    command: python fake_sensor.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/camera.pem:/certs/camera.pem:ro
+      - ./zenoh/goat1/pki/pod1/camera.key:/certs/camera.key:ro
+    environment:
+      <<: *pod-env
+      ZENOH_TLS_CERT: /certs/camera.pem
+      ZENOH_TLS_KEY: /certs/camera.key
+      NODE_ID: ${POD1_CAMERA_ID}   # the common name of the camera's slot certificate
+      NODE_NAME: "Fake camera on vehicle"
+      NODE_SHORT_NAME: "camera"
+      NODE_TYPE: "CAMERA"
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+      DETECTION_INTERVAL: ${DETECTION_INTERVAL:-1}
+
+  # Joins only for the join check: docker compose ... --profile join up -d radar2.
+  # It mounts the directory, because its certificate exists only once the registry lists it,
+  # and a missing single-file mount would make Docker create a directory in its place.
+  radar2:
+    <<: *pod-emulator
+    profiles: ["join"]
+    command: python fake_sensor.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1:/certs:ro
+    environment:
+      <<: *pod-env
+      ZENOH_TLS_CERT: /certs/radar2.pem
+      ZENOH_TLS_KEY: /certs/radar2.key
+      NODE_ID: ${POD1_RADAR2_ID:-}
+      NODE_NAME: "Fake second radar"
+      NODE_SHORT_NAME: "radar2"
+      NODE_TYPE: "RADAR"
+      NODE_LAT: "51.1730"
+      NODE_LON: "-1.8200"
+      DETECTION_INTERVAL: ${DETECTION_INTERVAL:-1}
+
+  # The legacy node: plain TCP SAPIENT to the bridge next to it, which holds the certificate.
+  vehicle:
+    image: apex-sapient:4.2.0
+    working_dir: /emulators
+    command: python fake_sensor.py
+    depends_on:
+      - bridge-node
+    restart: unless-stopped
+    networks:
+      - pod1
+    volumes:
+      - ./emulators:/emulators:ro
+    environment:
+      TRANSPORT: tcp
+      APEX_HOST: bridge-node
+      APEX_PORT: "5020"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      NODE_ID: ${POD1_VEHICLE_ID}   # the common name of the vehicle's slot certificate
+      NODE_NAME: "Fake vehicle (mobile platform)"
+      NODE_SHORT_NAME: "vehicle"
+      NODE_TYPE: "MOBILE_NODE"
+      DEPENDENT_NODES: ${POD1_CAMERA_ID}   # carries the camera
+      NODE_LAT: "51.1745"
+      NODE_LON: "-1.8250"
+
+  bridge-node:
+    <<: *pod-emulator
+    command: python bridge_node_side.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/vehicle.pem:/certs/vehicle.pem:ro
+      - ./zenoh/goat1/pki/pod1/vehicle.key:/certs/vehicle.key:ro
+    environment:
+      <<: *pod-env
+      ZENOH_TLS_CERT: /certs/vehicle.pem
+      ZENOH_TLS_KEY: /certs/vehicle.key
+      LISTEN_PORT: "5020"
+
+  recorder:
+    <<: *pod-emulator
+    command: python recorder.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/recorder.pem:/certs/recorder.pem:ro
+      - ./zenoh/goat1/pki/pod1/recorder.key:/certs/recorder.key:ro
+      - pod-records:/data/records
+    environment:
+      <<: *pod-env
+      ZENOH_TLS_CERT: /certs/recorder.pem
+      ZENOH_TLS_KEY: /certs/recorder.key
+      RECORD_DIR: /data/records
+
+  # ---------------------------------------------------------------- the pod bridge, on both sides
+  pod-bridge:
+    <<: *emulator
+    command: python pod_bridge.py
+    depends_on:
+      - zenohd-pod
+      - zenohd-fabric
+    networks:
+      - pod1
+      - mesh
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/pod1/ca.pem:/certs/pod/ca.pem:ro
+      - ./zenoh/goat1/pki/pod1/bridge.pem:/certs/pod/bridge.pem:ro
+      - ./zenoh/goat1/pki/pod1/bridge.key:/certs/pod/bridge.key:ro
+      - ./zenoh/goat1/pki/fabric/ca.pem:/certs/fabric/ca.pem:ro
+      - ./zenoh/goat1/pki/fabric/pod1.pem:/certs/fabric/pod1.pem:ro
+      - ./zenoh/goat1/pki/fabric/pod1.key:/certs/fabric/pod1.key:ro
+    environment:
+      POD_CONNECT: tls/router.p1.h1:7447
+      POD_TLS_CA: /certs/pod/ca.pem
+      POD_TLS_CERT: /certs/pod/bridge.pem
+      POD_TLS_KEY: /certs/pod/bridge.key
+      FABRIC_CONNECT: tls/router.fabric.h1:7447
+      FABRIC_TLS_CA: /certs/fabric/ca.pem
+      FABRIC_TLS_CERT: /certs/fabric/pod1.pem
+      FABRIC_TLS_KEY: /certs/fabric/pod1.key
+      FABRIC_ANCHOR: ${FABRIC_POD1_ID}
+      FABRIC_SITE: p1
+      FABRIC_HOST_ANCHORS: ${FABRIC_HOST_FUSION_ID}
+      ZENOH_KEY_PREFIX: h1/p1/
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+  # ---------------------------------------------------------------- the host
+  zenohd-fabric:
+    image: ${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}
+    command: ["-c", "/config/router.json5"]
+    environment:
+      RUST_LOG: ${ZENOHD_RUST_LOG:-info}   # zenoh::net::routing::interceptor=trace shows access-control denials
+    volumes:
+      - ./zenoh/goat1/router-fabric.json5:/config/router.json5:ro
+      - ./zenoh/goat1/pki/fabric/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/fabric/router.pem:/certs/router.pem:ro
+      - ./zenoh/goat1/pki/fabric/router.key:/certs/router.key:ro
+    networks:
+      mesh:
+        aliases:
+          - router.fabric.h1   # the name in the router's certificate
+      host:
+        aliases:
+          - router.fabric.h1
+    restart: unless-stopped
+
+  host-fusion:
+    <<: *host-emulator
+    command: python fake_fusion_node.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/fabric/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/fabric/host-fusion.pem:/certs/host-fusion.pem:ro
+      - ./zenoh/goat1/pki/fabric/host-fusion.key:/certs/host-fusion.key:ro
+    environment:
+      <<: *host-env
+      TRANSPORT: fabric
+      ZENOH_TLS_CERT: /certs/host-fusion.pem
+      ZENOH_TLS_KEY: /certs/host-fusion.key
+      FABRIC_ANCHOR: ${FABRIC_HOST_FUSION_ID}
+      FABRIC_SITE: h1
+      NODE_ID: "f0000002-0000-4000-8000-000000000002"
+      AUTO_TASK: "request:Status,look_at"
+      TASK_INTERVAL: "20"
+      NODE_HOLD_SECONDS: ${HOST_HOLD_SECONDS:-120}
+    stdin_open: true   # docker attach apex-goat1-host-fusion-1, then type 'help'
+    tty: true
+
+  host-recorder:
+    <<: *host-emulator
+    command: python recorder.py
+    volumes:
+      - ./emulators:/emulators:ro
+      - ./zenoh/goat1/pki/fabric/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat1/pki/fabric/host-recorder.pem:/certs/host-recorder.pem:ro
+      - ./zenoh/goat1/pki/fabric/host-recorder.key:/certs/host-recorder.key:ro
+      - host-records:/data/records
+    environment:
+      <<: *host-env
+      ZENOH_TLS_CERT: /certs/host-recorder.pem
+      ZENOH_TLS_KEY: /certs/host-recorder.key
+      RECORD_KEYS: fabric
+      RECORD_DIR: /data/records
+
+networks:
+  pod1:
+  mesh:
+  host:
+
+volumes:
+  pod-records:
+  host-records:

@@ -956,6 +956,203 @@ dc logs --since 20s fusion-node | grep -c "<- registration a0000001"
 
 To stop the stage, run `dc down`. The recordings stay in the `apex-pod1_records` volume. Don't add `-v` unless you mean to delete them.
 
+## Goat step 1: pod 1 to host
+
+This step carries pod 1's SAPIENT traffic to a host over a fabric that follows the goat network's rules. `docker-compose.goat1.yml` runs two routers and the nodes around them:
+
+- **Pod 1** (network `pod1`): the pod router `zenohd-pod` (`eclipse/zenoh:1.10.2`, `zenoh/goat1/router-pod1.json5`), the fusion node, radar, camera, the vehicle behind `bridge-node`, and the pod recorder. Pod keys are prefixed `h1/p1/`. Each sensor holds a slot certificate whose common name is its node ID.
+- **The pod bridge** (networks `pod1` and `mesh`): `pod_bridge.py` holds the pod's bridge certificate on the pod router and the pod's slot certificate on the fabric router, and forwards the bytes unchanged in both directions. Only the fusion node's traffic goes up.
+- **The host** (network `host`): the fabric router `zenohd-fabric` (`${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}`, `zenoh/goat1/router-fabric.json5`), a fusion node with `TRANSPORT=fabric`, and a recorder with `RECORD_KEYS=fabric`. Fabric keys start with the writer's 32-character anchor, and the fabric router lets each certificate write only below its own anchor.
+
+`radar2` sits behind the compose profile `join` and doesn't start with `dg up`. The generator writes the router configurations, the certificates and `zenoh/goat1/goat1.env` below `zenoh/goat1/`, which is git-ignored. The compose file is standalone: don't combine it with the other compose files. It uses the project name `apex-goat1` and the image `apex-sapient:4.2.0` built by the earlier stages. No router port is published to the host.
+
+Run these in order, from the repo root, on a rig that is down. Below each block is what one run printed on 2026-11-11 UTC, on top of commit `08ef7c2`. `dg run` also prints container lines, and the probe prints a `connected to Zenoh router` line; both are left out here.
+
+```bash
+dg() { docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml "$@"; }
+probe() { local service=$1; shift; dg run --rm --no-deps -T "$service" python probe_access.py "$@" < /dev/null; }
+podfabric() { dg run --rm --no-deps -T -e ZENOH_CONNECT=tls/router.fabric.h1:7447 -e ZENOH_TLS_CA=/certs/fabric/ca.pem -e ZENOH_TLS_CERT=/certs/fabric/pod1.pem -e ZENOH_TLS_KEY=/certs/fabric/pod1.key pod-bridge python probe_access.py "$@" < /dev/null; }
+```
+
+`probe` runs `emulators/probe_access.py` in a one-off container of a service, with that service's certificate: `put <key>` publishes one status report, and `sub <key expression> <seconds>` counts what arrives and how much of it came from the probe. `podfabric` does the same with the pod's slot certificate on the fabric router. The `< /dev/null` keeps a one-off container from reading the rest of a pasted block.
+
+**1. Generate and start.** Running the generator again is safe; it rewrites the same files.
+
+```bash
+python3 emulators/goatgen.py goat1/registry.toml zenoh/goat1
+source zenoh/goat1/goat1.env
+dg up -d
+sleep 45
+dg ps --format '{{.Service}} {{.State}}' | sort
+dg logs zenohd-pod zenohd-fabric | grep -ci -E 'error|panic'
+```
+
+The 11 services were `running` (`bridge-node`, `camera`, `fusion-node`, `host-fusion`, `host-recorder`, `pod-bridge`, `radar`, `recorder`, `vehicle`, `zenohd-fabric`, `zenohd-pod`), and the error count was `0`.
+
+**2. Registration (G1-03).** The pod's fusion node accepts its three sensors, then registers upward and gets the host's acknowledgement.
+
+```bash
+dg logs fusion-node | grep registration_ack
+dg logs host-fusion | grep "<- registration "
+```
+
+```text
+fusion-node-1  | 23:47:51 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:47:56 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+host-fusion-1  | 23:47:56 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+```
+
+**3. Tracks and alerts up (G1-02).** The host gets the pod's fused tracks and one alert for each new track. The host recorder holds only messages below the pod's anchor or the host fusion node's anchor, and none of them carries a sensor's node ID.
+
+```bash
+dg logs host-fusion | grep -c "<- detection_report"
+dg logs host-fusion | grep "<- alert"
+dg exec -T host-recorder sh -c 'cat /data/records/*.jsonl' < /dev/null | python3 -c '
+import json, sys
+anchors, sensors = set(sys.argv[1:3]), set(sys.argv[3:6])
+rows = [json.loads(line) for line in sys.stdin if line.strip()]
+print("records:", len(rows))
+print("anchor not the pod or the host fusion node:", sum(r.get("anchor") not in anchors for r in rows))
+print("msg.node_id of the radar, camera or vehicle:", sum(r.get("msg", {}).get("node_id") in sensors for r in rows))
+' "$FABRIC_POD1_ID" "$FABRIC_HOST_FUSION_ID" "$POD1_RADAR_ID" "$POD1_CAMERA_ID" "$POD1_VEHICLE_ID"
+```
+
+```text
+4
+host-fusion-1  | 23:47:56 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track 6TR3WR"
+records: 93
+anchor not the pod or the host fusion node: 0
+msg.node_id of the radar, camera or vehicle: 0
+```
+
+The detection count is low because the fusion node logs every 10th detection report of each node. The recorder's volume survives `dg down`, so the record count includes any earlier run on the same UTC day.
+
+**4. A task down (G1-04).** The host's fusion node sends `request:Status` and `look_at` in turn, every 20 s. The pod's fusion node passes `look_at` to its registered sensors as a copy with a new task ID, and acknowledges upward.
+
+```bash
+dg logs radar camera | grep "<- task .* look_at" | cut -c1-90
+dg logs host-fusion | grep "<- task_ack" | grep TASK_STATUS_ACCEPTED
+```
+
+```text
+radar-1   | 23:48:31 radar: <- task f0000001 -> 1aef1b86 AG2327 look_at {"location_list":
+camera-1  | 23:48:31 camera: <- task f0000001 -> 86ca6000 VPS33S look_at {"location_list":
+host-fusion-1  | 23:48:11 fusion: <- task_ack f0000001 -> f0000002 9WWS9Q TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1  | 23:48:31 fusion: <- task_ack f0000001 -> f0000002 SBNACR TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+```
+
+**5. Access on the live routers (G1-05).** Restart both routers with the access-control trace. A denial is silent for the client, so each case shows two things: the subscriber, whose certificate may read the key, got nothing from the probe, and the router logged the denial. On the fabric router each certificate matches two subjects (any mutual-TLS peer, and its own slot), so one denied put logs two `unauthorized` lines.
+
+```bash
+ZENOHD_RUST_LOG=zenoh::net::routing::interceptor=trace dg up -d zenohd-pod zenohd-fabric
+sleep 20
+dg logs --since 30s pod-bridge
+```
+
+```text
+pod-bridge-1  | 23:48:46 pod-bridge: fabric router lost
+pod-bridge-1  | 23:48:46 pod-bridge: pod router lost
+pod-bridge-1  | 23:48:47 pod-bridge: fabric router back
+pod-bridge-1  | 23:48:47 pod-bridge: pod router back
+pod-bridge-1  | 23:48:51 pod-bridge: forwarded {'up': 64, 'down': 4}; dropped {}
+```
+
+Case 1: the pod's slot certificate puts on the host fusion node's task key.
+
+```bash
+K="$FABRIC_HOST_FUSION_ID/task/p1/sapient/v2/task/$POD1_FUSION_NODE_ID"
+probe host-recorder sub "$K" 15 &
+sleep 5
+podfabric put "$K"
+wait
+dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_POD1_ID)" | grep -c "is unauthorized to Put (ingress)"
+dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_POD1_ID)" | grep -c "is authorized to Put (ingress)"
+```
+
+```text
+put: 1 status report on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+samples: 1 on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+2
+0
+```
+
+The one sample is the host's own periodic task on that key; none came from the probe.
+
+Case 2: the host fusion certificate puts on the pod's alert key.
+
+```bash
+K="$FABRIC_POD1_ID/telemetry/sapient/p1/v2/alert/$POD1_FUSION_NODE_ID"
+probe host-recorder sub "$K" 15 &
+sleep 5
+probe host-fusion put "$K"
+wait
+dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_HOST_FUSION_ID)" | grep -c "is unauthorized to Put (ingress)"
+dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_HOST_FUSION_ID)" | grep -c "is authorized to Put (ingress)"
+```
+
+```text
+samples: 0 on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+2
+0
+```
+
+Case 3: the host recorder's certificate may not subscribe to everything, only to the fabric's telemetry.
+
+```bash
+probe host-recorder sub "**" 15
+probe host-recorder sub "*/telemetry/sapient/*/v2/*/*" 15
+dg logs zenohd-fabric | grep -F "CertCommonName($FABRIC_HOST_RECORDER_ID)" | grep -F "Declare Subscriber (ingress) on **" | grep -c unauthorized
+```
+
+```text
+samples: 0 on ** in 15 s; from this probe: 0
+samples: 31 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0
+2
+```
+
+Case 4: in the pod, the radar's certificate puts on the camera's up key.
+
+```bash
+K="h1/p1/sapient/v2/$POD1_CAMERA_ID/up/status_report"
+probe recorder sub "$K" 15 &
+sleep 5
+probe radar put "$K"
+wait
+dg logs zenohd-pod | grep -F "$K" | grep -F "CertCommonName($POD1_RADAR_ID)" | grep -c "is unauthorized to Put (ingress)"
+dg logs zenohd-pod | grep -F "$K" | grep -F "CertCommonName($POD1_RADAR_ID)" | grep -c "is authorized to Put (ingress)"
+```
+
+```text
+samples: 3 on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report in 15 s; from this probe: 0
+1
+0
+```
+
+The three samples are the camera's own status reports. The pod router has one subject for each certificate, so one line.
+
+Put the routers back to `info`:
+
+```bash
+dg up -d zenohd-pod zenohd-fabric
+```
+
+**6. Host restart.** The restarted host fusion node asks the pod to register again, and acknowledges it.
+
+```bash
+dg restart host-fusion
+sleep 40
+dg logs --since 40s fusion-node | grep -E 'request "Registration"|registration_ack'
+```
+
+```text
+fusion-node-1  | 23:50:45 fusion: <- task f0000002 -> f0000001 K2JYBJ request "Registration"
+fusion-node-1  | 23:50:45 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+```
+
+To stop the step, run `dg down`. The recordings stay in the `apex-goat1_pod-records` and `apex-goat1_host-records` volumes. Don't add `-v` unless you mean to delete them. `docs/acceptance-goat1.md` records what passed and where each check falls short.
+
 ## Optional: Elasticsearch and the REST API
 
 The REST API on port 8080 reads from Elasticsearch. Without it, every data endpoint returns `503 {"detail":"Database Service Unavailable or not started."}`, and only `/` and `/docs` work. Apex doesn't need Elasticsearch to route or record messages, because SQLite always records everything.
