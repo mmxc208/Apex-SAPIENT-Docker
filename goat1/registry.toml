@@ -1,0 +1,31 @@
+# Pod 1 router: its pool of node-ID slots, the fixed identities, and which alias holds which slot.
+[pod1]
+kind = "pod"
+salt = "goat1-pod1"
+pool_size = 8
+site = "p1"
+prefix = "h1/p1/"
+router_cn = "router.p1.h1"
+fusion_cn = "fusion.p1.h1"
+fusion_node_id = "f0000001-0000-4000-8000-000000000001"
+recorder_cn = "recorder.p1.h1"
+bridge_cn = "podbridge.p1.h1"
+# Slots held by the pod's sensors.
+[pod1.slots]
+radar = 0
+camera = 1
+vehicle = 2
+
+# The host's fabric router: its pool of anchor slots.
+[fabric]
+kind = "fabric"
+salt = "goat1-fabric"
+pool_size = 8
+site = "h1"
+router_cn = "router.fabric.h1"
+# Slots held by the pod, the host's fusion and recorder, and the goat CLI.
+[fabric.slots]
+pod1 = 0
+host-fusion = 1
+host-recorder = 2
+goat-cli = 3

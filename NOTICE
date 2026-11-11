@@ -13,3 +13,7 @@ It includes material from these Apache 2.0 projects:
 - SAPIENT BSI Flex 335 v2 Test Harness (Crown owned Copyright 2021-2024).
   The JSON files in emulators/templates/ are unmodified copies.
   See emulators/templates/NOTICE.md.
+
+- goat acl-evaluate.py (public domain in the United States, Apache-2.0 elsewhere).
+  emulators/third_party/goat/acl-evaluate.py is an unmodified copy. See
+  emulators/third_party/goat/NOTICE.md.

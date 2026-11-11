@@ -4,3 +4,4 @@ __pycache__/
 data-export/
 .DS_Store
 zenoh/pki/out/
+zenoh/goat1/
