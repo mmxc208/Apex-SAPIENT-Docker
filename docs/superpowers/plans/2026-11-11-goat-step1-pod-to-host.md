@@ -482,7 +482,8 @@ class PodBridge:
     def __init__(self, pod, fabric, *, anchor: str, site: str, host_anchors: list[str], log, clock=time.time): ...
     forwarded: collections.Counter      # keys "up" and "down"
     dropped: collections.Counter        # keys: "undecodable", "bad_key", "bad_kind", "wrong_destination",
-                                        # "unknown_destination", "stale_task", "other_side_down", "queue_full"
+                                        # "unknown_destination", "stale_task", "other_side_down", "queue_full",
+                                        # "publish_error"
     async def forward_up(self, key: str, payload: bytes) -> None      # one sample from the pod
     async def forward_down(self, key: str, payload: bytes) -> None    # one sample from the fabric
     def expire_presence(self) -> None
