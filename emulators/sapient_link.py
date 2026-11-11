@@ -216,7 +216,14 @@ class ZenohLink:
 
 
 class ZenohFusionLink:
-    """A fusion node's Zenoh transport, with the same interface as Link."""
+    """A fusion node's Zenoh transport inside a pod, with the same interface as Link.
+
+    It also gives the fusion node the key functions of the pod's scheme, so that the node has no
+    knowledge of which scheme is in use.
+    """
+
+    children_are_fusion_nodes = False  # inside a pod another fusion node is a peer, and is ignored
+    has_parent = True  # it registers upward on the pod's fusion keys
 
     def __init__(
         self, session: ZenohSession, fusion_id: str, samples: asyncio.Queue[tuple[str, bytes]]
@@ -225,6 +232,7 @@ class ZenohFusionLink:
         self.fusion_id = fusion_id
         self.samples = samples
         keys = _zenoh_keys()
+        self.live_all: str = keys.LIVE_ALL
         self.own_keys = frozenset(keys.up_key(fusion_id, kind) for kind in keys.KINDS)
         self.last_sample: tuple[str, bytes] = ("", b"")  # (key, payload) of the latest message from a node
 
@@ -266,6 +274,17 @@ class ZenohFusionLink:
     async def receive(self) -> SapientMessage:
         _, msg = await self.receive_raw()
         return msg
+
+    def owner_of(self, key: str) -> str | None:
+        """The node a SAPIENT key names, or None for a malformed key."""
+        try:
+            return _zenoh_keys().parse_key(key)[0]
+        except ValueError:
+            return None
+
+    def node_of_live_key(self, key: str) -> str:
+        """The node a liveliness key names; ValueError for a bad key."""
+        return _zenoh_keys().node_id_from_live_key(key)
 
     def close(self):
         """Nothing to release: a fusion node declares no token, and the session outlives the link."""

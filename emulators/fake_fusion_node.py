@@ -21,6 +21,11 @@ the union of its sensors' capabilities and task commands, once the first sensor 
 again whenever the registered sensors change, and mirrors its tracks onto the pod's fusion keys.
 A node whose liveliness token stays gone for the hold window (--node-hold-seconds) is forgotten.
 
+With --transport fabric it is the host's fusion node: the same duties on the fabric's keys, below
+--fabric-anchor at --fabric-site, where its children are the fusion nodes of pods. It acknowledges
+and fuses them, applies no minimum gap between their detections, and has no parent to register with.
+The node takes every key function from its link, so it has no knowledge of the key scheme in use.
+
 Usage: python fake_fusion_node.py --port 5001 --auto-task look_at,move_to,follow
 """
 import argparse
@@ -37,6 +42,7 @@ from google.protobuf.message import DecodeError
 
 from fake_sensor import use_lat_lng
 from sapient_apex_server.validate_proto import ValidationOptions, Validator
+from fabric_link import FabricFusionLink
 from sapient_link import (
     Link,
     ZenohFusionLink,
@@ -54,9 +60,8 @@ from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from zenoh_io import open_session
-from zenoh_keys import LIVE_ALL, node_id_from_live_key, parse_key
 
-TRANSPORTS = ("tcp", "zenoh")
+TRANSPORTS = ("tcp", "zenoh", "fabric")
 GATE_M = 100.0  # toy association gate
 TRACK_PUBLISH_SECONDS = 1.0
 REQUESTS = {"Registration", "Reset", "Start", "Status", "Stop"}
@@ -74,7 +79,7 @@ OWN_MODE = "Default"
 REGISTRATION_DEBOUNCE_SECONDS = 5
 REQUEST_GRACE_SECONDS = 3.0  # a node that has just appeared gets this long to register by itself
 # The validationOptions block of apex_config.emulators.json.
-VALIDATION_OPTIONS = ValidationOptions.from_config_dict({
+VALIDATION_CONFIG = {
     "validationTypes": [
         "mandatory_fields_present",
         "mandatory_oneof_present",
@@ -90,30 +95,25 @@ VALIDATION_OPTIONS = ValidationOptions.from_config_dict({
     "messageTimestampRange": [-0.9, 0.1],
     "detectionMinimumGap": 0.08,
     "supportedIcdVersions": ["BSI Flex 335 v1.0", "BSI Flex 335 v2.0"],
-})
+}
+VALIDATION_OPTIONS = ValidationOptions.from_config_dict(VALIDATION_CONFIG)
+# A child fusion node reports many objects at once, so the minimum gap between two detections from
+# one sender does not apply to it; 0 switches the check off (Apex tests timedelta() < gap < minimum).
+CHILD_FUSION_VALIDATION_OPTIONS = ValidationOptions.from_config_dict({**VALIDATION_CONFIG, "detectionMinimumGap": 0})
 
 
 def node_types(registration) -> set[str]:
     return {Registration.NodeType.Name(d.node_type).removeprefix("NODE_TYPE_") for d in registration.node_definition}
 
 
-def key_owner(key: str) -> str | None:
-    """The node a SAPIENT key names, or None for a malformed key."""
-    try:
-        return parse_key(key)[0]
-    except ValueError:
-        return None
-
-
-def identity_error(node_id: str, key: str) -> str | None:
-    """Why a message claiming node_id may not arrive on key, or None if it may.
+def identity_error(node_id: str, key: str, owner: str | None) -> str | None:
+    """Why a message claiming node_id may not arrive on key, whose owner is owner, or None if it may.
 
     The router authenticates only the key, so a node_id naming anyone else is a forgery. A message
     with no node_id is left to validation, which reports the missing field.
     """
     if not node_id:
         return None
-    owner = key_owner(key)
     if owner is None:
         return f"malformed key {key!r}"
     if node_id != owner:
@@ -319,9 +319,9 @@ class FakeFusionNode:
     async def request_registrations(self):
         """Ask every live node to register again, since this node has just (re)started."""
         node_ids = []
-        for key in await self.link.session.alive(LIVE_ALL):
+        for key in await self.link.session.alive(self.link.live_all):
             try:
-                node_ids.append(node_id_from_live_key(key))
+                node_ids.append(self.link.node_of_live_key(key))
             except ValueError:
                 self.log.info(f"ignoring malformed liveliness token {key!r}")
         await self.send_task("request:Registration", node_ids)
@@ -358,7 +358,7 @@ class FakeFusionNode:
 
     async def _send_error(self, packet: bytes, description: str, key: str):
         """Tell the node that owns key, the only sender identity the router vouches for."""
-        recipient = key_owner(key)
+        recipient = self.link.owner_of(key)
         if recipient is None:
             self.log.info(f"nobody to tell about a message on {key!r}: {description}")
             return
@@ -379,7 +379,7 @@ class FakeFusionNode:
 
     def _on_liveliness(self, key: str, alive: bool):
         try:
-            node_id = node_id_from_live_key(key)
+            node_id = self.link.node_of_live_key(key)
         except ValueError:
             self.log.info(f"ignoring liveliness on bad key {key!r}")
             return
@@ -410,7 +410,7 @@ class FakeFusionNode:
     async def _consult_alive_tokens(self):
         """Count the tokens alive now as reported. One missing here just keeps its hold running."""
         try:
-            keys = await self.link.session.alive(LIVE_ALL)
+            keys = await self.link.session.alive(self.link.live_all)
         except zenoh.ZError as e:
             self.log.info(f"could not query the node tokens: {e}")
             return
@@ -466,10 +466,11 @@ class FakeFusionNode:
 
     def validate(self, msg: SapientMessage) -> str | None:
         """Apex's checks on a message just received: an error description, or None if it passes."""
-        if self.args.transport != "zenoh":
+        if self.args.transport == "tcp":
             return None  # Apex validates on TCP
         # One Validator per sender, as Apex has one per connection: it remembers the last detection time.
-        validator = self.validators.setdefault(msg.node_id, Validator(VALIDATION_OPTIONS))
+        options = CHILD_FUSION_VALIDATION_OPTIONS if self.link.children_are_fusion_nodes else VALIDATION_OPTIONS
+        validator = self.validators.setdefault(msg.node_id, Validator(options))
         errors = []
         received = datetime.now(timezone.utc).replace(tzinfo=None)  # protobuf timestamps convert to naive UTC
         try:
@@ -487,7 +488,7 @@ class FakeFusionNode:
                 packet, msg = await self.link.receive_raw()
             except DecodeError:
                 key, packet = self.link.last_sample
-                if key_owner(key) in self.other_fusion_nodes:
+                if self.link.owner_of(key) in self.other_fusion_nodes:
                     continue
                 self.log.info(f"undecodable message dropped (key {key})")
                 await self._send_error(packet, "undecodable message", key)
@@ -495,7 +496,7 @@ class FakeFusionNode:
             if self._from_other_fusion_node(msg):
                 continue
             key, _ = self.link.last_sample
-            description = identity_error(msg.node_id, key) or self.validate(msg)
+            description = identity_error(msg.node_id, key, self.link.owner_of(key)) or self.validate(msg)
             if description is None:
                 return msg
             self.log.info(f"invalid message from {msg.node_id[:8]!r} dropped: {description}")
@@ -505,8 +506,11 @@ class FakeFusionNode:
         """Whether the latest sample is another fusion node's: it is a peer, not a sensor of this one.
 
         Goes by the key's owner, which the router authenticates, because node_id may be missing.
+        On the fabric a fusion node is a child, so nothing is ignored.
         """
-        owner = key_owner(self.link.last_sample[0])
+        if self.link.children_are_fusion_nodes:
+            return False
+        owner = self.link.owner_of(self.link.last_sample[0])
         if owner is None:
             return False
         if declares_fusion_node(msg) and owner not in self.other_fusion_nodes:
@@ -569,7 +573,7 @@ class FakeFusionNode:
             track.detection_report.object_id = nearest.track_id
             track.detection_report.ClearField("task_id")
             await self.link.send(stamp(track, self.node_id))
-            if self.args.transport == "zenoh":
+            if self.args.transport != "tcp":
                 await self.link.send_upward(track)
         return count % 10 == 0
 
@@ -642,7 +646,10 @@ class FakeFusionNode:
                       "detection_report_rate classification_threshold", flush=True)
 
     async def _connect_link(self):
-        """Connect over the chosen transport; every Zenoh connection gets a fresh session."""
+        """Connect over the chosen transport; every Zenoh connection gets a fresh session.
+
+        On the fabric the session's TLS files come from ZENOH_TLS_CA, ZENOH_TLS_CERT and ZENOH_TLS_KEY.
+        """
         if self.args.transport == "tcp":
             return await Link.connect(self.args.host, self.args.port, self.log)
         if self.zenoh_session is not None:
@@ -650,6 +657,10 @@ class FakeFusionNode:
         self.zenoh_session = await open_session(
             self.args.zenoh_connect, asyncio.get_running_loop(), self.log
         )
+        if self.args.transport == "fabric":
+            return await FabricFusionLink.connect(
+                self.zenoh_session, self.node_id, self.args.fabric_anchor, self.args.fabric_site, self.log
+            )
         return await ZenohFusionLink.connect(self.zenoh_session, self.node_id, self.log)
 
     async def run(self):
@@ -660,10 +671,10 @@ class FakeFusionNode:
                 async with asyncio.TaskGroup() as group:
                     group.create_task(self._receive_loop())
                     group.create_task(self._auto_task_loop())
-                    if self.args.transport == "zenoh":
+                    if self.args.transport != "tcp":
                         self.own_registered.clear()
                         # Before _announce, so a node that appears meanwhile is not missed.
-                        changes = self.zenoh_session.liveliness(LIVE_ALL)
+                        changes = self.zenoh_session.liveliness(self.link.live_all)
                         group.create_task(self._track_liveliness(changes))
                         group.create_task(self._track_transport(self.zenoh_session.transport_changes))
                         group.create_task(self._request_loop())
@@ -684,7 +695,11 @@ def main():
     parser.add_argument("--port", type=int, default=int(env("APEX_PORT", "5001")), help="Apex Peer port (v2.0)")
     parser.add_argument("--transport", choices=TRANSPORTS, default=env("TRANSPORT", "tcp"))
     parser.add_argument("--zenoh-connect", default=env("ZENOH_CONNECT", "tcp/zenohd:7447"),
-                        help="Zenoh router endpoint, used with --transport zenoh")
+                        help="Zenoh router endpoint, used with --transport zenoh or fabric")
+    parser.add_argument("--fabric-anchor", default=env("FABRIC_ANCHOR"),
+                        help="this node's anchor on the fabric, required with --transport fabric")
+    parser.add_argument("--fabric-site", default=env("FABRIC_SITE", "h1"),
+                        help="this node's site on the fabric, used with --transport fabric")
     parser.add_argument("--node-id", default=env("NODE_ID") or str(uuid.uuid4()))
     parser.add_argument("--auto-task", default=env("AUTO_TASK", "look_at,move_to,follow,patrol,request:Status"),
                         help="comma-separated task kinds to cycle through; empty to disable")
@@ -699,6 +714,8 @@ def main():
     args = parser.parse_args()
     if args.transport not in TRANSPORTS:
         parser.error(f"TRANSPORT must be one of {', '.join(TRANSPORTS)}, not {args.transport!r}")
+    if args.transport == "fabric" and not (args.fabric_anchor and args.fabric_site):
+        parser.error("--transport fabric needs --fabric-anchor (FABRIC_ANCHOR) and --fabric-site (FABRIC_SITE)")
     try:
         asyncio.run(FakeFusionNode(args).run())
     except KeyboardInterrupt:

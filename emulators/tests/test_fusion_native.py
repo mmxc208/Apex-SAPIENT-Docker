@@ -959,3 +959,142 @@ def test_main_reads_the_status_interval(monkeypatch, argv, env, expected):
     fake_fusion_node.main()
 
     assert captured[0].status_interval == expected
+
+
+# ---- the host fusion node, on the fabric -----------------------------------------------------
+
+POD_ANCHOR = "18214b1a34e3c722d1cac283b272a62c"
+HOST_ANCHOR = "b005ae3a8f2baf89160bd71632902672"
+HOST_FUSION = "b0000001-0000-4000-8000-000000000001"
+
+
+def host_args(**overrides):
+    return fusion_args(
+        node_id=HOST_FUSION, transport="fabric", fabric_anchor=HOST_ANCHOR, fabric_site="h1", **overrides
+    )
+
+
+@pytest.fixture
+async def host(fake_session):
+    """The host fusion node with its receive loop running on the fabric."""
+    from fabric_link import FabricFusionLink
+
+    node = FakeFusionNode(host_args())
+    node.link = await FabricFusionLink.connect(
+        fake_session, HOST_FUSION, HOST_ANCHOR, "h1", logging.getLogger("test")
+    )
+    task = asyncio.create_task(node._receive_loop())
+    yield node
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
+def pod_key(kind, node_id=FUSION):
+    from fabric_keys import key_for
+
+    return key_for(POD_ANCHOR, "p1", kind, node_id)
+
+
+def detections_20_ms_apart(templates, node_id):
+    first, second = detection(templates, node_id), detection(templates, node_id)
+    second.timestamp.FromNanoseconds(first.timestamp.ToNanoseconds() + 20_000_000)
+    return first, second
+
+
+async def test_on_the_fabric_a_fusion_node_that_registers_is_a_child(host, fake_session, templates):
+    ack_key = f"{HOST_ANCHOR}/ack/p1/sapient/v2/registration_ack/{FUSION}"
+
+    fake_session.inject(pod_key("registration"), fusion_typed_registration(templates, FUSION).SerializeToString())
+    await until(lambda: published_on(fake_session, ack_key))
+
+    [ack] = published_on(fake_session, ack_key)
+    assert ack.registration_ack.acceptance
+    assert FUSION in host.nodes
+
+
+async def test_inside_a_pod_another_fusion_node_is_still_ignored(receiving, fake_session, templates):
+    fake_session.inject(up_key(PEER_FUSION, "registration"), fusion_typed_registration(templates).SerializeToString())
+    fake_session.inject(up_key(NODE, "registration"), registration(templates).SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "registration_ack")))
+
+    assert not published_on(fake_session, down_key(PEER_FUSION, "registration_ack"))
+    assert PEER_FUSION not in receiving.nodes
+
+
+async def test_the_host_accepts_two_tracks_20_ms_apart(host, fake_session, templates):
+    for msg in detections_20_ms_apart(templates, FUSION):
+        fake_session.inject(pod_key("detection_report"), msg.SerializeToString())
+    await until(lambda: host.detection_counts.get(FUSION) == 2)
+
+    assert not [key for key, _, _ in fake_session.published if "/error/" in key]
+
+
+async def test_inside_a_pod_two_detections_20_ms_apart_still_give_an_error(receiving, fake_session, templates):
+    for msg in detections_20_ms_apart(templates, NODE):
+        fake_session.inject(up_key(NODE, "detection_report"), msg.SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "error")))
+
+    [reply] = published_on(fake_session, down_key(NODE, "error"))
+    assert "too small" in reply.error.error_message[0]
+    assert receiving.detection_counts[NODE] == 1
+
+
+async def test_a_restarted_host_asks_a_live_pod_to_register(monkeypatch, fake_session):
+    from fabric_keys import live_key as fabric_live_key
+
+    opened = []
+
+    async def fake_open(connect, loop, tls=None):
+        opened.append(connect)
+        return fake_session
+
+    monkeypatch.setattr(ZenohSession, "open", fake_open)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    monkeypatch.setattr(fake_fusion_node, "REQUEST_GRACE_SECONDS", 0)
+    fake_session.declare_token(fabric_live_key(POD_ANCHOR, "p1", FUSION))
+    task = asyncio.create_task(FakeFusionNode(host_args()).run())
+    task_key = f"{HOST_ANCHOR}/task/p1/sapient/v2/task/{FUSION}"
+
+    await until(lambda: published_on(fake_session, task_key))
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    assert opened == ["tcp/zenohd:7447"]
+    assert all(t.task.command.request == "Registration" for t in published_on(fake_session, task_key))
+
+
+@pytest.mark.parametrize(
+    "argv, env, expected",
+    [([], {}, (None, "h1")), ([], {"FABRIC_ANCHOR": HOST_ANCHOR, "FABRIC_SITE": "h2"}, (HOST_ANCHOR, "h2")),
+     (["--fabric-anchor", POD_ANCHOR, "--fabric-site", "h3"], {"FABRIC_ANCHOR": HOST_ANCHOR}, (POD_ANCHOR, "h3"))],
+)
+def test_main_reads_the_fabric_anchor_and_site(monkeypatch, argv, env, expected):
+    captured = []
+
+    class Capture:
+        def __init__(self, args):
+            captured.append(args)
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr(fake_fusion_node, "FakeFusionNode", Capture)
+    monkeypatch.setattr(asyncio, "run", lambda coroutine: coroutine.close())
+    monkeypatch.setattr(sys, "argv", ["prog", *argv])
+    monkeypatch.delenv("FABRIC_ANCHOR", raising=False)
+    monkeypatch.delenv("FABRIC_SITE", raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    fake_fusion_node.main()
+
+    assert (captured[0].fabric_anchor, captured[0].fabric_site) == expected
+
+
+def test_main_refuses_the_fabric_without_an_anchor(monkeypatch):
+    monkeypatch.setattr(asyncio, "run", lambda coroutine: coroutine.close())
+    monkeypatch.setattr(sys, "argv", ["prog", "--transport", "fabric"])
+    monkeypatch.delenv("FABRIC_ANCHOR", raising=False)
+
+    with pytest.raises(SystemExit):
+        fake_fusion_node.main()
