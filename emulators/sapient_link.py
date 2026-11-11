@@ -235,6 +235,7 @@ class ZenohFusionLink:
         self.live_all: str = keys.LIVE_ALL
         self.own_keys = frozenset(keys.up_key(fusion_id, kind) for kind in keys.KINDS)
         self.last_sample: tuple[str, bytes] = ("", b"")  # (key, payload) of the latest message from a node
+        self.from_above = session.subscribe(keys.FUSION_DOWN_ALL)  # what a host sends this child
 
     @classmethod
     async def connect(
@@ -274,6 +275,14 @@ class ZenohFusionLink:
     async def receive(self) -> SapientMessage:
         _, msg = await self.receive_raw()
         return msg
+
+    async def receive_from_above(self) -> SapientMessage:
+        """Next message from the host on the pod's fusion keys.
+
+        Raises ConnectionError when the session is closed, and DecodeError for an undecodable message.
+        """
+        _, payload = await _next_sample(self.session, self.from_above)
+        return SapientMessage.FromString(payload)
 
     def owner_of(self, key: str) -> str | None:
         """The node a SAPIENT key names, or None for a malformed key."""

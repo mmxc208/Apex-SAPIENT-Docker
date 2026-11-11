@@ -17,7 +17,8 @@ from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
 from zenoh_io import ZenohSession
-from zenoh_keys import LIVE_ALL, UP_ALL, down_key, fusion_up_key, live_key, qos_for, up_key
+from sapient_msg.bsi_flex_335_v2_0.task_ack_pb2 import TaskAck
+from zenoh_keys import LIVE_ALL, UP_ALL, down_key, fusion_down_key, fusion_up_key, live_key, qos_for, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
 OTHER = "a0000002-0000-4000-8000-000000000002"
@@ -1098,3 +1099,220 @@ def test_main_refuses_the_fabric_without_an_anchor(monkeypatch):
 
     with pytest.raises(SystemExit):
         fake_fusion_node.main()
+
+
+# ---- the pod fusion node as a child: traffic upward and tasks from above ---------------------
+
+PARENT = "f0000002-0000-4000-8000-000000000002"
+RADAR, VEHICLE = NODE, OTHER
+
+
+@pytest.fixture
+async def parented(receiving, caplog):
+    """The pod fusion node also acting on what comes from above, logging at INFO."""
+    caplog.set_level(logging.INFO, logger=receiving.log.name)
+    task = asyncio.create_task(receiving._parent_loop())
+    yield receiving
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
+async def registered_upward(node, templates, *members):
+    """Register (node_id, node_type) sensors with node and publish its own Registration."""
+    for node_id, node_type in members or [(RADAR, "RADAR")]:
+        msg = registration(templates, node_id)
+        msg.registration.node_definition[0].node_type = Registration.NodeType.Value(f"NODE_TYPE_{node_type}")
+        await node._on_registration(msg)
+    await node._publish_registration()
+
+
+def from_parent(templates, template, destination=FUSION):
+    msg = stamp(templates("fusion_node", template), PARENT, destination)
+    if msg.WhichOneof("content") == "task":
+        msg.task.task_id = new_ulid()
+    return msg
+
+
+def send_down(session, msg):
+    session.inject(fusion_down_key(msg.WhichOneof("content")), msg.SerializeToString())
+
+
+async def ack_from_above(session):
+    await until(lambda: published_on(session, fusion_up_key("task_ack")))
+    [ack] = published_on(session, fusion_up_key("task_ack"))
+    return ack
+
+
+async def test_own_status_also_goes_upward(fusion, fake_session):
+    task = asyncio.create_task(fusion._own_status_loop())
+    await until(lambda: len(published_on(fake_session, fusion_up_key("status_report"))) >= 2)
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    inside = published_on(fake_session, up_key(FUSION, "status_report"))
+    upward = published_on(fake_session, fusion_up_key("status_report"))
+    assert upward == inside[: len(upward)]
+
+
+async def test_a_new_track_raises_one_alert_upward(receiving, fake_session, templates):
+    await registered_upward(receiving, templates)
+    first, second = detection(templates), detection(templates)
+    first.timestamp.FromNanoseconds(second.timestamp.ToNanoseconds() - 500_000_000)  # past the minimum gap
+
+    fake_session.inject(up_key(NODE, "detection_report"), first.SerializeToString())
+    await until(lambda: published_on(fake_session, fusion_up_key("alert")))
+    fake_session.inject(up_key(NODE, "detection_report"), second.SerializeToString())
+    await until(lambda: receiving.detection_counts.get(NODE) == 2)
+
+    [alert] = published_on(fake_session, fusion_up_key("alert"))
+    [track] = receiving.tracks
+    assert alert.node_id == FUSION
+    assert not alert.HasField("destination_id")
+    assert track.track_id[-6:] in alert.alert.description
+    assert alert.alert.alert_id != templates("sensor", "Alert").alert.alert_id
+    assert receiving.validate(alert) is None
+    assert not published_on(fake_session, up_key(FUSION, "alert"))
+
+
+async def test_a_sensor_alert_goes_upward_with_the_fusion_node_as_sender(receiving, fake_session, templates):
+    await registered_upward(receiving, templates)
+    alert = stamp(templates("sensor", "Alert"), NODE, FUSION)
+    alert.alert.alert_id = new_ulid()
+
+    fake_session.inject(up_key(NODE, "alert"), alert.SerializeToString())
+    await until(lambda: published_on(fake_session, fusion_up_key("alert")))
+    await until(lambda: published_on(fake_session, down_key(NODE, "alert_ack")))
+
+    [upward] = published_on(fake_session, fusion_up_key("alert"))
+    assert upward.alert.alert_id == alert.alert.alert_id
+    assert upward.node_id == FUSION
+    assert not upward.HasField("destination_id")
+    [ack] = published_on(fake_session, down_key(NODE, "alert_ack"))
+    assert ack.alert_ack.alert_id == alert.alert.alert_id
+
+
+async def test_registration_request_from_above(parented, fake_session, templates):
+    await registered_upward(parented, templates)
+    request = from_parent(templates, "Task.Request.Registration")
+
+    send_down(fake_session, request)
+    ack = await ack_from_above(fake_session)
+
+    assert len(published_on(fake_session, fusion_up_key("registration"))) == 2
+    assert len(published_on(fake_session, up_key(FUSION, "registration"))) == 2
+    assert ack.task_ack.task_id == request.task.task_id
+    assert ack.task_ack.task_status == TaskAck.TASK_STATUS_ACCEPTED
+    assert ack.node_id == FUSION
+    assert ack.destination_id == PARENT
+    assert len(ack.task_ack.reason) == 1
+
+
+async def test_status_request_from_above(parented, fake_session, templates):
+    await registered_upward(parented, templates)
+    request = from_parent(templates, "Task.Request.Status")
+
+    send_down(fake_session, request)
+    ack = await ack_from_above(fake_session)
+
+    [status] = published_on(fake_session, fusion_up_key("status_report"))
+    assert status.node_id == FUSION
+    assert status.status_report.info == StatusReport.INFO_NEW
+    assert parented.validate(status) is None
+    assert ack.task_ack.task_id == request.task.task_id
+    assert ack.task_ack.task_status == TaskAck.TASK_STATUS_ACCEPTED
+    assert ack.destination_id == PARENT
+
+
+async def test_a_command_from_above_goes_to_each_sensor_it_is_meant_for(parented, fake_session, templates):
+    await registered_upward(parented, templates, (RADAR, "RADAR"), (VEHICLE, "MOBILE_NODE"))
+    command = from_parent(templates, "Task.LookAt")
+
+    send_down(fake_session, command)
+    ack = await ack_from_above(fake_session)
+
+    [sent] = published_on(fake_session, down_key(RADAR, "task"))
+    assert sent.task.command.look_at == command.task.command.look_at
+    assert sent.task.task_id != command.task.task_id
+    assert sent.node_id == FUSION
+    assert sent.destination_id == RADAR
+    assert not published_on(fake_session, down_key(VEHICLE, "task"))
+    assert ack.task_ack.task_id == command.task.task_id
+    assert ack.task_ack.task_status == TaskAck.TASK_STATUS_ACCEPTED
+    assert ack.destination_id == PARENT
+    [reason] = ack.task_ack.reason
+    assert "1 node" in reason
+
+
+async def test_a_command_no_sensor_takes_is_rejected_with_a_reason(parented, fake_session, templates):
+    await registered_upward(parented, templates, (RADAR, "RADAR"))
+    command = from_parent(templates, "Task.MoveTo")
+
+    send_down(fake_session, command)
+    ack = await ack_from_above(fake_session)
+
+    assert not published_on(fake_session, down_key(RADAR, "task"))
+    assert ack.task_ack.task_id == command.task.task_id
+    assert ack.task_ack.task_status == TaskAck.TASK_STATUS_REJECTED
+    assert ack.destination_id == PARENT
+    assert len(ack.task_ack.reason) == 1
+
+
+async def test_a_task_for_another_node_is_ignored_and_logged(parented, fake_session, templates, caplog):
+    await registered_upward(parented, templates)
+    send_down(fake_session, from_parent(templates, "Task.Request.Status", destination=OTHER))
+    send_down(fake_session, from_parent(templates, "RegistrationAck"))  # marks the end of the first
+
+    await until(lambda: "<- registration_ack" in caplog.text)
+
+    assert "<- task" in caplog.text
+    assert re.search("task for .*ignored", caplog.text)
+    assert not published_on(fake_session, fusion_up_key("task_ack"))
+    assert not published_on(fake_session, fusion_up_key("status_report"))
+
+
+async def test_bad_bytes_from_above_do_not_end_the_loop(parented, fake_session, templates, caplog):
+    await registered_upward(parented, templates)
+    fake_session.inject(fusion_down_key("task"), UNDECODABLE)
+    send_down(fake_session, from_parent(templates, "Task.Request.Status"))
+
+    ack = await ack_from_above(fake_session)
+
+    assert "undecodable message from above" in caplog.text
+    assert ack.task_ack.task_status == TaskAck.TASK_STATUS_ACCEPTED
+
+
+async def test_registration_ack_from_above_is_logged(parented, fake_session, templates, caplog):
+    send_down(fake_session, from_parent(templates, "RegistrationAck"))
+
+    await until(lambda: "<- registration_ack" in caplog.text)
+
+    assert not published_on(fake_session, fusion_up_key("task_ack"))
+
+
+async def test_the_fabric_transport_has_no_parent_loop(monkeypatch, templates):
+    from fabric_link import FabricFusionLink
+
+    sessions = [FakeZenohSession(), FakeZenohSession()]
+    started = []
+
+    async def fake_open(connect, loop, tls=None):
+        return sessions.pop(0)
+
+    async def parent_loop(self):
+        started.append(self.args.transport)
+
+    monkeypatch.setattr(ZenohSession, "open", fake_open)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    monkeypatch.setattr(FakeFusionNode, "_parent_loop", parent_loop)
+    nodes = [FakeFusionNode(host_args()), FakeFusionNode(fusion_args())]
+    tasks = [asyncio.create_task(node.run()) for node in nodes]
+    await until(lambda: all(node.link is not None for node in nodes))
+    await until(lambda: started)
+    for _ in range(20):
+        await asyncio.sleep(0)
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    assert FabricFusionLink.has_parent is False
+    assert started == ["zenoh"]

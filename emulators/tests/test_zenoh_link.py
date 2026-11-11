@@ -17,11 +17,12 @@ from fake_fusion_node import FakeFusionNode
 from fake_sensor import FakeSensor
 from sapient_link import ZenohFusionLink, ZenohLink, stamp
 from zenoh_io import ZenohSession
-from zenoh_keys import down_key, live_key, qos_for, up_key
+from zenoh_keys import down_key, fusion_down_key, live_key, qos_for, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
 OTHER_NODE = "a0000002-0000-4000-8000-000000000002"
 FUSION = "f0000000-0000-4000-8000-00000000000f"
+PARENT = "f0000002-0000-4000-8000-000000000002"
 TIMEOUT = 3
 log = logging.getLogger("test-zenoh-link")
 
@@ -202,6 +203,23 @@ async def test_fusion_link_does_not_receive_its_own_publications(templates):
     session.inject(up_key(NODE, "status_report"), report.SerializeToString())
 
     assert await asyncio.wait_for(link.receive(), TIMEOUT) == report
+
+
+async def test_link_receives_messages_from_above(templates):
+    session = FakeZenohSession()
+    link = await ZenohFusionLink.connect(session, FUSION, log)
+    task = stamp(templates("fusion_node", "Task.Request.Status"), PARENT, FUSION)
+
+    session.inject(up_key(NODE, "registration"), stamp(templates("sensor", "Registration"), NODE).SerializeToString())
+    session.inject(fusion_down_key("task"), task.SerializeToString())
+    session.inject(fusion_down_key("registration_ack"), b"\xff\xff\xff")
+
+    assert await asyncio.wait_for(link.receive_from_above(), TIMEOUT) == task
+    with pytest.raises(DecodeError):
+        await asyncio.wait_for(link.receive_from_above(), TIMEOUT)
+    session.close()
+    with pytest.raises(ConnectionError):
+        await asyncio.wait_for(link.receive_from_above(), TIMEOUT)
 
 
 async def test_fusion_link_close_leaves_the_session_open():

@@ -19,6 +19,10 @@ Apex's own validator (replying with an Error), asks every live node to re-regist
 own status reports. It registers upward as a child Fusion_Node (BSI Flex 335 v2.0 clause 4.11) with
 the union of its sensors' capabilities and task commands, once the first sensor has registered and
 again whenever the registered sensors change, and mirrors its tracks onto the pod's fusion keys.
+Its own status reports and its sensors' alerts also go upward, both with this node as sender, and so
+does one alert of its own for each new track. It logs each message from above; on a task from above
+it registers again, reports its status, or passes the command to each sensor the command is meant
+for, and answers with one acknowledgement upward.
 A node whose liveliness token stays gone for the hold window (--node-hold-seconds) is forgotten.
 
 With --transport fabric it is the host's fusion node: the same duties on the fabric's keys, below
@@ -59,6 +63,7 @@ from sapient_msg.bsi_flex_335_v2_0.error_pb2 import Error
 from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
+from sapient_msg.bsi_flex_335_v2_0.task_ack_pb2 import TaskAck
 from zenoh_io import open_session
 
 TRANSPORTS = ("tcp", "zenoh", "fabric")
@@ -177,6 +182,18 @@ class FakeFusionNode:
     async def send(self, msg):
         await self.link.send(msg)
         self.log.info(f"-> {summary(msg)}")
+
+    def _has_parent(self) -> bool:
+        """Whether a parent listens above this node: only a pod's fusion node over Zenoh has one."""
+        return self.args.transport != "tcp" and self.link.has_parent
+
+    def _may_send_upward(self) -> bool:
+        """As with status reports and tracks, nothing goes upward before this node's Registration."""
+        return self._has_parent() and self.own_registered.is_set()
+
+    async def send_upward(self, msg):
+        await self.link.send_upward(msg)
+        self.log.info(f"-> up {summary(msg)}")
 
     def _task(self, kind: str, node_id: str):
         """Build a Task for one node from the Test Harness template, or None if it can't be built."""
@@ -313,7 +330,10 @@ class FakeFusionNode:
         while True:
             info = StatusReport.INFO_NEW if self.status_changed else StatusReport.INFO_UNCHANGED
             self.status_changed = False
-            await self.send(self._own_status(info))
+            msg = self._own_status(info)
+            await self.send(msg)
+            if self._has_parent():
+                await self.link.send_upward(msg)
             await asyncio.sleep(self.args.status_interval)
 
     async def request_registrations(self):
@@ -326,19 +346,20 @@ class FakeFusionNode:
                 self.log.info(f"ignoring malformed liveliness token {key!r}")
         await self.send_task("request:Registration", node_ids)
 
-    async def _publish_registration(self):
-        """Publish this node's Registration, unless no sensor has registered yet.
+    async def _publish_registration(self) -> bool:
+        """Publish this node's Registration, unless no sensor has registered yet; whether it did.
 
         Capabilities are mandatory, so until then there is nothing valid to say.
         """
         self.registry_changed.clear()
         if not self._registrations():
-            return
+            return False
         msg = self.build_fusion_registration()
         await self.send(msg)
         await self.link.send_upward(msg)
         self.status_changed = True  # a status report following a Registration must be INFO_NEW
         self.own_registered.set()
+        return True
 
     async def _announce(self):
         await self._publish_registration()  # after a reconnect the sensors are already known
@@ -562,6 +583,8 @@ class FakeFusionNode:
             nearest = Track(det)
             self.tracks.append(nearest)
             self.log.info(f"new track {nearest.track_id[-6:]} from {self.nodes.get(msg.node_id, {}).get('name', msg.node_id[:8])}")
+            if self._may_send_upward():
+                await self.send_upward(self._track_alert(nearest))
         nearest.detection = det
         nearest.sources.add(msg.node_id)
         nearest.updated = time.time()
@@ -576,6 +599,13 @@ class FakeFusionNode:
             if self.args.transport != "tcp":
                 await self.link.send_upward(track)
         return count % 10 == 0
+
+    def _track_alert(self, track: Track) -> SapientMessage:
+        """This node's own alert for a new track. The emulator sensors raise none of their own."""
+        msg = load_template("sensor", "Alert")
+        msg.alert.alert_id = new_ulid()
+        msg.alert.description = f"new track {track.track_id[-6:]}"
+        return stamp(msg, self.node_id)
 
     async def _receive_loop(self):
         while True:
@@ -598,6 +628,66 @@ class FakeFusionNode:
                 ack.alert_ack.alert_id = msg.alert.alert_id
                 ack.alert_ack.alert_ack_status = AlertAck.ALERT_ACK_STATUS_ACCEPTED
                 await self.send(stamp(ack, self.node_id, msg.node_id))
+                if self._may_send_upward():
+                    upward = SapientMessage()
+                    upward.CopyFrom(msg)
+                    await self.send_upward(stamp(upward, self.node_id))
+
+    # ---- from above (a pod's fusion node over Zenoh only) ---------------------------------
+
+    async def _parent_loop(self):
+        """Log each message from above, and act on a task for this node."""
+        while True:
+            try:
+                msg = await self.link.receive_from_above()
+            except DecodeError:
+                self.log.info("undecodable message from above dropped")
+                continue
+            kind = msg.WhichOneof("content")
+            if kind is None:
+                self.log.info("message from above with no content dropped")
+                continue
+            self.log.info(f"<- {summary(msg)}")
+            if kind != "task":
+                continue
+            if msg.destination_id != self.node_id:
+                self.log.info(f"task for {msg.destination_id or 'no node'} ignored; this node is {self.node_id}")
+                continue
+            status, reason = await self._on_task_from_above(msg)
+            await self.send_upward(self._task_ack_upward(msg, status, reason))
+
+    async def _on_task_from_above(self, msg) -> tuple[int, str]:
+        """Carry out a task from the parent; return (TaskAck status, reason)."""
+        command = msg.task.command.WhichOneof("command")
+        request = msg.task.command.request if command == "request" else None
+        if request == "Registration":
+            if not await self._publish_registration():
+                return TaskAck.TASK_STATUS_REJECTED, "No sensor has registered with this fusion node yet"
+            return TaskAck.TASK_STATUS_ACCEPTED, "Registration sent again"
+        if request == "Status":
+            if not self.own_registered.is_set():
+                return TaskAck.TASK_STATUS_REJECTED, "This fusion node has not registered yet"
+            await self.send_upward(self._own_status(StatusReport.INFO_NEW))
+            return TaskAck.TASK_STATUS_ACCEPTED, "Status report sent"
+        if command is None:
+            return TaskAck.TASK_STATUS_REJECTED, "Task has no command"
+        targets = self._targets(command)
+        for node_id in targets:
+            task = SapientMessage()
+            task.CopyFrom(msg)
+            task.task.task_id = new_ulid()
+            await self.send(stamp(task, self.node_id, node_id))
+        if not targets:
+            return TaskAck.TASK_STATUS_REJECTED, f"No sensor of this fusion node takes {command}"
+        return TaskAck.TASK_STATUS_ACCEPTED, f"{command} sent to {len(targets)} node{'s' if len(targets) != 1 else ''}"
+
+    def _task_ack_upward(self, task_msg, status: int, reason: str) -> SapientMessage:
+        msg = load_template("sensor", "TaskAck.Request.Status")
+        msg.task_ack.task_id = task_msg.task.task_id
+        msg.task_ack.task_status = status
+        msg.task_ack.ClearField("associated_file")
+        msg.task_ack.reason[:] = [reason]
+        return stamp(msg, self.node_id, task_msg.node_id)
 
     async def _auto_task_loop(self):
         if not self.auto_tasks:
@@ -681,6 +771,8 @@ class FakeFusionNode:
                         group.create_task(self._announce())
                         group.create_task(self._registration_loop())
                         group.create_task(self._status_once_registered())
+                        if self.link.has_parent:
+                            group.create_task(self._parent_loop())
             except* (asyncio.IncompleteReadError, ConnectionError):
                 self.log.info("connection to Apex lost; reconnecting")
             finally:
