@@ -1382,10 +1382,46 @@ def test_the_validator_rejects_each_message_summary_would_fail_on(fusion, templa
     else:
         msg = stamp(templates("fusion_node", "DetectionReport"), PARENT)
         msg.detection_report.ClearField("object_id")
-    with pytest.raises(KeyError):
-        summary(msg)
+    assert "(no summary: KeyError" in summary(msg)
 
     assert fusion.validate(msg)
+
+
+def nan_detection(templates, node_id):
+    msg = detection(templates, node_id)
+    msg.detection_report.location.x = float("nan")
+    return msg
+
+
+async def test_a_nan_detection_from_above_does_not_end_the_loop(parented, fake_session, templates):
+    await registered_upward(parented, templates)
+    send_down(fake_session, nan_detection(templates, PARENT))
+    request = from_parent(templates, "Task.Request.Status")
+    send_down(fake_session, request)
+
+    ack = await ack_from_above(fake_session)
+
+    assert ack.task_ack.task_id == request.task.task_id
+
+
+async def test_a_nan_detection_from_a_sensor_does_not_end_the_receive_loop(receiving, fake_session, templates):
+    fake_session.inject(up_key(NODE, "detection_report"), nan_detection(templates, NODE).SerializeToString())
+    fake_session.inject(up_key(OTHER, "registration"), registration(templates, OTHER).SerializeToString())
+
+    await until(lambda: published_on(fake_session, down_key(OTHER, "registration_ack")))
+
+
+async def test_a_message_from_above_has_a_validator_of_its_own(parented, fake_session, templates):
+    await registered_upward(parented, templates)
+    assert parented.validate(status_report(templates, StatusReport.INFO_NEW, OTHER)) is None
+    before = {node_id: id(validator) for node_id, validator in parented.validators.items()}
+    request = from_parent(templates, "Task.Request.Status")
+    request.node_id = RADAR  # a message from above that carries the radar's node ID
+
+    send_down(fake_session, request)
+    await ack_from_above(fake_session)
+
+    assert {node_id: id(validator) for node_id, validator in parented.validators.items()} == before
 
 
 async def test_bad_bytes_from_above_do_not_end_the_loop(parented, fake_session, templates, caplog):

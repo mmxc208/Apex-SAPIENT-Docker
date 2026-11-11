@@ -94,11 +94,21 @@ def offset(lon: float, lat: float, east_m: float, north_m: float) -> tuple[float
 
 
 def summary(msg: SapientMessage) -> str:
-    """One line describing a message, for logs."""
+    """One line describing a message, for logs. Never raises, whatever the message holds."""
     kind = msg.WhichOneof("content")
-    body = MessageToDict(getattr(msg, kind), preserving_proto_field_name=True)
     src = msg.node_id[:8]
     dst = f" -> {msg.destination_id[:8]}" if msg.HasField("destination_id") else ""
+    if kind is None:
+        return f"message with no content {src}{dst}"
+    try:
+        detail = _detail(kind, MessageToDict(getattr(msg, kind), preserving_proto_field_name=True))
+    except Exception as error:  # e.g. a missing mandatory field, or a NaN location
+        return f"{kind} {src}{dst} (no summary: {error!r})"
+    return f"{kind} {src}{dst} {detail}"
+
+
+def _detail(kind: str, body: dict) -> str:
+    """The kind-specific part of a summary line. May raise on a message that lacks what it reads."""
     if kind == "registration":
         types = ",".join(d["node_type"].replace("NODE_TYPE_", "") for d in body.get("node_definition", []))
         detail = f'"{body.get("name")}" [{types}]'
@@ -130,7 +140,7 @@ def summary(msg: SapientMessage) -> str:
         detail = "; ".join(body.get("error_message", []))
     else:
         detail = ""
-    return f"{kind} {src}{dst} {detail}"
+    return detail
 
 
 class Link:

@@ -486,13 +486,17 @@ class FakeFusionNode:
 
     # ---- incoming ------------------------------------------------------------------------
 
-    def validate(self, msg: SapientMessage) -> str | None:
-        """Apex's checks on a message just received: an error description, or None if it passes."""
+    def validate(self, msg: SapientMessage, validator: Validator | None = None) -> str | None:
+        """Apex's checks on a message just received: an error description, or None if it passes.
+
+        validator is the one of the connection the message came on; by default, that of its sender.
+        """
         if self.args.transport == "tcp":
             return None  # Apex validates on TCP
-        # One Validator per sender, as Apex has one per connection: it remembers the last detection time.
-        options = CHILD_FUSION_VALIDATION_OPTIONS if self.link.children_are_fusion_nodes else VALIDATION_OPTIONS
-        validator = self.validators.setdefault(msg.node_id, Validator(options))
+        if validator is None:
+            # One Validator per sender, as Apex has one per connection: it remembers the last detection time.
+            options = CHILD_FUSION_VALIDATION_OPTIONS if self.link.children_are_fusion_nodes else VALIDATION_OPTIONS
+            validator = self.validators.setdefault(msg.node_id, Validator(options))
         errors = []
         received = datetime.now(timezone.utc).replace(tzinfo=None)  # protobuf timestamps convert to naive UTC
         try:
@@ -651,6 +655,8 @@ class FakeFusionNode:
 
     async def _parent_loop(self):
         """Log each message from above, and act on a task for this node."""
+        # One Validator for the one connection to the parent, never one of the sensors'.
+        from_above = Validator(VALIDATION_OPTIONS)
         while True:
             try:
                 msg = await self.link.receive_from_above()
@@ -661,7 +667,7 @@ class FakeFusionNode:
             if kind is None:
                 self.log.info("message from above with no content dropped")
                 continue
-            description = self.validate(msg)  # before the summary, which relies on mandatory fields
+            description = self.validate(msg, from_above)
             if description is not None:
                 self.log.info(f"invalid message from above dropped: {description}")
                 continue

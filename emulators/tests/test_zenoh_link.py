@@ -15,7 +15,8 @@ import zenoh_io
 from conftest import FakeZenohSession
 from fake_fusion_node import FakeFusionNode
 from fake_sensor import FakeSensor
-from sapient_link import ZenohFusionLink, ZenohLink, stamp
+from sapient_link import ZenohFusionLink, ZenohLink, stamp, summary
+from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from zenoh_io import ZenohSession
 from zenoh_keys import down_key, fusion_down_key, live_key, qos_for, up_key
 
@@ -544,3 +545,34 @@ def test_main_rejects_an_unknown_transport_from_the_environment(monkeypatch, mod
 
     with pytest.raises(SystemExit):
         run_main(monkeypatch, module, class_name)
+
+
+# ---- summary, the log helper of sapient_link: it never raises ------------------------------
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_summary_of_a_detection_at_a_location_json_cannot_format(templates, value):
+    msg = stamp(templates("fusion_node", "DetectionReport"), NODE)
+    msg.detection_report.location.x = value
+
+    assert summary(msg).startswith("detection_report")
+
+
+def test_summary_of_a_task_with_no_task_id(templates):
+    msg = stamp(templates("fusion_node", "Task.Request.Status"), FUSION, NODE)
+    msg.task.ClearField("task_id")
+
+    assert summary(msg).startswith("task")
+
+
+def test_summary_of_a_message_with_no_content():
+    assert isinstance(summary(SapientMessage(node_id=NODE)), str)
+
+
+def test_summary_of_a_working_message_is_unchanged(templates):
+    msg = stamp(templates("sensor", "TaskAck.Request.Status"), NODE, FUSION)
+
+    assert summary(msg) == (
+        f"task_ack {NODE[:8]} -> {FUSION[:8]} {msg.task_ack.task_id[-6:]} TASK_STATUS_ACCEPTED "
+        "['Request status task was accepted.']"
+    )
