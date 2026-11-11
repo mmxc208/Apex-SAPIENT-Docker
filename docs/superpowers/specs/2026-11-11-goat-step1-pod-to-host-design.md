@@ -169,7 +169,7 @@ The bridge has one session to the pod router (pod CA) and one session to the fab
 
 The node gets three additions, all for the Zenoh transport only:
 
-1. **Upward traffic.** Its own status reports and its sensors' alerts also go upward. An alert that goes upward carries the pod fusion node's ID as sender.
+1. **Upward traffic.** Its own status reports and its sensors' alerts also go upward. An alert that goes upward carries the pod fusion node's ID as sender. The emulator sensors raise no alert today, so the pod fusion node also raises one alert of its own, upward, for each new track. Without it, result 1 has no alert to show.
 2. **Messages from above.** It subscribes to `<prefix>fusion/down/**` and logs each message.
 3. **Tasks from above.**
    - A request for registration: it publishes its registration again, upward and inside the pod, and sends an accepted acknowledgement upward.
