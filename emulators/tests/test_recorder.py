@@ -10,6 +10,7 @@ import recorder
 import zenoh_io
 from conftest import FakeZenohSession
 from recorder import Recorder
+import fabric_keys
 from zenoh_keys import PREFIX, down_key, live_key, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
@@ -260,3 +261,80 @@ async def test_run_raises_and_closes_the_session_when_recording_fails(monkeypatc
         await asyncio.wait_for(recorder.run("tcp/router:7447", tmp_path, log), TIMEOUT)
 
     assert session.closed.is_set()
+
+
+# ---- the fabric keys (RECORD_KEYS=fabric) ----------------------------------------------------
+
+ANCHOR = "18214b1a34e3c722d1cac283b272a62c"
+FUSION = "f0000001-0000-4000-8000-000000000001"
+
+
+@pytest.fixture
+async def fabric_recorder(fake_session, tmp_path):
+    """A Recorder of the fabric keys on tmp_path, which has subscribed by the time this returns."""
+    expressions, describe = recorder.record_keys("fabric")
+    task = asyncio.create_task(Recorder(fake_session, tmp_path, expressions, describe).run())
+    await asyncio.sleep(0)
+    yield
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.usefixtures("fabric_recorder")
+async def test_fabric_mode_subscribes_to_the_three_classes(fake_session):
+    assert [keyexpr for keyexpr, _ in fake_session._subscriptions] == list(fabric_keys.subscriptions())
+
+
+@pytest.mark.usefixtures("fabric_recorder")
+async def test_fabric_record_has_anchor_site_kind_and_node_id(tmp_path, fake_session, templates):
+    key = fabric_keys.key_for(ANCHOR, "p1", "detection_report", FUSION)
+
+    [line] = await lines_after_injecting(fake_session, tmp_path, [
+        (key, templates("fusion_node", "DetectionReport").SerializeToString()),
+    ])
+
+    assert list(line) == ["t", "key", "kind", "node_id", "anchor", "site", "msg"]
+    assert line["key"] == key
+    assert line["kind"] == "detection_report"
+    assert line["node_id"] == FUSION
+    assert line["anchor"] == ANCHOR
+    assert line["site"] == "p1"
+    assert "detection_report" in line["msg"]
+
+
+@pytest.mark.usefixtures("fabric_recorder")
+async def test_fabric_record_of_a_malformed_key_keeps_the_key_only(tmp_path, fake_session, templates):
+    key = f"{ANCHOR}/telemetry/sapient/p1/v2/detection_report/not-a-uuid"
+
+    [line] = await lines_after_injecting(fake_session, tmp_path, [
+        (key, templates("fusion_node", "DetectionReport").SerializeToString()),
+    ])
+
+    assert line["key"] == key
+    assert [line[field] for field in ("kind", "node_id", "anchor", "site")] == [None] * 4
+    assert "detection_report" in line["msg"]
+
+
+def test_pod_mode_is_the_default(monkeypatch):
+    monkeypatch.delenv("RECORD_KEYS", raising=False)
+    started = []
+
+    def fake_run(connect, out_dir, log, keys):
+        started.append(keys)
+        return asyncio.sleep(0)
+
+    monkeypatch.setattr(recorder, "run", fake_run)
+    monkeypatch.setattr(asyncio, "run", lambda coroutine: coroutine.close())
+
+    recorder.main()
+
+    assert started == ["pod"]
+    assert recorder.record_keys("pod") == ((f"{PREFIX}sapient/v2/**",), recorder.describe_pod_key)
+
+
+def test_an_unknown_record_keys_value_is_refused(monkeypatch):
+    monkeypatch.setenv("RECORD_KEYS", "host")
+    monkeypatch.setattr(asyncio, "run", lambda coroutine: coroutine.close())
+
+    with pytest.raises(ValueError, match="RECORD_KEYS"):
+        recorder.main()
