@@ -12,12 +12,12 @@ from google.protobuf.message import DecodeError
 import fake_fusion_node
 from conftest import FakeZenohSession
 from fake_fusion_node import FakeFusionNode
-from sapient_link import ZenohFusionLink, load_template, new_ulid, stamp
+from sapient_link import ZenohFusionLink, load_template, new_ulid, stamp, summary
 from sapient_msg.bsi_flex_335_v2_0.registration_pb2 import Registration
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from sapient_msg.bsi_flex_335_v2_0.status_report_pb2 import StatusReport
-from zenoh_io import ZenohSession
 from sapient_msg.bsi_flex_335_v2_0.task_ack_pb2 import TaskAck
+from zenoh_io import ZenohSession
 from zenoh_keys import LIVE_ALL, UP_ALL, down_key, fusion_down_key, fusion_up_key, live_key, qos_for, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
@@ -1166,12 +1166,47 @@ async def test_a_new_track_raises_one_alert_upward(receiving, fake_session, temp
 
     [alert] = published_on(fake_session, fusion_up_key("alert"))
     [track] = receiving.tracks
+    template = templates("sensor", "Alert").alert
     assert alert.node_id == FUSION
     assert not alert.HasField("destination_id")
     assert track.track_id[-6:] in alert.alert.description
-    assert alert.alert.alert_id != templates("sensor", "Alert").alert.alert_id
+    assert alert.alert.alert_id != template.alert_id
+    assert alert.alert.location == first.detection_report.location
+    [associated] = alert.alert.associated_detection
+    assert associated.node_id == FUSION
+    assert associated.object_id == track.track_id
+    assert associated.timestamp == alert.timestamp
+    assert associated.association_type == template.associated_detection[0].association_type
+    kept = {field.name for field, _ in alert.alert.ListFields()}
+    assert not kept & {"region_id", "associated_file", "additional_information", "ranking", "confidence"}
+    assert (alert.alert.alert_type, alert.alert.status, alert.alert.priority) == (
+        template.alert_type, template.status, template.priority
+    )
     assert receiving.validate(alert) is None
     assert not published_on(fake_session, up_key(FUSION, "alert"))
+
+
+async def test_a_track_made_before_registration_gets_its_alert_with_its_next_detection(
+    receiving, fake_session, templates
+):
+    first, second, third = detection(templates), detection(templates), detection(templates)
+    first.timestamp.FromNanoseconds(third.timestamp.ToNanoseconds() - 600_000_000)
+    second.timestamp.FromNanoseconds(third.timestamp.ToNanoseconds() - 300_000_000)
+    second.detection_report.location.z += 1  # a later position, within the gate
+
+    fake_session.inject(up_key(NODE, "detection_report"), first.SerializeToString())
+    await until(lambda: receiving.detection_counts.get(NODE) == 1)
+    await registered_upward(receiving, templates)
+    assert not published_on(fake_session, fusion_up_key("alert"))
+    fake_session.inject(up_key(NODE, "detection_report"), second.SerializeToString())
+    await until(lambda: published_on(fake_session, fusion_up_key("alert")))
+    fake_session.inject(up_key(NODE, "detection_report"), third.SerializeToString())
+    await until(lambda: receiving.detection_counts.get(NODE) == 3)
+
+    [alert] = published_on(fake_session, fusion_up_key("alert"))
+    [track] = receiving.tracks
+    assert alert.alert.associated_detection[0].object_id == track.track_id
+    assert alert.alert.location == second.detection_report.location
 
 
 async def test_a_sensor_alert_goes_upward_with_the_fusion_node_as_sender(receiving, fake_session, templates):
@@ -1189,6 +1224,20 @@ async def test_a_sensor_alert_goes_upward_with_the_fusion_node_as_sender(receivi
     assert not upward.HasField("destination_id")
     [ack] = published_on(fake_session, down_key(NODE, "alert_ack"))
     assert ack.alert_ack.alert_id == alert.alert.alert_id
+
+
+async def test_a_sensor_alert_before_registration_is_held_back_and_logged(
+    receiving, fake_session, templates, caplog
+):
+    caplog.set_level(logging.INFO, logger=receiving.log.name)
+    alert = stamp(templates("sensor", "Alert"), NODE, FUSION)
+    alert.alert.alert_id = new_ulid()
+
+    fake_session.inject(up_key(NODE, "alert"), alert.SerializeToString())
+    await until(lambda: published_on(fake_session, down_key(NODE, "alert_ack")))
+
+    assert not published_on(fake_session, fusion_up_key("alert"))
+    assert f"alert from {NODE[:8]} not sent upward: this node has not registered yet" in caplog.text
 
 
 async def test_registration_request_from_above(parented, fake_session, templates):
@@ -1223,6 +1272,15 @@ async def test_status_request_from_above(parented, fake_session, templates):
     assert ack.destination_id == PARENT
 
 
+def without_header_and_task_id(msg):
+    copy = SapientMessage()
+    copy.CopyFrom(msg)
+    for field in ("node_id", "destination_id", "timestamp"):
+        copy.ClearField(field)
+    copy.task.ClearField("task_id")
+    return copy
+
+
 async def test_a_command_from_above_goes_to_each_sensor_it_is_meant_for(parented, fake_session, templates):
     await registered_upward(parented, templates, (RADAR, "RADAR"), (VEHICLE, "MOBILE_NODE"))
     command = from_parent(templates, "Task.LookAt")
@@ -1231,8 +1289,8 @@ async def test_a_command_from_above_goes_to_each_sensor_it_is_meant_for(parented
     ack = await ack_from_above(fake_session)
 
     [sent] = published_on(fake_session, down_key(RADAR, "task"))
-    assert sent.task.command.look_at == command.task.command.look_at
     assert sent.task.task_id != command.task.task_id
+    assert without_header_and_task_id(sent) == without_header_and_task_id(command)
     assert sent.node_id == FUSION
     assert sent.destination_id == RADAR
     assert not published_on(fake_session, down_key(VEHICLE, "task"))
@@ -1268,6 +1326,66 @@ async def test_a_task_for_another_node_is_ignored_and_logged(parented, fake_sess
     assert re.search("task for .*ignored", caplog.text)
     assert not published_on(fake_session, fusion_up_key("task_ack"))
     assert not published_on(fake_session, fusion_up_key("status_report"))
+
+
+async def test_a_task_with_no_destination_is_ignored_and_logged(parented, fake_session, templates, caplog):
+    await registered_upward(parented, templates)
+    command = from_parent(templates, "Task.Request.Start")
+    command.ClearField("destination_id")
+    send_down(fake_session, command)
+    send_down(fake_session, from_parent(templates, "RegistrationAck"))  # marks the end of the first
+
+    await until(lambda: "<- registration_ack" in caplog.text)
+
+    assert len(re.findall("task for no node ignored", caplog.text)) == 1
+    assert not published_on(fake_session, fusion_up_key("task_ack"))
+    assert not published_on(fake_session, down_key(RADAR, "task"))
+
+
+async def test_a_task_from_above_skips_a_node_known_only_from_its_status(parented, fake_session, templates):
+    await registered_upward(parented, templates, (RADAR, "RADAR"))
+    parented._on_status(status_report(templates, StatusReport.INFO_NEW, OTHER))
+    command = from_parent(templates, "Task.Request.Start")
+
+    send_down(fake_session, command)
+    ack = await ack_from_above(fake_session)
+
+    assert len(published_on(fake_session, down_key(RADAR, "task"))) == 1
+    assert not published_on(fake_session, down_key(OTHER, "task"))
+    assert "1 node" in ack.task_ack.reason[0]
+
+
+async def test_a_malformed_message_from_above_is_dropped_and_the_loop_goes_on(
+    parented, fake_session, templates, caplog
+):
+    await registered_upward(parented, templates)
+    malformed = from_parent(templates, "Task.Request.Status")
+    malformed.task.ClearField("task_id")
+    send_down(fake_session, malformed)
+    request = from_parent(templates, "Task.Request.Status")
+    send_down(fake_session, request)
+
+    ack = await ack_from_above(fake_session)
+
+    assert ack.task_ack.task_id == request.task.task_id
+    assert "invalid message from above dropped" in caplog.text
+
+
+@pytest.mark.parametrize("kind", ["task", "task_ack", "detection_report"])
+def test_the_validator_rejects_each_message_summary_would_fail_on(fusion, templates, kind):
+    if kind == "task":
+        msg = from_parent(templates, "Task.Request.Status")
+        msg.task.ClearField("task_id")
+    elif kind == "task_ack":
+        msg = stamp(templates("sensor", "TaskAck.Request.Status"), PARENT, FUSION)
+        msg.task_ack.ClearField("task_id")
+    else:
+        msg = stamp(templates("fusion_node", "DetectionReport"), PARENT)
+        msg.detection_report.ClearField("object_id")
+    with pytest.raises(KeyError):
+        summary(msg)
+
+    assert fusion.validate(msg)
 
 
 async def test_bad_bytes_from_above_do_not_end_the_loop(parented, fake_session, templates, caplog):

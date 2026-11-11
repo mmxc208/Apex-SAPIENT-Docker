@@ -154,6 +154,7 @@ class Track:
         self.sources = set()
         self.updated = time.time()
         self.published = 0.0
+        self.alerted = False  # its one alert has gone upward
 
 
 class FakeFusionNode:
@@ -583,11 +584,13 @@ class FakeFusionNode:
             nearest = Track(det)
             self.tracks.append(nearest)
             self.log.info(f"new track {nearest.track_id[-6:]} from {self.nodes.get(msg.node_id, {}).get('name', msg.node_id[:8])}")
-            if self._may_send_upward():
-                await self.send_upward(self._track_alert(nearest))
         nearest.detection = det
         nearest.sources.add(msg.node_id)
         nearest.updated = time.time()
+        # One alert per track: at creation, or with its first detection once this node may send upward.
+        if not nearest.alerted and self._may_send_upward():
+            nearest.alerted = True
+            await self.send_upward(self._track_alert(nearest))
         if self._may_publish_tracks() and time.time() - nearest.published >= TRACK_PUBLISH_SECONDS:
             nearest.published = time.time()
             track = load_template("sensor", "DetectionReport")
@@ -601,11 +604,20 @@ class FakeFusionNode:
         return count % 10 == 0
 
     def _track_alert(self, track: Track) -> SapientMessage:
-        """This node's own alert for a new track. The emulator sensors raise none of their own."""
-        msg = load_template("sensor", "Alert")
-        msg.alert.alert_id = new_ulid()
-        msg.alert.description = f"new track {track.track_id[-6:]}"
-        return stamp(msg, self.node_id)
+        """This node's own alert for a new track, at its latest location. The emulator sensors raise none."""
+        msg = stamp(load_template("sensor", "Alert"), self.node_id)
+        alert = msg.alert
+        alert.alert_id = new_ulid()
+        alert.description = f"new track {track.track_id[-6:]}"
+        alert.location.CopyFrom(track.detection.location)
+        for field in ("region_id", "associated_file", "additional_information", "ranking", "confidence"):
+            alert.ClearField(field)
+        association = alert.associated_detection[0].association_type
+        del alert.associated_detection[:]
+        alert.associated_detection.add(
+            timestamp=msg.timestamp, node_id=self.node_id, object_id=track.track_id, association_type=association
+        )
+        return msg
 
     async def _receive_loop(self):
         while True:
@@ -632,6 +644,8 @@ class FakeFusionNode:
                     upward = SapientMessage()
                     upward.CopyFrom(msg)
                     await self.send_upward(stamp(upward, self.node_id))
+                elif self._has_parent():
+                    self.log.info(f"alert from {msg.node_id[:8]} not sent upward: this node has not registered yet")
 
     # ---- from above (a pod's fusion node over Zenoh only) ---------------------------------
 
@@ -646,6 +660,10 @@ class FakeFusionNode:
             kind = msg.WhichOneof("content")
             if kind is None:
                 self.log.info("message from above with no content dropped")
+                continue
+            description = self.validate(msg)  # before the summary, which relies on mandatory fields
+            if description is not None:
+                self.log.info(f"invalid message from above dropped: {description}")
                 continue
             self.log.info(f"<- {summary(msg)}")
             if kind != "task":
@@ -671,7 +689,7 @@ class FakeFusionNode:
             return TaskAck.TASK_STATUS_ACCEPTED, "Status report sent"
         if command is None:
             return TaskAck.TASK_STATUS_REJECTED, "Task has no command"
-        targets = self._targets(command)
+        targets = [node_id for node_id in self._targets(command) if self._is_registered(node_id)]
         for node_id in targets:
             task = SapientMessage()
             task.CopyFrom(msg)
