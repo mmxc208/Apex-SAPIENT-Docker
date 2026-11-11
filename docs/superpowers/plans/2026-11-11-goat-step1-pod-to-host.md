@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Work on branch `goat`. Commit after each task. Never push. Each commit message ends with `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`.
+- Work on branch `goat`. Commit after each task. Never push. Each commit message ends with a `Co-Authored-By: Claude <model> <noreply@anthropic.com>` line that names the model that did the work, as the committing session's own instructions give it.
 - These files must not change: `docker-compose.yml`, `docker-compose.emulators.yml`, `docker-compose.elastic.yml`, `docker-compose.zenoh.yml`, `docker-compose.zenoh-sensors.yml`, `docker-compose.native.yml`, `docker-compose.native-sensors.yml`, `docker-compose.pod1.yml`, `zenoh/router-plain.json5`, `zenoh/router-pod1.json5`, `zenoh/pki/make_certs.sh`.
 - The payload is the serialised `SapientMessage`. The pod bridge forwards the bytes unchanged in both directions.
 - Images: fabric router `${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}`, pod router `eclipse/zenoh:1.10.2`, everything else `apex-sapient:4.2.0`. Task 1 may change the default of `FABRIC_ZENOH_IMAGE`, by its own rule only.
