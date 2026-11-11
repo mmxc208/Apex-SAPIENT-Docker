@@ -31,8 +31,10 @@ class FakeZenohSession:
         self._liveliness: list[tuple[str, asyncio.Queue]] = []
 
     async def publish(self, key: str, msg: SapientMessage, fused: bool = False) -> None:
-        payload = msg.SerializeToString()
-        self.published.append((key, payload, qos_for(kind_of(msg), fused)))
+        await self.publish_raw(key, msg.SerializeToString(), kind_of(msg), fused)
+
+    async def publish_raw(self, key: str, payload: bytes, kind: str, fused: bool = False) -> None:
+        self.published.append((key, payload, qos_for(kind, fused)))
         self.inject(key, payload)
 
     def inject(self, key: str, payload: bytes) -> None:

@@ -212,3 +212,28 @@ def test_a_fusion_key_is_not_on_the_node_namespace():
 def test_prefix_without_trailing_slash_rejected(keys_with_prefix):
     with pytest.raises(ValueError):
         keys_with_prefix("h1/p1")
+
+
+def test_fusion_wildcards():
+    assert zenoh_keys.FUSION_UP_ALL == "fusion/up/**"
+    assert zenoh_keys.FUSION_DOWN_ALL == "fusion/down/**"
+    assert zenoh_keys.fusion_kind(fusion_up_key("alert")) == ("up", "alert")
+    assert zenoh_keys.fusion_kind(fusion_down_key("task")) == ("down", "task")
+
+
+def test_fusion_kind_under_a_prefix(keys_with_prefix):
+    keys = keys_with_prefix("h1/p1/")
+    assert keys.FUSION_UP_ALL == "h1/p1/fusion/up/**"
+    assert keys.FUSION_DOWN_ALL == "h1/p1/fusion/down/**"
+    assert keys.fusion_kind("h1/p1/fusion/up/alert") == ("up", "alert")
+    assert keys.fusion_kind("h1/p1/fusion/down/task") == ("down", "task")
+    for bad in (
+        "h1/p1/fusion/up/nokind",
+        "fusion/up/alert",  # the prefix is missing
+        "h1/p1/fusion/sideways/alert",
+        "h1/p1/fusion/up/alert/extra",
+        keys.up_key(NODE, "alert"),  # a sensor key
+        "",
+    ):
+        with pytest.raises(ValueError):
+            keys.fusion_kind(bad)

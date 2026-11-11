@@ -250,3 +250,77 @@ async def test_open_session_passes_tls_from_env(tls_env, monkeypatch):
     session = await open_session("tls/router.p1.h1:7447", asyncio.get_running_loop(), logging.getLogger("t"))
     assert session == "session"
     assert opened == [("tls/router.p1.h1:7447", tls_from_env())]
+
+
+async def test_publish_raw_puts_the_given_bytes_with_the_qos_of_the_kind():
+    puts = []
+
+    class Recording:
+        def put(self, key, payload, **options):
+            puts.append((key, payload, options))
+
+    session = ZenohSession(Recording(), asyncio.get_running_loop())
+    await session.publish_raw("k/alert", b"\x00raw", "alert")
+    await session.publish_raw("k/track", b"\x01", "detection_report", fused=True)
+    priority, congestion, express = qos_for("alert")
+    assert puts[0] == (
+        "k/alert",
+        b"\x00raw",
+        {
+            "encoding": zenoh.Encoding.APPLICATION_PROTOBUF,
+            "priority": priority,
+            "congestion_control": congestion,
+            "express": express,
+        },
+    )
+    priority, congestion, express = qos_for("detection_report", True)
+    assert (puts[1][2]["priority"], puts[1][2]["congestion_control"], puts[1][2]["express"]) == (
+        priority,
+        congestion,
+        express,
+    )
+
+
+async def test_publish_serialises_and_goes_through_publish_raw(templates):
+    msg = templates("sensor", "Registration")
+    calls = []
+
+    class Recording:
+        def put(self, key, payload, **options):
+            calls.append((key, payload))
+
+    await ZenohSession(Recording(), asyncio.get_running_loop()).publish("k/x", msg)
+    assert calls == [("k/x", msg.SerializeToString())]
+
+
+def test_tls_from_env_reads_the_named_prefix_only(tls_env, monkeypatch):
+    tls_env(*TLS_ENV)  # the ZENOH_* names are set and must be ignored
+    assert tls_from_env("FABRIC") is None
+    for part, value in (("CA", "/f/ca.pem"), ("CERT", "/f/c.pem"), ("KEY", "/f/c.key")):
+        monkeypatch.setenv(f"FABRIC_TLS_{part}", value)
+    assert tls_from_env("FABRIC") == TlsOptions(root_ca="/f/ca.pem", cert="/f/c.pem", key="/f/c.key")
+    monkeypatch.delenv("FABRIC_TLS_KEY")
+    with pytest.raises(ValueError, match="FABRIC_TLS_KEY"):
+        tls_from_env("FABRIC")
+
+
+async def test_open_session_passes_the_options_of_its_prefix(tls_env, monkeypatch):
+    for part, value in (("CA", "/p/ca.pem"), ("CERT", "/p/c.pem"), ("KEY", "/p/c.key")):
+        monkeypatch.setenv(f"POD_TLS_{part}", value)
+    opened = []
+
+    async def fake_open(connect, loop, tls=None):
+        opened.append((connect, tls))
+        return "session"
+
+    monkeypatch.setattr(ZenohSession, "open", fake_open)
+    await open_session("tls/pod:7447", asyncio.get_running_loop(), logging.getLogger("t"), tls_env_prefix="POD")
+    assert opened == [("tls/pod:7447", TlsOptions(root_ca="/p/ca.pem", cert="/p/c.pem", key="/p/c.key"))]
+
+
+async def test_fake_publish_raw_records_like_publish():
+    fake = FakeZenohSession()
+    q = fake.subscribe("k/**")
+    await fake.publish_raw("k/a", b"raw", "task")
+    assert fake.published == [("k/a", b"raw", qos_for("task"))]
+    assert q.get_nowait() == ("k/a", b"raw")

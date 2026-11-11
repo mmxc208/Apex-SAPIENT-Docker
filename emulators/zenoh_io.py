@@ -43,15 +43,14 @@ class TlsOptions:
     key: str
 
 
-def tls_from_env() -> TlsOptions | None:
-    """Read ZENOH_TLS_CA, ZENOH_TLS_CERT and ZENOH_TLS_KEY: all three, or none for no TLS."""
-    root_ca, cert, key = (
-        os.environ.get(name, "") for name in ("ZENOH_TLS_CA", "ZENOH_TLS_CERT", "ZENOH_TLS_KEY")
-    )
+def tls_from_env(prefix: str = "ZENOH") -> TlsOptions | None:
+    """Read <prefix>_TLS_CA, <prefix>_TLS_CERT and <prefix>_TLS_KEY: all three, or none for no TLS."""
+    names = tuple(f"{prefix}_TLS_{part}" for part in ("CA", "CERT", "KEY"))
+    root_ca, cert, key = (os.environ.get(name, "") for name in names)
     if not (root_ca or cert or key):
         return None
     if not (root_ca and cert and key):
-        raise ValueError("ZENOH_TLS_CA, ZENOH_TLS_CERT and ZENOH_TLS_KEY must be set together")
+        raise ValueError(f"{', '.join(names[:2])} and {names[2]} must be set together")
     return TlsOptions(root_ca=root_ca, cert=cert, key=key)
 
 
@@ -107,12 +106,16 @@ class ZenohSession:
         self._call_in_loop(self.transport_changes.put_nowait, event.kind == zenoh.SampleKind.PUT)
 
     async def publish(self, key: str, msg: SapientMessage, fused: bool = False) -> None:
-        priority, congestion_control, express = qos_for(kind_of(msg), fused)
+        await self.publish_raw(key, msg.SerializeToString(), kind_of(msg), fused)
+
+    async def publish_raw(self, key: str, payload: bytes, kind: str, fused: bool = False) -> None:
+        """Put payload as it is, with the QoS of a message of this kind."""
+        priority, congestion_control, express = qos_for(kind, fused)
         # A BLOCK put can stall on a congested link, which must not stall the event loop.
         await asyncio.to_thread(
             self._session.put,
             key,
-            msg.SerializeToString(),
+            payload,
             encoding=zenoh.Encoding.APPLICATION_PROTOBUF,
             priority=priority,
             congestion_control=congestion_control,
@@ -172,12 +175,14 @@ class ZenohSession:
             log.info(f"error closing the Zenoh session: {e}")
 
 
-async def open_session(connect: str, loop: asyncio.AbstractEventLoop, log: logging.Logger) -> ZenohSession:
+async def open_session(
+    connect: str, loop: asyncio.AbstractEventLoop, log: logging.Logger, tls_env_prefix: str = "ZENOH"
+) -> ZenohSession:
     """Open the Zenoh session, retrying every 10 s until the router is reachable.
 
     TLS comes from the environment; see tls_from_env.
     """
-    tls = tls_from_env()
+    tls = tls_from_env(tls_env_prefix)
     while True:
         try:
             session = await ZenohSession.open(connect, loop, tls)

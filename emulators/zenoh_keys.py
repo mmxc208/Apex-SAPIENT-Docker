@@ -26,6 +26,8 @@ _LIVE = f"{_ROOT}/live"
 
 UP_ALL: str = f"{_ROOT}/*/up/**"
 LIVE_ALL: str = f"{_LIVE}/*"
+FUSION_UP_ALL: str = f"{PREFIX}fusion/up/**"
+FUSION_DOWN_ALL: str = f"{PREFIX}fusion/down/**"
 
 _CONTROL = (zenoh.Priority.INTERACTIVE_HIGH, zenoh.CongestionControl.BLOCK, True)
 _SESSION = (zenoh.Priority.INTERACTIVE_LOW, zenoh.CongestionControl.BLOCK, False)
@@ -85,6 +87,15 @@ def fusion_up_key(kind: str) -> str:
 
 def fusion_down_key(kind: str) -> str:
     return _checked_key(f"{PREFIX}fusion/down/{_checked_kind(kind)}")
+
+
+def fusion_kind(key: str) -> tuple[str, str]:
+    """Split a fusion key into ("up" | "down", kind). ValueError for any other key."""
+    head = f"{PREFIX}fusion/"
+    parts = key[len(head):].split("/") if key.startswith(head) else []
+    if len(parts) != 2 or parts[0] not in ("up", "down") or parts[1] not in KINDS:
+        raise ValueError(f"not a fusion key: {key!r}")
+    return parts[0], parts[1]
 
 
 def DOWN_FOR(node_id: str) -> str:
