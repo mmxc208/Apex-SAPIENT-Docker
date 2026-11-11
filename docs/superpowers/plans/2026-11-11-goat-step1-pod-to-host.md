@@ -88,11 +88,11 @@ Apex-SAPIENT-Docker/
 
 - [ ] **Step 3: Write `docker-compose.pairing.yml`.** Project name `apex-pairing`. Service `zenohd`: image `${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}`, command `["-c", "/config/router.json5"]`, the config and the three certificate files mounted read-only, network alias `router.p1.h1`. Service `probe`: image `apex-sapient:4.2.0`, `working_dir: /emulators`, `./emulators:/emulators:ro`, command `python probe_pairing.py`, environment `ZENOH_CONNECT: tls/router.p1.h1:7447`, `ZENOH_TLS_CA: /certs/ca.pem`, `ZENOH_TLS_CERT: /certs/radar.p1.h1.pem`, `ZENOH_TLS_KEY: /certs/radar.p1.h1.key`, `PROBE_WAIT_RESTART: ${PROBE_WAIT_RESTART:-0}`, with those three files mounted.
 
-- [ ] **Step 4: Write `emulators/probe_pairing.py`.** It opens one session with `open_session`, then:
-  1. subscribes to `probe/**`, publishes the `sensor` `StatusReport` template on `probe/a`, and must receive the same bytes within 5 s;
-  2. declares the token `probe/live/x`, and `alive("probe/live/*")` must return it within 5 s;
+- [ ] **Step 4: Write `emulators/probe_pairing.py`.** It opens two sessions with `open_session`, A and B, so that each sample and each token must cross the router. A session delivers its own publications to its own subscribers with no router, so one session proves nothing about the router. Then:
+  1. B subscribes to `probe/**`, A publishes the `sensor` `StatusReport` template on `probe/a`, and B must receive the same bytes within 5 s;
+  2. A declares the token `probe/live/x`, and B's `alive("probe/live/*")` must return it within 5 s;
   3. prints `PAIRING OK put-sub liveliness`;
-  4. if `PROBE_WAIT_RESTART` is `1`: waits up to 90 s for `transport_changes` to give `False` then `True`, repeats checks 1 and 2 with no new subscribe or declare call, and prints `PAIRING OK after router restart`.
+  4. if `PROBE_WAIT_RESTART` is `1`: waits up to 90 s for `transport_changes` of both sessions to give `False` then `True`, repeats checks 1 and 2 with no new subscribe or declare call, and prints `PAIRING OK after router restart`.
   On a timeout it prints `PAIRING FAILED: <which check>` and exits with code 1.
 
 - [ ] **Step 5: Run the probe.**
@@ -102,7 +102,7 @@ dcp() { docker compose -f docker-compose.pairing.yml "$@"; }
 dcp up -d zenohd && sleep 3
 dcp run --rm probe
 # expected last line: PAIRING OK put-sub liveliness
-PROBE_WAIT_RESTART=1 dcp run --rm -d --name pairing-probe probe
+PROBE_WAIT_RESTART=1 dcp run -d --name pairing-probe probe
 sleep 5 && dcp restart zenohd && sleep 20
 docker logs pairing-probe | tail -2
 # expected: PAIRING OK put-sub liveliness / PAIRING OK after router restart
