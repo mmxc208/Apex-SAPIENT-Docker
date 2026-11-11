@@ -15,10 +15,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-import fabric_keys
-
 from google.protobuf.json_format import MessageToDict
 
+import fabric_keys
 from sapient_link import setup_logging
 from sapient_msg.bsi_flex_335_v2_0.sapient_message_pb2 import SapientMessage
 from zenoh_io import ZenohSession, open_session
@@ -113,7 +112,7 @@ async def run(connect: str, out_dir: Path, log: logging.Logger, keys: str = "pod
     """Record until recording fails, which raises, or the session is closed, which returns.
 
     Either way the process exits and the container's restart policy applies. A lost router ends
-    nothing: the session reconnects by itself and restores the subscription.
+    nothing: the session reconnects by itself and restores each subscription.
     """
     session = await open_session(connect, asyncio.get_running_loop(), log)
     recording = asyncio.create_task(Recorder(session, out_dir, *record_keys(keys)).run())

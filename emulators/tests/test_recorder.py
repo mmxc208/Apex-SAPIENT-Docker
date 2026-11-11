@@ -6,11 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+import fabric_keys
 import recorder
 import zenoh_io
 from conftest import FakeZenohSession
 from recorder import Recorder
-import fabric_keys
 from zenoh_keys import PREFIX, down_key, live_key, up_key
 
 NODE = "a0000001-0000-4000-8000-000000000001"
