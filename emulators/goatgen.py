@@ -31,7 +31,9 @@ from slots import RegistryError, Router, load_registry
 
 CA_DAYS = 3650
 LEAF_DAYS = 825
-_RESERVED = {"ca", "router", "fusion", "recorder", "bridge"}
+_ALWAYS_RESERVED = {"ca", "router"}          # fixed certificate files of every router
+_POD_RESERVED = {"fusion", "recorder", "bridge"}  # fixed certificate files of a pod router
+_ALIAS = re.compile(r"[a-z0-9-]+")
 _FABRIC_READ = ["declare_subscriber", "query", "declare_queryable", "reply",
                 "declare_liveliness_subscriber", "liveliness_query"]
 _DELIVER = ["put", "delete", "liveliness_token"]
@@ -322,14 +324,16 @@ def _render(routers: dict[str, Router]) -> dict[str, str]:
 
 
 def _validate(routers: dict[str, Router]) -> None:
+    """Aliases become file names under pki/<router>/, so they must be plain and must not hit a fixed file."""
     if not routers:
         raise RegistryError("the registry has no router")
     for name, router in routers.items():
+        reserved = _ALWAYS_RESERVED | (_POD_RESERVED if router.kind == "pod" else set())
         for alias in router.slots:
-            if alias in _RESERVED and router.kind == "pod":
+            if not _ALIAS.fullmatch(alias):
+                raise RegistryError(f"[{name}.slots] alias {alias!r} must match [a-z0-9-]+ (it is a file name)")
+            if alias in reserved:
                 raise RegistryError(f"[{name}.slots] alias {alias!r} is a reserved certificate name")
-            if alias == "router":
-                raise RegistryError(f"[{name}.slots] alias 'router' is a reserved certificate name")
 
 
 def main(argv: list[str] | None = None) -> int:

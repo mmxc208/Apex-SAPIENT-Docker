@@ -183,3 +183,15 @@ def test_registry_error_writes_nothing(tmp_path):
     registry = _write_registry(tmp_path, REGISTRY.replace("camera = 1", "camera = 0"))
     assert main([str(registry), str(out)]) == 2
     assert not out.exists() or not any(out.iterdir())
+
+
+@pytest.mark.parametrize("alias, kind_table", [
+    ("ca", "fabric"), ("router", "fabric"), ("ca", "pod1"), ("router", "pod1"), ("fusion", "pod1"),
+    ('"../x"', "fabric"), ('"a/b"', "pod1"), ('"Radar"', "pod1"), ('"host_fusion"', "fabric"),
+])
+def test_unsafe_or_reserved_alias_writes_nothing(tmp_path, capsys, alias, kind_table):
+    out = tmp_path / "out"
+    text = REGISTRY.replace(f"[{kind_table}.slots]\n", f"[{kind_table}.slots]\n{alias} = 7\n")
+    assert main([str(_write_registry(tmp_path, text)), str(out)]) == 2
+    assert alias.strip('"') in capsys.readouterr().err
+    assert not out.exists() or not any(out.iterdir())
