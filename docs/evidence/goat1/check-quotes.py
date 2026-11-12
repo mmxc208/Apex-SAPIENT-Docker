@@ -22,7 +22,7 @@ PROMPT = re.compile(r"^(?:%[ \r]*aidev-1% |(?:pipe |d)?quote> )+")
 LOGLIKE = re.compile(
     r"\| |pod-bridge:|fusion:|radar:|camera:|router files|passed|PAIRING OK|POD1_RADAR2_ID=|no traffic"
     r"|is (?:un)?authorized|unauthorized to|goat 0\.5|Using cached|\((?:in|e)gress\)|Declare/Undeclare"
-    r"|CN=|^records|^samples:|^put:|^[0-9a-f]{32}$|Finished `release`"
+    r"|CN=|^records|^samples:|^put:|^[0-9a-f]{32}$|Finished `release`|^=== start|^(?:Updating|Downloading) crates|target\(s\) in"
 )
 README_RUN = "task-12-readme-run.txt"
 COMMAND = re.compile(r"^(?:\$|dg |dc |docker |python3 |goat |git |grep |shasum |test |HOST_HOLD|ZENOHD_)")

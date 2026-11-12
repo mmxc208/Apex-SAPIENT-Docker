@@ -12,59 +12,60 @@ These files hold the outputs, logs and small scripts that `docs/acceptance-goat1
 
 ## Files
 
-The file names keep the task number of the plan. "On" names the commit the run was made on; Task 1 to Task 11 entries were recorded in later commits of the same task.
+The file names keep the task number of the plan. The last column gives the task, the commit that was checked out when the file was made ("on top of"), and the first commit that holds the repository code and the README commands that made it ("held in"); see the runs table of `docs/acceptance-goat1.md`. For a quote check or a count made on saved files, "held in" names the commit of the record that it served. The scripts of this directory themselves were not committed until `e65d0e5`: every file here was first committed in `e65d0e5`, except `task-12-clean-start-check.txt`, which was added in the fix round after it.
 
-| File | What it is | Task, on commit |
+| File | What it is | Task: on top of → held in |
 |---|---|---|
-| `README.md` | This index | 12 |
-| `check-quotes.py` | The quote check of the final record, against this directory | 12 |
-| `dg.sh` | The `dg` helper the scripted runs sourced | 9, `08ef7c2` |
-| `task-1-run-1.9.0.txt` | First pairing probe run, one session: not evidence (see G1-01) | 1, `03adfca` |
-| `task-1-run-1.9.0-restart.txt` | First pairing probe restart run, one session: not evidence | 1, `03adfca` |
-| `task-1-run-1.9.0-fix1.txt` | Pairing probe with two sessions: `PAIRING OK put-sub liveliness` | 1, `8cb1bbe` |
-| `task-1-run-1.9.0-restart-fix1.txt` | Pairing probe with a router restart: both `PAIRING OK` lines | 1, `8cb1bbe` |
-| `task-9-up.txt` | Bring-up of the step 1 rig | 9, `08ef7c2` |
-| `task-9-g1-02.txt` | G1-02, tracks, alert and host records | 9, `08ef7c2` |
-| `task-9-g1-03.txt` | G1-03, registration | 9, `08ef7c2` |
-| `task-9-g1-04.txt` | G1-04, a task down | 9, `08ef7c2` |
-| `task-9-g1-05.sh` | Script of the G1-05 access probes | 9, `08ef7c2` |
-| `task-9-g1-05.txt` | G1-05 output, with trace lines shortened to `CN=` | 9, `08ef7c2` |
-| `task-9-g1-11.txt` | G1-11, unit suite and stage 4 steps 1 and 2 | 9, `08ef7c2` |
-| `task-9-host-restart.txt` | Host fusion node restart, with the whole chain of task `N7F0BG` | 9, `08ef7c2` |
-| `task-9-check-records.py` | Checker of the host recorder's records | 9, `08ef7c2` |
-| `task-9-readme-blocks.zsh` | README steps 1 to 6 as pasted into zsh | 9, `08ef7c2` |
-| `task-9-readme-run.txt` | Output of that README run | 9, `08ef7c2` |
-| `task-9-radar2-mount.txt` | Check that `radar2` mounts its own files | 9, `e64193e` |
-| `task-9-quote-check.txt` | Quote check of the Task 9 record | 9, `8db9951` |
-| `task-10-g1-06.sh`, `task-10-g1-06.txt`, `task-10-g1-06-logs.txt` | G1-06 script, output and saved logs | 10, `8db9951` |
-| `task-10-g1-07.sh`, `task-10-g1-07.txt`, `task-10-g1-07-logs.txt` | G1-07 script, output and saved logs | 10, `8db9951` |
-| `task-10-g1-08.txt` | G1-08 unit tests | 10, `8db9951` |
-| `task-10-g1-09.sh`, `task-10-g1-09.txt`, `task-10-g1-09-logs.txt` | G1-09 script, output and saved logs | 10, `8db9951` |
-| `task-10-readme-blocks.zsh` | README steps 1 to 9 as pasted into zsh | 10, `8db9951` |
-| `task-10-readme-run.txt` | Output of that README run | 10, `8db9951` |
-| `task-10-readme-logs-1-7.txt`, `task-10-readme-logs.txt` | Logs saved before `dg down` in that run | 10, `8db9951` |
-| `task-10-suite.txt` | Unit suite | 10, `8db9951` |
-| `task-10-fix1-evidence.txt` | Counts and computed values added in the fix round | 10, `c3ed2aa` |
-| `task-10-check-quotes.py`, `task-10-quote-check.txt`, `task-10-fix1-quote-check.txt` | Quote check of the Task 10 record and its outputs | 10 |
-| `task-11-build.txt`, `task-11-build-full.txt` | First build of `goat-cli` (cache filled), short and full | 11, `4df6e2f` |
-| `task-11-version.txt` | `goat --version` | 11, `4df6e2f` |
-| `task-11-sub-help.txt` | `goat sub --help` | 11, `4df6e2f` |
-| `task-11-run.txt`, `task-11-run-shortened.txt`, `task-11-run-times.txt` | `goat sub` runs by hand | 11, `4df6e2f` |
-| `task-11-router-trace-plain.txt`, `task-11-fabric-log-plain.txt` | Fabric router trace of the runs by hand, plain | 11, `4df6e2f` |
-| `task-11-readme-blocks.zsh` | README step 10 as pasted into zsh | 11, `4df6e2f` |
-| `task-11-readme-run.txt` | Output of that README run | 11, `4df6e2f` |
-| `task-11-readme-fabric-log-plain.txt` | Fabric router trace of that run, plain | 11, `4df6e2f` |
-| `task-11-fix1-n1-count.py`, `task-11-fix1-n1-count.txt` | Count of goat's lines in that trace | 11, `607749b` |
-| `task-11-check-quotes.py`, `task-11-fix1-check-quotes.py`, `task-11-quote-check.txt`, `task-11-fix1-quote-check.txt` | Quote checks of the Task 11 record and their outputs | 11 |
-| `task-12-suite.txt` | Unit suite of the final run | 12, `c6a2db1` |
-| `task-12-make-blocks.py` | Writes the paste file from the README's bash blocks, verbatim, with marker and log-saving lines between blocks | 12, `c6a2db1` |
-| `task-12-readme-blocks.zsh` | README steps 1 to 10 as pasted into zsh in the final run | 12, `c6a2db1` |
-| `task-12-readme-run.txt` | Output of the final run; every README quote is from this file | 12, `c6a2db1` |
-| `task-12-logs-1-4-plain.txt` | All logs before the router restart of step 5 | 12, `c6a2db1` |
-| `task-12-logs-5-plain.txt` | All logs with both routers at the access-control trace (step 5) | 12, `c6a2db1` |
-| `task-12-logs-6-7-plain.txt` | All logs before `dg down` of step 8 (steps 5 to 7) | 12, `c6a2db1` |
-| `task-12-logs-8-10-plain.txt` | All logs at the end of the run (steps 8 to 10) | 12, `c6a2db1` |
-| `task-12-fabric-trace-10-plain.txt` | Fabric router trace of step 10 | 12, `c6a2db1` |
-| `task-12-g1-10-count.txt` | `task-11-fix1-n1-count.py` on that trace | 12, `c6a2db1` |
-| `task-12-g1-01-08-11.sh`, `task-12-g1-01-08-11.txt` | G1-08 tests, G1-11 stage 4 steps 1 and 2, and G1-01 pairing probe of the final run | 12, `c6a2db1` |
-| `task-12-nan-check.py`, `task-12-nan-check.txt` | Apex's validator on a detection at a NaN and an infinite location | 12, `c6a2db1` |
+| `README.md` | This index (changed in the fix round) | 12: `c6a2db1` → `e65d0e5` |
+| `check-quotes.py` | The quote check of the final record, against this directory | 12: `c6a2db1` → `e65d0e5` |
+| `dg.sh` | The `dg` helper the scripted runs sourced | 9: `08ef7c2` → `51d6894` |
+| `task-1-run-1.9.0.txt` | First pairing probe run, one session: not evidence (see G1-01) | 1: `7dfc620` → `03adfca` |
+| `task-1-run-1.9.0-restart.txt` | First pairing probe restart run, one session: not evidence | 1: `7dfc620` → `03adfca` |
+| `task-1-run-1.9.0-fix1.txt` | Pairing probe with two sessions: `PAIRING OK put-sub liveliness` | 1: `f51a0b5` → `8cb1bbe` |
+| `task-1-run-1.9.0-restart-fix1.txt` | Pairing probe with a router restart: both `PAIRING OK` lines | 1: `f51a0b5` → `8cb1bbe` |
+| `task-9-up.txt` | Bring-up of the step 1 rig | 9: `08ef7c2` → `51d6894` |
+| `task-9-g1-02.txt` | G1-02, tracks, alert and host records | 9: `08ef7c2` → `51d6894` |
+| `task-9-g1-03.txt` | G1-03, registration | 9: `08ef7c2` → `51d6894` |
+| `task-9-g1-04.txt` | G1-04, a task down | 9: `08ef7c2` → `51d6894` |
+| `task-9-g1-05.sh` | Script of the G1-05 access probes | 9: `08ef7c2` → `51d6894` |
+| `task-9-g1-05.txt` | G1-05 output, with trace lines shortened to `CN=` | 9: `08ef7c2` → `51d6894` |
+| `task-9-g1-11.txt` | G1-11, unit suite and stage 4 steps 1 and 2 | 9: `08ef7c2` → `51d6894` |
+| `task-9-host-restart.txt` | Host fusion node restart, with the whole chain of task `N7F0BG` | 9: `08ef7c2` → `51d6894` |
+| `task-9-check-records.py` | Checker of the host recorder's records | 9: `08ef7c2` → `51d6894` |
+| `task-9-readme-blocks.zsh` | README steps 1 to 6 as pasted into zsh | 9: `08ef7c2` → `51d6894` |
+| `task-9-readme-run.txt` | Output of that README run | 9: `08ef7c2` → `51d6894` |
+| `task-9-radar2-mount.txt` | Check that `radar2` mounts its own files | 9: `51d6894` → `e64193e` |
+| `task-9-quote-check.txt` | Quote check of the Task 9 record | 9: `e64193e` → `8db9951` |
+| `task-10-g1-06.sh`, `task-10-g1-06.txt`, `task-10-g1-06-logs.txt` | G1-06 script, output and saved logs | 10: `8db9951` → `c3ed2aa` |
+| `task-10-g1-07.sh`, `task-10-g1-07.txt`, `task-10-g1-07-logs.txt` | G1-07 script, output and saved logs | 10: `8db9951` → `c3ed2aa` |
+| `task-10-g1-08.txt` | G1-08 unit tests | 10: `8db9951` → `c3ed2aa` |
+| `task-10-g1-09.sh`, `task-10-g1-09.txt`, `task-10-g1-09-logs.txt` | G1-09 script, output and saved logs | 10: `8db9951` → `c3ed2aa` |
+| `task-10-readme-blocks.zsh` | README steps 1 to 9 as pasted into zsh | 10: `8db9951` → `c3ed2aa` |
+| `task-10-readme-run.txt` | Output of that README run | 10: `8db9951` → `c3ed2aa` |
+| `task-10-readme-logs-1-7.txt`, `task-10-readme-logs.txt` | Logs saved before `dg down` in that run | 10: `8db9951` → `c3ed2aa` |
+| `task-10-suite.txt` | Unit suite | 10: `8db9951` → `c3ed2aa` |
+| `task-10-fix1-evidence.txt` | Counts and computed values added in the fix round | 10: `c3ed2aa` → `4df6e2f` |
+| `task-10-check-quotes.py`, `task-10-quote-check.txt`, `task-10-fix1-quote-check.txt` | Quote check of the Task 10 record and its outputs | 10: `8db9951` → `c3ed2aa` (`task-10-check-quotes.py`, `task-10-quote-check.txt`); `c3ed2aa` → `4df6e2f` (`task-10-fix1-quote-check.txt`) |
+| `task-11-build.txt`, `task-11-build-full.txt` | First build of `goat-cli` (cache filled), short and full | 11: `4df6e2f` → `607749b` |
+| `task-11-version.txt` | `goat --version` | 11: `4df6e2f` → `607749b` |
+| `task-11-sub-help.txt` | `goat sub --help` | 11: `4df6e2f` → `607749b` |
+| `task-11-run.txt`, `task-11-run-shortened.txt`, `task-11-run-times.txt` | `goat sub` runs by hand | 11: `4df6e2f` → `607749b` |
+| `task-11-router-trace-plain.txt`, `task-11-fabric-log-plain.txt` | Fabric router trace of the runs by hand, plain | 11: `4df6e2f` → `607749b` |
+| `task-11-readme-blocks.zsh` | README step 10 as pasted into zsh | 11: `4df6e2f` → `607749b` |
+| `task-11-readme-run.txt` | Output of that README run | 11: `4df6e2f` → `607749b` |
+| `task-11-readme-fabric-log-plain.txt` | Fabric router trace of that run, plain | 11: `4df6e2f` → `607749b` |
+| `task-11-fix1-n1-count.py`, `task-11-fix1-n1-count.txt` | Count of goat's lines in that trace | 11: `607749b` → `c6a2db1` |
+| `task-11-check-quotes.py`, `task-11-fix1-check-quotes.py`, `task-11-quote-check.txt`, `task-11-fix1-quote-check.txt` | Quote checks of the Task 11 record and their outputs | 11: `4df6e2f` → `607749b` (`task-11-check-quotes.py`, `task-11-quote-check.txt`); `607749b` → `c6a2db1` (the two `fix1` files) |
+| `task-12-suite.txt` | Unit suite at `c6a2db1`, run at 01:11 UTC before the first, stopped attempt; not part of the final run | 12: `c6a2db1` → `c6a2db1` |
+| `task-12-make-blocks.py` | Writes the paste file from the README's bash blocks, verbatim, with marker and log-saving lines between blocks | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-readme-blocks.zsh` | README steps 1 to 10 as pasted into zsh in the final run | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-readme-run.txt` | Output of the final run; every README quote is from this file | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-logs-1-4-plain.txt` | All logs before the router restart of step 5 | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-logs-5-plain.txt` | All logs with both routers at the access-control trace (step 5) | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-logs-6-7-plain.txt` | All logs before `dg down` of step 8 (steps 5 to 7) | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-logs-8-10-plain.txt` | All logs at the end of the run (steps 8 to 10) | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-fabric-trace-10-plain.txt` | Fabric router trace of step 10 | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-g1-10-count.txt` | `task-11-fix1-n1-count.py` on that trace | 12: `c6a2db1` → `8ab9de6` |
+| `task-12-g1-01-08-11.sh`, `task-12-g1-01-08-11.txt` | G1-08 tests, G1-11 stage 4 steps 1 and 2, and G1-01 pairing probe of the final run. The last part of the `.txt`, from `$ docker run --rm eclipse/zenoh:1.9.0 --version` on, was run by hand after the script and appended to the file; the script did not print it | 12: `c6a2db1` → `c6a2db1` |
+| `task-12-nan-check.py`, `task-12-nan-check.txt` | Apex's validator on a detection at a NaN and an infinite location; run at 01:15 UTC, during the stopped attempt, in a one-off container that does not use the rig | 12: `c6a2db1` → `c6a2db1` |
+| `task-12-clean-start-check.txt` | Checked after the final run, not before it: the run's start line, the time and SHA-256 of the final run's two CA certificates, and the SHA-256 of the CA certificates in the two trees moved aside (before Task 12 and the stopped attempt) | 12: `8ab9de6` → added in the fix round |

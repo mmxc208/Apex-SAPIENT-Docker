@@ -276,7 +276,7 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
 8. **Time.** The signed clock report for each host is built. The time quality field for each message is not built (read: `hello-galaxy-time-hygiene/README.md`).
 9. **Federation.** The one-command procedure is not built.
 10. **Scale.** goat's validated data stops near 100 peers (notes).
-11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and sets a publisher's to its slot anchor. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
+11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and asks for source info on goat's own publishers. goat's command line tool also sets a publisher's session ID to its slot anchor, which its code credits to ADR 1039. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
 
 ## 9. Where to read more
 
