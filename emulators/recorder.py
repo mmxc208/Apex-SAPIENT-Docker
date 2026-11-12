@@ -2,6 +2,7 @@
 
 RECORD_KEYS picks the keys: "pod" (the default) records a pod's sapient/v2 keys, with the kind and
 node of each; "fabric" records the fabric's telemetry, ack and task keys, also with anchor and site.
+In fabric mode a line for an undecodable payload holds the parts of its key too (design 4.8).
 
 Each file is opened for each write, which is simple and crash-safe at emulator rates. What goes
 wrong with one sample, an undecodable payload or a failing disk, never stops the next one.
@@ -52,25 +53,29 @@ def describe_fabric_key(key: str) -> dict[str, str | None]:
 
 
 POD_KEYS: tuple[str, ...] = (f"{PREFIX}sapient/v2/**",)
-_MODES: dict[str, tuple[tuple[str, ...], Describe]] = {
-    "pod": (POD_KEYS, describe_pod_key),
-    "fabric": (fabric_keys.subscriptions(), describe_fabric_key),
+_MODES: dict[str, tuple[tuple[str, ...], Describe, bool]] = {
+    "pod": (POD_KEYS, describe_pod_key, False),
+    "fabric": (fabric_keys.subscriptions(), describe_fabric_key, True),
 }
 
 
-def record_keys(mode: str) -> tuple[tuple[str, ...], Describe]:
-    """The key expressions and key description of a RECORD_KEYS value. ValueError for an unknown one."""
+def record_keys(mode: str) -> tuple[tuple[str, ...], Describe, bool]:
+    """The key expressions, the key description, and whether an error line is described too, of a
+    RECORD_KEYS value. ValueError for an unknown one."""
     if mode not in _MODES:
         raise ValueError(f"RECORD_KEYS must be one of {', '.join(_MODES)}, not {mode!r}")
     return _MODES[mode]
 
 
-def _record(received: datetime, key: str, payload: bytes, describe: Describe) -> dict[str, Any]:
+def _record(
+    received: datetime, key: str, payload: bytes, describe: Describe, describe_errors: bool = False
+) -> dict[str, Any]:
     record: dict[str, Any] = {"t": received.isoformat(timespec="milliseconds"), "key": key}
     try:
         msg = MessageToDict(SapientMessage.FromString(payload), preserving_proto_field_name=True)
     except Exception:  # not only DecodeError: a timestamp beyond year 9999 raises OverflowError
-        return record | {"error": "decode", "payload_b64": base64.b64encode(payload).decode("ascii")}
+        parts = describe(key) if describe_errors else {}
+        return record | parts | {"error": "decode", "payload_b64": base64.b64encode(payload).decode("ascii")}
     return record | describe(key) | {"msg": msg}
 
 
@@ -81,11 +86,13 @@ class Recorder:
         out_dir: Path,
         expressions: tuple[str, ...] = POD_KEYS,
         describe: Describe = describe_pod_key,
+        describe_errors: bool = False,
     ) -> None:
         self.session = session
         self.out_dir = out_dir
         self.expressions = expressions
         self.describe = describe
+        self.describe_errors = describe_errors
 
     async def run(self) -> None:
         subscriptions = [self.session.subscribe(expression) for expression in self.expressions]
@@ -98,7 +105,7 @@ class Recorder:
             key, payload = await samples.get()
             received = _now()
             try:
-                self._append(received, _record(received, key, payload, self.describe))
+                self._append(received, _record(received, key, payload, self.describe, self.describe_errors))
             except OSError as e:
                 log.info(f"cannot write the sample on {key}: {e}")
 

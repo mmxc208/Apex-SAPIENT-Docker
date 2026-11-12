@@ -113,6 +113,14 @@ async def test_recorder_keeps_going_on_bad_payload(tmp_path, fake_session, templ
     assert "msg" in lines[1]
 
 
+async def test_pod_mode_error_line_has_exactly_its_old_fields(tmp_path, fake_session, start):
+    await start()
+
+    [line] = await lines_after_injecting(fake_session, tmp_path, [(up_key(NODE, "alert"), b"\xff\xff\xff")])
+
+    assert list(line) == ["t", "key", "error", "payload_b64"]
+
+
 async def test_recorder_treats_a_message_json_cannot_express_as_a_decode_error(
     tmp_path, fake_session, templates, start
 ):
@@ -272,8 +280,7 @@ FUSION = "f0000001-0000-4000-8000-000000000001"
 @pytest.fixture
 async def fabric_recorder(fake_session, tmp_path):
     """A Recorder of the fabric keys on tmp_path, which has subscribed by the time this returns."""
-    expressions, describe = recorder.record_keys("fabric")
-    task = asyncio.create_task(Recorder(fake_session, tmp_path, expressions, describe).run())
+    task = asyncio.create_task(Recorder(fake_session, tmp_path, *recorder.record_keys("fabric")).run())
     await asyncio.sleep(0)
     yield
     task.cancel()
@@ -329,7 +336,7 @@ def test_pod_mode_is_the_default(monkeypatch):
     recorder.main()
 
     assert started == ["pod"]
-    assert recorder.record_keys("pod") == ((f"{PREFIX}sapient/v2/**",), recorder.describe_pod_key)
+    assert recorder.record_keys("pod") == ((f"{PREFIX}sapient/v2/**",), recorder.describe_pod_key, False)
 
 
 def test_an_unknown_record_keys_value_is_refused(monkeypatch):
@@ -338,3 +345,25 @@ def test_an_unknown_record_keys_value_is_refused(monkeypatch):
 
     with pytest.raises(ValueError, match="RECORD_KEYS"):
         recorder.main()
+
+
+@pytest.mark.usefixtures("fabric_recorder")
+async def test_fabric_error_line_has_anchor_site_kind_and_node_id(tmp_path, fake_session):
+    key = fabric_keys.key_for(ANCHOR, "p1", "detection_report", FUSION)
+
+    [line] = await lines_after_injecting(fake_session, tmp_path, [(key, b"\xff\xff\xff")])
+
+    assert list(line) == ["t", "key", "kind", "node_id", "anchor", "site", "error", "payload_b64"]
+    assert [line[field] for field in ("kind", "node_id", "anchor", "site")] == ["detection_report", FUSION, ANCHOR, "p1"]
+    assert line["error"] == "decode"
+    assert base64.b64decode(line["payload_b64"]) == b"\xff\xff\xff"
+
+
+@pytest.mark.usefixtures("fabric_recorder")
+async def test_fabric_error_line_of_a_malformed_key_has_none_for_each_part(tmp_path, fake_session):
+    key = f"{ANCHOR}/telemetry/sapient/p1/v2/detection_report/not-a-uuid"
+
+    [line] = await lines_after_injecting(fake_session, tmp_path, [(key, b"\xff\xff\xff")])
+
+    assert [line[field] for field in ("kind", "node_id", "anchor", "site")] == [None] * 4
+    assert line["error"] == "decode"
