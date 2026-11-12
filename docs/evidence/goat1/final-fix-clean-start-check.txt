@@ -1,0 +1,20 @@
+# Checked after the run after the review fixes, not captured before it: whether the run started with no generated files.
+$ grep -a -m1 "=== start" docs/evidence/goat1/final-fix-readme-run.txt
+%   aidev-1% %   aidev-1% %   aidev-1% === start 2026-11-12T02:15:44Z
+$ TZ=UTC stat -f "%Sm %N" -t "%Y-%m-%dT%H:%M:%SZ" zenoh/goat1/pki/fabric/ca.pem zenoh/goat1/pki/pod1/ca.pem
+2026-11-12T02:15:45Z zenoh/goat1/pki/fabric/ca.pem
+2026-11-12T02:15:44Z zenoh/goat1/pki/pod1/ca.pem
+$ shasum -a 256 zenoh/goat1/pki/fabric/ca.pem zenoh/goat1/pki/pod1/ca.pem
+85d7edd28ffa666b323d3c9cc50bc08085ec0c595a42f4f7e257fe618728b4ac  zenoh/goat1/pki/fabric/ca.pem
+36fda4edc04e2d1cb95e40f4cfa628aa8b2d73e9426db6b935e961580ab933c6  zenoh/goat1/pki/pod1/ca.pem
+$ shasum -a 256 <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-final-fix/pki/fabric/ca.pem <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-final-fix/pki/pod1/ca.pem
+eaa7b61333149a386140238669c84f362233105cb62e1cbe80c1619f43126fb7  <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-final-fix/pki/fabric/ca.pem
+fbb114779bb44e27ef858112f691b891cc3df20f16980d65a3ccf46d4a6b655d  <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-final-fix/pki/pod1/ca.pem
+$ shasum -a 256 <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-task-12/pki/fabric/ca.pem <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-task-12/pki/pod1/ca.pem
+1d1fa216e29f1e54c3f948bbffc556f21ce6efaaa020a12acbb269887e9ea702  <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-task-12/pki/fabric/ca.pem
+dc1207fb9faf86b0f1d281f55202ec23e26882c5489aa26ca8c5baf670a37b3d  <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-before-task-12/pki/pod1/ca.pem
+$ shasum -a 256 <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-stopped-run-task-12/pki/fabric/ca.pem <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-stopped-run-task-12/pki/pod1/ca.pem
+f7ce147b3fada38c6f53ec5b21c639c4af5988208e1d31c8900960f7caa3a3a0  <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-stopped-run-task-12/pki/fabric/ca.pem
+90710f0927b724e68e6941c8b704363d6fda9b2d50f97ae0106c677118c45964  <workspace>/Apex-SAPIENT-Docker/.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/goat1-stopped-run-task-12/pki/pod1/ca.pem
+$ docker volume inspect -f "{{.CreatedAt}}" apex-goat1-cargo-target
+2026-11-11T20:31:51-05:00

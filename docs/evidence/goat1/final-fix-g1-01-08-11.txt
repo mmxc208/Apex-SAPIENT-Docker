@@ -1,0 +1,162 @@
++ git rev-parse --short HEAD
+e02a289
++ docker compose -f docker-compose.yml -f docker-compose.emulators.yml run --rm --no-deps radar python -m pytest -p no:cacheprovider -v -W error tests/test_pod_bridge.py -k 'stale or 4_s_old or age_limit'
++ grep -E 'PASSED|FAILED|passed|failed'
+tests/test_pod_bridge.py::test_down_drops_and_counts[stale_task] PASSED  [ 25%]
+tests/test_pod_bridge.py::test_a_task_4_s_old_is_forwarded PASSED        [ 50%]
+tests/test_pod_bridge.py::test_a_task_without_a_timestamp_is_stale PASSED [ 75%]
+tests/test_pod_bridge.py::test_registration_ack_is_not_subject_to_the_age_limit PASSED [100%]
+======================= 4 passed, 35 deselected in 0.04s =======================
++ zenoh/pki/make_certs.sh zenoh/pki/out
+certificates in zenoh/pki/out
++ dc up -d
++ docker compose -f docker-compose.pod1.yml up -d
+ Network apex-pod1_default Creating 
+ Network apex-pod1_default Creating 
+ Network apex-pod1_default Created 
+ Network apex-pod1_default Created 
+ Container apex-pod1-zenohd-1 Creating 
+ Container apex-pod1-zenohd-1 Created 
+ Container apex-pod1-fusion-node-1 Creating 
+ Container apex-pod1-camera-1 Creating 
+ Container apex-pod1-bridge-node-1 Creating 
+ Container apex-pod1-radar-1 Creating 
+ Container apex-pod1-recorder-1 Creating 
+ Container apex-pod1-recorder-1 Created 
+ Container apex-pod1-camera-1 Created 
+ Container apex-pod1-bridge-node-1 Created 
+ Container apex-pod1-vehicle-1 Creating 
+ Container apex-pod1-fusion-node-1 Created 
+ Container apex-pod1-radar-1 Created 
+ Container apex-pod1-vehicle-1 Created 
+ Container apex-pod1-zenohd-1 Starting 
+ Container apex-pod1-zenohd-1 Started 
+ Container apex-pod1-fusion-node-1 Starting 
+ Container apex-pod1-recorder-1 Starting 
+ Container apex-pod1-radar-1 Starting 
+ Container apex-pod1-camera-1 Starting 
+ Container apex-pod1-bridge-node-1 Starting 
+ Container apex-pod1-fusion-node-1 Started 
+ Container apex-pod1-recorder-1 Started 
+ Container apex-pod1-radar-1 Started 
+ Container apex-pod1-camera-1 Started 
+ Container apex-pod1-bridge-node-1 Started 
+ Container apex-pod1-vehicle-1 Starting 
+ Container apex-pod1-vehicle-1 Started 
++ sleep 3
++ dc logs zenohd
++ docker compose -f docker-compose.pod1.yml logs zenohd
++ grep -ci error
+0
++ sleep 27
++ dc logs radar
++ docker compose -f docker-compose.pod1.yml logs radar
++ grep -c registration_ack
+1
++ dc logs fusion-node
++ docker compose -f docker-compose.pod1.yml logs fusion-node
++ grep -c '<- registration '
+3
++ dc logs vehicle
++ docker compose -f docker-compose.pod1.yml logs vehicle
++ grep registration_ack
++ head -1
+vehicle-1  | 02:25:28 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
++ dc logs bridge-node
++ docker compose -f docker-compose.pod1.yml logs bridge-node
++ grep registered
+bridge-node-1  | 02:25:28 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
++ dc down
++ docker compose -f docker-compose.pod1.yml down
+ Container apex-pod1-vehicle-1 Stopping 
+ Container apex-pod1-radar-1 Stopping 
+ Container apex-pod1-fusion-node-1 Stopping 
+ Container apex-pod1-camera-1 Stopping 
+ Container apex-pod1-recorder-1 Stopping 
+ Container apex-pod1-vehicle-1 Stopped 
+ Container apex-pod1-vehicle-1 Removing 
+ Container apex-pod1-vehicle-1 Removed 
+ Container apex-pod1-bridge-node-1 Stopping 
+ Container apex-pod1-fusion-node-1 Stopped 
+ Container apex-pod1-fusion-node-1 Removing 
+ Container apex-pod1-camera-1 Stopped 
+ Container apex-pod1-camera-1 Removing 
+ Container apex-pod1-fusion-node-1 Removed 
+ Container apex-pod1-camera-1 Removed 
+ Container apex-pod1-radar-1 Stopped 
+ Container apex-pod1-radar-1 Removing 
+ Container apex-pod1-radar-1 Removed 
+ Container apex-pod1-recorder-1 Stopped 
+ Container apex-pod1-recorder-1 Removing 
+ Container apex-pod1-recorder-1 Removed 
+ Container apex-pod1-bridge-node-1 Stopped 
+ Container apex-pod1-bridge-node-1 Removing 
+ Container apex-pod1-bridge-node-1 Removed 
+ Container apex-pod1-zenohd-1 Stopping 
+ Container apex-pod1-zenohd-1 Stopped 
+ Container apex-pod1-zenohd-1 Removing 
+ Container apex-pod1-zenohd-1 Removed 
+ Network apex-pod1_default Removing 
+ Network apex-pod1_default Removed 
++ dcp up -d zenohd
++ docker compose -f docker-compose.pairing.yml up -d zenohd
+ Network apex-pairing_default Creating 
+ Network apex-pairing_default Creating 
+ Network apex-pairing_default Created 
+ Network apex-pairing_default Created 
+ Container apex-pairing-zenohd-1 Creating 
+ Container apex-pairing-zenohd-1 Created 
+ Container apex-pairing-zenohd-1 Starting 
+ Container apex-pairing-zenohd-1 Started 
++ sleep 3
++ docker compose -f docker-compose.pairing.yml exec -T zenohd zenohd --version
+OCI runtime exec failed: exec failed: unable to start container process: exec: "zenohd": executable file not found in $PATH
++ dcp run --rm probe
++ docker compose -f docker-compose.pairing.yml run --rm probe
+ Container apex-pairing-zenohd-1 Running 
+ Container apex-pairing-probe-run-09234e0ef68f Creating 
+ Container apex-pairing-probe-run-09234e0ef68f Created 
+2026-11-12 02:26:32,757 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+2026-11-12 02:26:32,759 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+PAIRING OK put-sub liveliness
++ echo 'exit 0'
+exit 0
++ PROBE_WAIT_RESTART=1
++ dcp run -d --name pairing-probe probe
++ docker compose -f docker-compose.pairing.yml run -d --name pairing-probe probe
+ Container apex-pairing-zenohd-1 Running 
+ Container pairing-probe Creating 
+ Container pairing-probe Created 
+cfad12482b17808d22524a40fbe3f587a5322bea065afcbd3e5cb9e347add672
++ sleep 5
++ dcp restart zenohd
++ docker compose -f docker-compose.pairing.yml restart zenohd
+ Container apex-pairing-zenohd-1 Restarting 
+ Container apex-pairing-zenohd-1 Started 
++ sleep 20
++ docker logs pairing-probe
++ tail -4
+2026-11-12 02:26:33,563 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+2026-11-12 02:26:33,567 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+PAIRING OK put-sub liveliness
+PAIRING OK after router restart
++ docker wait pairing-probe
+0
++ docker rm -f pairing-probe
+pairing-probe
++ dcp down
++ docker compose -f docker-compose.pairing.yml down
+ Container apex-pairing-zenohd-1 Stopping 
+ Container apex-pairing-zenohd-1 Stopped 
+ Container apex-pairing-zenohd-1 Removing 
+ Container apex-pairing-zenohd-1 Removed 
+ Network apex-pairing_default Removing 
+ Network apex-pairing_default Removed 
++ docker run --rm eclipse/zenoh:1.9.0 --version
+#!/bin/ash
+cat /entrypoint.sh
+echo " * Starting: /$BINARY $@"
+exec /$BINARY $@
+ * Starting: /zenohd --version
+[2m2026-11-12T02:27:19.122019Z[0m [32m INFO[0m main ThreadId(01) [2mzenohd[0m[2m:[0m zenohd v1.9.0 built with rustc 1.93.0 (254b59607 2026-01-19)
+zenohd v1.9.0 built with rustc 1.93.0 (254b59607 2026-01-19)
