@@ -964,7 +964,7 @@ This step carries pod 1's SAPIENT traffic to a host over a fabric that follows t
 - **The pod bridge** (networks `pod1` and `mesh`): `pod_bridge.py` holds the pod's bridge certificate on the pod router and the pod's slot certificate on the fabric router, and forwards the bytes unchanged in both directions. Only the fusion node's traffic goes up.
 - **The host** (network `host`): the fabric router `zenohd-fabric` (`${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}`, `zenoh/goat1/router-fabric.json5`), a fusion node with `TRANSPORT=fabric`, and a recorder with `RECORD_KEYS=fabric`. Fabric keys start with the writer's 32-character anchor, and the fabric router lets each certificate write only below its own anchor.
 
-`radar2` sits behind the compose profile `join` and doesn't start with `dg up`. The generator writes the router configurations, the certificates and `zenoh/goat1/goat1.env` below `zenoh/goat1/`, which is git-ignored. The compose file is standalone: don't combine it with the other compose files. It uses the project name `apex-goat1` and the image `apex-sapient:4.2.0` built by the earlier stages. No router port is published to the host.
+`radar2` sits behind the compose profile `join`: the rig starts without `radar2` unless the profile `join` is named, as step 9 does. The generator writes the router configurations, the certificates and `zenoh/goat1/goat1.env` below `zenoh/goat1/`, which is git-ignored. The compose file is standalone: don't combine it with the other compose files. It uses the project name `apex-goat1` and the image `apex-sapient:4.2.0` built by the earlier stages. No router port is published to the host.
 
 Run these in order, from the repo root, on a rig that is down. Below each block is what one run printed on 2026-11-11 UTC, on top of commit `08ef7c2`. `dg run` also prints container lines, and the probe prints a `connected to Zenoh router` line; both are left out here.
 
@@ -1150,6 +1150,120 @@ dg logs --since 40s fusion-node | grep -E 'request "Registration"|registration_a
 fusion-node-1  | 23:50:45 fusion: <- task f0000002 -> f0000001 K2JYBJ request "Registration"
 fusion-node-1  | 23:50:45 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
 ```
+
+Steps 7 to 9 were added later. What is printed below them comes from one run on 2026-11-12 UTC, on top of commit `8db9951`, that pasted steps 1 to 9 in order into one zsh.
+
+**7. Short outage (G1-06).** Cut the pod bridge off the `mesh` network for 30 s, less than the host's hold time of 120 s. The pod's sensors and fusion node log no loss, and the pod's fusion node still takes the sensors' detections. After the link returns, tracks reach the host again with no new registration. The bridge counts what the pod sent meanwhile as `other_side_down`.
+
+```bash
+docker network disconnect apex-goat1_mesh apex-goat1-pod-bridge-1
+sleep 30
+dg logs --since 30s radar camera vehicle fusion-node | grep -c -E 'lost|cannot reach'
+dg logs --since 30s fusion-node | grep -c "<- detection_report"
+docker network connect apex-goat1_mesh apex-goat1-pod-bridge-1
+sleep 30
+dg logs --since 25s host-fusion | grep -c "<- detection_report"
+dg logs --since 60s host-fusion | grep -c "<- registration "
+dg logs --since 70s pod-bridge
+```
+
+```text
+0
+6
+2
+0
+pod-bridge-1  | 00:22:48 pod-bridge: forwarded {'up': 242, 'down': 13}; dropped {}
+pod-bridge-1  | 00:23:02 pod-bridge: fabric router lost
+pod-bridge-1  | 00:23:18 pod-bridge: forwarded {'up': 258, 'down': 14}; dropped {'other_side_down': 18}
+pod-bridge-1  | 00:23:25 pod-bridge: fabric router back
+pod-bridge-1  | 00:23:48 pod-bridge: forwarded {'up': 283, 'down': 15}; dropped {'other_side_down': 26}
+```
+
+The bridge notices the loss only when its session to the fabric router times out: in two timed runs it logged `fabric router lost` 9 to 10 s after the disconnect, and `fabric router back` 0 to 2 s after the connect. What it publishes before it notices counts as forwarded; these steps don't show whether it arrived.
+
+**8. Long outage (G1-07).** Restart the rig with a host hold time of 20 s, then cut the bridge off for 40 s. The host removes the pod's fusion node, and when the link returns it asks for a registration, which the pod sends and the host accepts. The rig keeps the 20 s hold until the next `dg up` without `HOST_HOLD_SECONDS`.
+
+```bash
+dg down
+HOST_HOLD_SECONDS=20 dg up -d
+sleep 60
+docker network disconnect apex-goat1_mesh apex-goat1-pod-bridge-1
+sleep 40
+docker network connect apex-goat1_mesh apex-goat1-pod-bridge-1
+sleep 40
+dg logs host-fusion | grep -E 'removed|request "Registration"|<- registration '
+dg logs fusion-node | grep "<- registration_ack f0000002"
+```
+
+```text
+host-fusion-1  | 00:24:29 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+host-fusion-1  | 00:25:54 fusion: node f0000001 gone for 20 s; removed
+host-fusion-1  | 00:26:09 fusion: -> task f0000002 -> f0000001 FWNQRB request "Registration"
+host-fusion-1  | 00:26:09 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1  | 00:24:29 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 00:26:09 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+```
+
+The first registration is the one at start; the other lines follow the outage.
+
+**9. A sensor joins with no router restart (G1-09).** The rig starts without `radar2` unless the profile `join` is named. Give `radar2` the free slot 3 of the pod's pool in the registry, and run the generator with `--frozen-routers`: it issues the new certificate and exits 0 only if neither router file changes. Then start `radar2`. The pod's fusion node accepts it, and the pod router keeps running.
+
+```bash
+before=$(docker inspect -f '{{.State.StartedAt}}' apex-goat1-zenohd-pod-1)
+shasum -a 256 zenoh/goat1/router-pod1.json5 zenoh/goat1/router-fabric.json5
+python3 -c 'import pathlib; p = pathlib.Path("goat1/registry.toml"); p.write_text(p.read_text().replace("[pod1.slots]\n", "[pod1.slots]\nradar2 = 3\n", 1))'
+grep -A4 '^\[pod1.slots\]' goat1/registry.toml
+python3 emulators/goatgen.py goat1/registry.toml zenoh/goat1 --frozen-routers
+echo "exit $?"
+shasum -a 256 zenoh/goat1/router-pod1.json5 zenoh/goat1/router-fabric.json5
+source zenoh/goat1/goat1.env
+dg --profile join up -d radar2
+sleep 30
+dg logs fusion-node | grep "<- registration " | grep -c "Fake second radar"
+dg logs fusion-node | grep "registration_ack f0000001 -> ${POD1_RADAR2_ID:0:8}"
+dg logs fusion-node | grep -c "<- detection_report ${POD1_RADAR2_ID:0:8}"
+test "$before" = "$(docker inspect -f '{{.State.StartedAt}}' apex-goat1-zenohd-pod-1)" && echo "router not restarted"
+dg logs zenohd-pod | grep -ci -E 'error|panic'
+```
+
+```text
+c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5
+f7f5e342377767ddcf0e22d754d22236f1417967dcd2891927b6aea54a3bedf8  zenoh/goat1/router-fabric.json5
+[pod1.slots]
+radar2 = 3
+radar = 0
+camera = 1
+vehicle = 2
+router files unchanged
+exit 0
+c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5
+f7f5e342377767ddcf0e22d754d22236f1417967dcd2891927b6aea54a3bedf8  zenoh/goat1/router-fabric.json5
+1
+fusion-node-1  | 00:26:45 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']
+3
+router not restarted
+0
+```
+
+The detection count is low because the fusion node logs every 10th detection report of each node.
+
+Take `radar2` out again and put the registry back as committed. The generator leaves the `radar2` certificate and key below `zenoh/goat1/pki/pod1/`, prints `router files unchanged` and exits 0; `goat1.env` no longer has `POD1_RADAR2_ID`.
+
+```bash
+dg --profile join rm -s -f radar2
+git restore goat1/registry.toml
+unset POD1_RADAR2_ID
+python3 emulators/goatgen.py goat1/registry.toml zenoh/goat1 --frozen-routers
+echo "exit $?"
+git status --short goat1/registry.toml
+```
+
+```text
+router files unchanged
+exit 0
+```
+
+`git status` printed nothing: the registry is as committed.
 
 To stop the step, run `dg down`. The recordings stay in the `apex-goat1_pod-records` and `apex-goat1_host-records` volumes. Don't add `-v` unless you mean to delete them. `docs/acceptance-goat1.md` records what passed and where each check falls short.
 
