@@ -203,3 +203,35 @@ def test_a_site_of_33_characters_writes_nothing(tmp_path, capsys):
     assert main([str(registry), str(out)]) == 2
     assert "site" in capsys.readouterr().err
     assert not out.exists() or not any(out.iterdir())
+
+
+@needs_openssl
+def test_frozen_routers_counts_a_missing_router_file_as_a_change(tmp_path, capsys):
+    registry, out = _write_registry(tmp_path), tmp_path / "out"
+    assert main([str(registry), str(out)]) == 0
+    (out / "router-fabric.json5").unlink()
+    before = _tree(out)
+    capsys.readouterr()
+
+    assert main([str(registry), str(out), "--frozen-routers"]) == 3
+
+    captured = capsys.readouterr()
+    assert "router-fabric.json5" in captured.err and "router-pod1.json5" not in captured.err
+    assert "router files unchanged" not in captured.out
+    assert _tree(out) == before
+
+
+@needs_openssl
+def test_frozen_routers_on_an_empty_directory_writes_nothing(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert main([str(_write_registry(tmp_path)), str(out), "--frozen-routers"]) == 3
+    assert "router-pod1.json5" in capsys.readouterr().err
+    assert not out.exists() or not any(out.iterdir())
+
+
+def test_the_pod_alias_fusion_node_writes_nothing(tmp_path, capsys):
+    out = tmp_path / "out"
+    text = REGISTRY.replace("[pod1.slots]\n", "[pod1.slots]\nfusion-node = 7\n")
+    assert main([str(_write_registry(tmp_path, text)), str(out)]) == 2
+    assert "fusion-node" in capsys.readouterr().err
+    assert not out.exists() or not any(out.iterdir())

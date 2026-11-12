@@ -8,7 +8,8 @@ the certificates under pki/<name>/, and one goat1.env with the slot identities.
 
 The router files depend on the pool, not on the aliases: every slot of the pool has its rules
 from the start, so giving an alias a free slot only adds a certificate. --frozen-routers makes
-that a promise: if an existing router file would change, nothing is written and the exit code is 3.
+that a promise: if a router file would change, or does not exist yet, nothing is written and the
+exit code is 3.
 
 The access list text has a fixed form, because goat's checker (third_party/goat/acl-evaluate.py)
 reads it with regular expressions, not a JSON5 parser: blocks in the order rules, subjects,
@@ -32,7 +33,8 @@ from slots import RegistryError, Router, load_registry
 CA_DAYS = 3650
 LEAF_DAYS = 825
 _ALWAYS_RESERVED = {"ca", "router"}          # fixed certificate files of every router
-_POD_RESERVED = {"fusion", "recorder", "bridge"}  # fixed certificate files of a pod router
+_POD_RESERVED = {"fusion", "recorder", "bridge",  # fixed certificate files of a pod router
+                 "fusion-node"}  # its env name <POD>_FUSION_NODE_ID is that of the pod's fusion node
 _ALIAS = re.compile(r"[a-z0-9-]+")
 _FABRIC_READ = ["declare_subscriber", "query", "declare_queryable", "reply",
                 "declare_liveliness_subscriber", "liveliness_query"]
@@ -333,7 +335,7 @@ def _validate(routers: dict[str, Router]) -> None:
             if not _ALIAS.fullmatch(alias):
                 raise RegistryError(f"[{name}.slots] alias {alias!r} must match [a-z0-9-]+ (it is a file name)")
             if alias in reserved:
-                raise RegistryError(f"[{name}.slots] alias {alias!r} is a reserved certificate name")
+                raise RegistryError(f"[{name}.slots] alias {alias!r} is a reserved certificate or environment name")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -341,7 +343,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("registry")
     parser.add_argument("out_dir")
     parser.add_argument("--frozen-routers", action="store_true",
-                        help="exit 3 and write nothing if an existing router file would change")
+                        help="exit 3 and write nothing if a router file would change or does not exist")
     args = parser.parse_args(argv)
     out = Path(args.out_dir)
     try:
@@ -356,10 +358,10 @@ def main(argv: list[str] | None = None) -> int:
         print("goatgen: openssl is not installed", file=sys.stderr)
         return 2
     if args.frozen_routers:
-        changed = [n for n, text in files.items() if (out / n).is_file() and (out / n).read_text() != text]
+        changed = [n for n, text in files.items() if not (out / n).is_file() or (out / n).read_text() != text]
         if changed:
             print("goatgen: --frozen-routers: would change " + ", ".join(changed)
-                  + " (the pool, the prefix or an identity changed); nothing written", file=sys.stderr)
+                  + " (missing, or the pool, the prefix or an identity changed); nothing written", file=sys.stderr)
             return 3
     out.mkdir(parents=True, exist_ok=True)
     try:
