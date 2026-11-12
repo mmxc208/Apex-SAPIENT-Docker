@@ -3,7 +3,8 @@
 Run from the repository root: python3 docs/evidence/goat1/check-quotes.py
 
 Quotes checked:
-- README.md, section "Goat step 1: pod 1 to host": every non-empty line of every ```text block,
+- README-goat.md, section "Goat step 1: pod 1 to host" (in README.md until the section moved): every
+  non-empty line of every ```text block,
   searched only in README_RUN, the saved output of the run that the README names. Without "..." the line must equal a whole line of an evidence file; with "..." each part must
   appear in order in one line that starts with the first part.
 - docs/acceptance-goat1.md: every inline code span that looks like log or command output (see
@@ -61,8 +62,10 @@ def find(files: dict[str, list[str]], quote: str, whole: bool) -> str | None:
 
 def main() -> int:
     files = evidence()
-    readme = pathlib.Path("README.md").read_text()
-    section = readme[readme.index("## Goat step 1: pod 1 to host"):readme.index("## Optional: Elasticsearch")]
+    readme = pathlib.Path("README-goat.md").read_text()
+    start = readme.index("## Goat step 1: pod 1 to host")
+    following = readme.find("\n## ", start + 1)  # the section ends at the next heading of its level
+    section = readme[start:following if following != -1 else len(readme)]
     record = pathlib.Path("docs/acceptance-goat1.md").read_text()
     checked = missing = 0
     for block in re.findall(r"```text\n(.*?)```", section, re.S):
