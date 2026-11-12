@@ -117,15 +117,33 @@ services:
       DETECTION_INTERVAL: ${DETECTION_INTERVAL:-1}
 
   # Joins only for the join check: docker compose ... --profile join up -d radar2.
-  # It mounts the directory, because its certificate exists only once the registry lists it,
-  # and a missing single-file mount would make Docker create a directory in its place.
+  # Its certificate exists only once the registry lists radar2. The long-form mounts with
+  # create_host_path: false make a missing file an error, instead of a directory that Docker
+  # would create in its place. It mounts only its own files; ca.key is mounted nowhere.
   radar2:
     <<: *pod-emulator
     profiles: ["join"]
     command: python fake_sensor.py
     volumes:
       - ./emulators:/emulators:ro
-      - ./zenoh/goat1/pki/pod1:/certs:ro
+      - type: bind
+        source: ./zenoh/goat1/pki/pod1/ca.pem
+        target: /certs/ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./zenoh/goat1/pki/pod1/radar2.pem
+        target: /certs/radar2.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./zenoh/goat1/pki/pod1/radar2.key
+        target: /certs/radar2.key
+        read_only: true
+        bind:
+          create_host_path: false
     environment:
       <<: *pod-env
       ZENOH_TLS_CERT: /certs/radar2.pem
