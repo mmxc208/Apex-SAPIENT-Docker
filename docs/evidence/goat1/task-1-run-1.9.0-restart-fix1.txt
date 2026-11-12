@@ -1,0 +1,9 @@
+zenohd v1.9.0
+router image: eclipse/zenoh:1.9.0
+a917a92a5ba3b9f406877369163053a31a3e05346bc2d590ee25de8cce2b416b
+2026-11-11 22:38:18,577 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+2026-11-11 22:38:18,580 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+PAIRING OK put-sub liveliness
+PAIRING OK after router restart
+exit=0
+pairing-probe

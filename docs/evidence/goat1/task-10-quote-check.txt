@@ -1,0 +1,52 @@
+README	task-10-readme-run.txt:166	0
+README	task-10-readme-run.txt:167	6
+README	task-10-readme-run.txt:168	2
+README	task-10-readme-run.txt:169	0
+README	task-10-readme-run.txt:170	pod-bridge-1  | 00:22:48 pod-bridge: forwarded {'up': 242, 'down': 13}; dropped {}
+README	task-10-readme-run.txt:171	pod-bridge-1  | 00:23:02 pod-bridge: fabric router lost
+README	task-10-readme-run.txt:172	pod-bridge-1  | 00:23:18 pod-bridge: forwarded {'up': 258, 'down': 14}; dropped {'other_side_down': 18}
+README	task-10-readme-run.txt:173	pod-bridge-1  | 00:23:25 pod-bridge: fabric router back
+README	task-10-readme-run.txt:174	pod-bridge-1  | 00:23:48 pod-bridge: forwarded {'up': 283, 'down': 15}; dropped {'other_side_down': 26}
+README	task-10-readme-run.txt:283	host-fusion-1  | 00:24:29 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+README	task-10-readme-run.txt:284	host-fusion-1  | 00:25:54 fusion: node f0000001 gone for 20 s; removed
+README	task-10-readme-run.txt:285	host-fusion-1  | 00:26:09 fusion: -> task f0000002 -> f0000001 FWNQRB request "Registration"
+README	task-10-readme-run.txt:286	host-fusion-1  | 00:26:09 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+README	task-10-readme-run.txt:287	fusion-node-1  | 00:24:29 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+README	task-10-readme-run.txt:288	fusion-node-1  | 00:26:09 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+README	task-10-readme-run.txt:290	c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5
+README	task-10-readme-run.txt:291	f7f5e342377767ddcf0e22d754d22236f1417967dcd2891927b6aea54a3bedf8  zenoh/goat1/router-fabric.json5
+README	task-10-readme-run.txt:292	[pod1.slots]
+README	task-10-readme-run.txt:293	radar2 = 3
+README	task-10-readme-run.txt:294	radar = 0
+README	task-10-readme-run.txt:295	camera = 1
+README	task-10-readme-run.txt:296	vehicle = 2
+README	task-10-readme-run.txt:297	router files unchanged
+README	task-10-readme-run.txt:298	exit 0
+README	task-10-readme-run.txt:299	c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5
+README	task-10-readme-run.txt:300	f7f5e342377767ddcf0e22d754d22236f1417967dcd2891927b6aea54a3bedf8  zenoh/goat1/router-fabric.json5
+README	task-10-readme-run.txt:306	1
+README	task-10-readme-run.txt:307	fusion-node-1  | 00:26:45 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']
+README	task-10-readme-run.txt:308	3
+README	task-10-readme-run.txt:309	router not restarted
+README	task-10-readme-run.txt:310	0
+README	task-10-readme-run.txt:317	router files unchanged
+README	task-10-readme-run.txt:318	exit 0
+acceptance	task-10-g1-06.txt:112	pod-bridge-1  | 00:12:06 pod-bridge: fabric router lost
+acceptance	task-10-g1-06.txt:135	pod-bridge-1  | 00:12:29 pod-bridge: fabric router back
+acceptance	task-10-g1-06.txt:85	pod-bridge-1  | 00:11:57 pod-bridge: forwarded {'up': 68, 'down': 5}; dropped {}
+acceptance	task-10-g1-06.txt:113	pod-bridge-1  | 00:12:27 pod-bridge: forwarded {'up': 79, 'down': 5}; dropped {'other_side_down': 22}
+acceptance	task-10-g1-06.txt:136	pod-bridge-1  | 00:12:57 pod-bridge: forwarded {'up': 112, 'down': 7}; dropped {'other_side_down': 25}
+acceptance	task-10-g1-07.txt:130	20
+acceptance	task-10-g1-07.txt:149	host-fusion-1  | 00:15:56 fusion: node f0000001 gone for 20 s; removed
+acceptance	task-10-g1-07.txt:150	host-fusion-1  | 00:16:11 fusion: -> task f0000002 -> f0000001 Z9CGFR request "Registration"
+acceptance	task-10-g1-07.txt:151	host-fusion-1  | 00:16:11 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+acceptance	task-10-g1-07.txt:158	fusion-node-1  | 00:16:11 fusion: <- task f0000002 -> f0000001 Z9CGFR request "Registration"
+acceptance	task-10-g1-07.txt:159	fusion-node-1  | 00:16:11 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+acceptance	task-10-g1-07.txt:169	no traffic from f0000001-0000-4000-8000-000000000001 for 30 s; token removed
+acceptance	task-10-g1-08.txt:15	4 passed, 32 deselected
+acceptance	task-10-g1-09.txt:62	router files unchanged
+acceptance	task-10-g1-09.txt:88	POD1_RADAR2_ID=83ff6077-6265-4c97-9085-efcdbc04ebc0
+acceptance	task-10-g1-09.txt:134	fusion-node-1  | 00:17:20 fusion: <- registration 83ff6077 "Fake second radar" [RADAR]
+acceptance	task-10-g1-09.txt:135	fusion-node-1  | 00:17:20 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']
+acceptance	task-10-g1-09.txt:62	router files unchanged
+not found: 0 of 51

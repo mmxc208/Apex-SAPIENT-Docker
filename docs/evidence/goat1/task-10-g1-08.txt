@@ -1,0 +1,15 @@
+$ docker compose -f docker-compose.yml -f docker-compose.emulators.yml run --rm --no-deps radar python -m pytest -p no:cacheprovider -v -W error tests/test_pod_bridge.py -k "stale or 4_s_old or age_limit"
+============================= test session starts ==============================
+platform linux -- Python 3.11.18, pytest-8.4.2, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /emulators
+configfile: pytest.ini
+plugins: asyncio-1.1.1, anyio-3.7.1
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 36 items / 32 deselected / 4 selected
+
+tests/test_pod_bridge.py::test_down_drops_and_counts[stale_task] PASSED  [ 25%]
+tests/test_pod_bridge.py::test_a_task_4_s_old_is_forwarded PASSED        [ 50%]
+tests/test_pod_bridge.py::test_a_task_without_a_timestamp_is_stale PASSED [ 75%]
+tests/test_pod_bridge.py::test_registration_ack_is_not_subject_to_the_age_limit PASSED [100%]
+
+======================= 4 passed, 32 deselected in 0.04s =======================

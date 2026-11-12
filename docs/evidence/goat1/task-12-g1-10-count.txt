@@ -1,0 +1,12 @@
+log: task-12-fabric-trace-10-plain.txt
+lines in log: 450
+goat session IDs: ['2a4ad8f135cb8e074233143eea7d8cf3', '795358b1b79adc3ea529160f28a302c5']
+lines with slot 3's common name or a goat session ID: 65
+of them 'Using cached result' lines: 0
+cached key expression per session: {'795358b1b79adc3ea529160f28a302c5': '18214b1a34e3c722d1cac283b272a62c', '2a4ad8f135cb8e074233143eea7d8cf3': '18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report'}
+removed: Declare Subscriber (ingress): 3
+removed: Put (egress) on a full sample key: 5
+removed: cache block lines: 57
+cache block of 795358b1b79adc3ea529160f28a302c5: 36 lines, from 2026-11-12T01:36:57.904123692Z to 2026-11-12T01:36:57.904188442Z
+cache block of 2a4ad8f135cb8e074233143eea7d8cf3: 21 lines, from 2026-11-12T01:36:59.040287134Z to 2026-11-12T01:36:59.040313968Z
+left: 0

@@ -1,0 +1,31 @@
+$ dg logs host-fusion | grep -c "<- detection_report"
+7
+
+$ dg logs host-fusion | grep -c "<- alert"
+1
+
+$ dg logs host-fusion | grep "<- alert"
+host-fusion-1  | 23:34:34 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track J69K1N"
+
+$ dg exec host-recorder sh -c 'cat /data/records/*.jsonl' | python3 .superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-9-check-records.py
+records: 141
+keys of first record: ['anchor', 'key', 'kind', 'msg', 'node_id', 'site', 't']
+   ('18214b1a', 'alert') 1
+   ('18214b1a', 'detection_report') 61
+   ('18214b1a', 'registration') 1
+   ('18214b1a', 'status_report') 9
+   ('18214b1a', 'task_ack') 3
+   ('b005ae3a', 'alert_ack') 1
+   ('b005ae3a', 'detection_report') 54
+   ('b005ae3a', 'registration') 1
+   ('b005ae3a', 'registration_ack') 1
+   ('b005ae3a', 'status_report') 6
+   ('b005ae3a', 'task') 3
+node_ids seen: ['f0000001-0000-4000-8000-000000000001', 'f0000002-0000-4000-8000-000000000002']
+records with an anchor outside FABRIC_POD1_ID/FABRIC_HOST_FUSION_ID: 0
+records whose msg.node_id is the radar, camera or vehicle: 0
+PASS
+
+$ dg exec host-recorder sh -c 'cat /data/records/*.jsonl' | head -1 | cut -c1-400
+{"t": "2026-11-11T23:34:33.225+00:00", "key": "18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/registration/f0000001-0000-4000-8000-000000000001", "kind": "registration", "node_id": "f0000001-0000-4000-8000-000000000001", "anchor": "18214b1a34e3c722d1cac283b272a62c", "site": "p1", "msg": {"timestamp": "2026-11-11T23:34:33.222291Z", "node_id": "f0000001-0000-4000-8000-000000000001", "regis
+

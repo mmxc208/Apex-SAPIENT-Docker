@@ -1,0 +1,151 @@
++task-10-g1-06.sh:4> git rev-parse --short HEAD
+8db9951
++task-10-g1-06.sh:5> python3 emulators/goatgen.py goat1/registry.toml zenoh/goat1
++task-10-g1-06.sh:6> dg up -d
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml up -d
+ Network apex-goat1_host Creating 
+ Network apex-goat1_host Creating 
+ Network apex-goat1_mesh Creating 
+ Network apex-goat1_mesh Creating 
+ Network apex-goat1_pod1 Creating 
+ Network apex-goat1_pod1 Creating 
+ Network apex-goat1_mesh Created 
+ Network apex-goat1_mesh Created 
+ Network apex-goat1_host Created 
+ Network apex-goat1_host Created 
+ Container apex-goat1-zenohd-fabric-1 Creating 
+ Network apex-goat1_pod1 Created 
+ Network apex-goat1_pod1 Created 
+ Container apex-goat1-zenohd-pod-1 Creating 
+ Container apex-goat1-zenohd-fabric-1 Created 
+ Container apex-goat1-host-recorder-1 Creating 
+ Container apex-goat1-host-fusion-1 Creating 
+ Container apex-goat1-zenohd-pod-1 Created 
+ Container apex-goat1-recorder-1 Creating 
+ Container apex-goat1-camera-1 Creating 
+ Container apex-goat1-bridge-node-1 Creating 
+ Container apex-goat1-pod-bridge-1 Creating 
+ Container apex-goat1-fusion-node-1 Creating 
+ Container apex-goat1-radar-1 Creating 
+ Container apex-goat1-host-fusion-1 Created 
+ Container apex-goat1-host-recorder-1 Created 
+ Container apex-goat1-bridge-node-1 Created 
+ Container apex-goat1-vehicle-1 Creating 
+ Container apex-goat1-fusion-node-1 Created 
+ Container apex-goat1-recorder-1 Created 
+ Container apex-goat1-camera-1 Created 
+ Container apex-goat1-radar-1 Created 
+ Container apex-goat1-pod-bridge-1 Created 
+ Container apex-goat1-vehicle-1 Created 
+ Container apex-goat1-zenohd-fabric-1 Starting 
+ Container apex-goat1-zenohd-pod-1 Starting 
+ Container apex-goat1-zenohd-fabric-1 Started 
+ Container apex-goat1-host-fusion-1 Starting 
+ Container apex-goat1-host-recorder-1 Starting 
+ Container apex-goat1-zenohd-pod-1 Started 
+ Container apex-goat1-bridge-node-1 Starting 
+ Container apex-goat1-fusion-node-1 Starting 
+ Container apex-goat1-camera-1 Starting 
+ Container apex-goat1-recorder-1 Starting 
+ Container apex-goat1-pod-bridge-1 Starting 
+ Container apex-goat1-radar-1 Starting 
+ Container apex-goat1-host-fusion-1 Started 
+ Container apex-goat1-host-recorder-1 Started 
+ Container apex-goat1-bridge-node-1 Started 
+ Container apex-goat1-vehicle-1 Starting 
+ Container apex-goat1-fusion-node-1 Started 
+ Container apex-goat1-camera-1 Started 
+ Container apex-goat1-recorder-1 Started 
+ Container apex-goat1-pod-bridge-1 Started 
+ Container apex-goat1-radar-1 Started 
+ Container apex-goat1-vehicle-1 Started 
++task-10-g1-06.sh:7> sleep 60
++task-10-g1-06.sh:8> date -u +%T
+00:11:57
++task-10-g1-06.sh:9> dg ps --format '{{.Service}} {{.State}}'
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml ps --format '{{.Service}} {{.State}}'
++task-10-g1-06.sh:9> sort
+bridge-node running
+camera running
+fusion-node running
+host-fusion running
+host-recorder running
+pod-bridge running
+radar running
+recorder running
+vehicle running
+zenohd-fabric running
+zenohd-pod running
++task-10-g1-06.sh:10> dg logs pod-bridge
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs pod-bridge
+pod-bridge-1  | 00:10:57 pod-bridge: connected to Zenoh router at tls/router.p1.h1:7447
+pod-bridge-1  | 00:10:57 pod-bridge: connected to Zenoh router at tls/router.fabric.h1:7447
+pod-bridge-1  | 00:10:57 pod-bridge: bridging tls/router.p1.h1:7447 and tls/router.fabric.h1:7447 as 18214b1a34e3c722d1cac283b272a62c site p1
+pod-bridge-1  | 00:11:27 pod-bridge: forwarded {'up': 32, 'down': 3}; dropped {}
+pod-bridge-1  | 00:11:57 pod-bridge: forwarded {'up': 68, 'down': 5}; dropped {}
++task-10-g1-06.sh:11> date -u +%T
+00:11:57
++task-10-g1-06.sh:11> docker network disconnect apex-goat1_mesh apex-goat1-pod-bridge-1
++task-10-g1-06.sh:11> date -u +%T
+00:11:57
++task-10-g1-06.sh:12> sleep 30
++task-10-g1-06.sh:13> date -u +%T
+00:12:27
++task-10-g1-06.sh:14> dg logs --since 30s radar camera vehicle fusion-node
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 30s radar camera vehicle fusion-node
++task-10-g1-06.sh:14> grep -c -E 'lost|cannot reach'
+0
++task-10-g1-06.sh:15> dg logs --since 30s fusion-node
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 30s fusion-node
++task-10-g1-06.sh:15> grep -c '<- detection_report'
+6
++task-10-g1-06.sh:16> dg logs --since 30s fusion-node
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 30s fusion-node
++task-10-g1-06.sh:16> grep '<- detection_report'
++task-10-g1-06.sh:16> head -3
+fusion-node-1  | 00:11:57 fusion: <- detection_report 86ca6000 object VY4TA7 at (51.17577, -1.82157, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1  | 00:11:57 fusion: <- detection_report 1aef1b86 object WVR2P1 at (51.17575, -1.82156, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1  | 00:12:07 fusion: <- detection_report 86ca6000 object VY4TA7 at (51.17476, -1.82099, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
++task-10-g1-06.sh:17> dg logs --since 40s pod-bridge
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 40s pod-bridge
+pod-bridge-1  | 00:11:57 pod-bridge: forwarded {'up': 68, 'down': 5}; dropped {}
+pod-bridge-1  | 00:12:06 pod-bridge: fabric router lost
+pod-bridge-1  | 00:12:27 pod-bridge: forwarded {'up': 79, 'down': 5}; dropped {'other_side_down': 22}
++task-10-g1-06.sh:18> date -u +%T
+00:12:27
++task-10-g1-06.sh:18> docker network connect apex-goat1_mesh apex-goat1-pod-bridge-1
++task-10-g1-06.sh:18> date -u +%T
+00:12:27
++task-10-g1-06.sh:19> sleep 30
++task-10-g1-06.sh:20> date -u +%T
+00:12:57
++task-10-g1-06.sh:21> dg logs --since 25s host-fusion
++task-10-g1-06.sh:21> grep -c '<- detection_report'
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 25s host-fusion
+3
++task-10-g1-06.sh:22> dg logs --since 60s host-fusion
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 60s host-fusion
++task-10-g1-06.sh:22> grep -c '<- registration '
+0
++task-10-g1-06.sh:23> dg logs --since 70s pod-bridge
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --since 70s pod-bridge
+pod-bridge-1  | 00:11:57 pod-bridge: forwarded {'up': 68, 'down': 5}; dropped {}
+pod-bridge-1  | 00:12:06 pod-bridge: fabric router lost
+pod-bridge-1  | 00:12:27 pod-bridge: forwarded {'up': 79, 'down': 5}; dropped {'other_side_down': 22}
+pod-bridge-1  | 00:12:29 pod-bridge: fabric router back
+pod-bridge-1  | 00:12:57 pod-bridge: forwarded {'up': 112, 'down': 7}; dropped {'other_side_down': 25}
++task-10-g1-06.sh:24> sleep 35
++task-10-g1-06.sh:25> dg logs pod-bridge
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs pod-bridge
+pod-bridge-1  | 00:10:57 pod-bridge: connected to Zenoh router at tls/router.p1.h1:7447
+pod-bridge-1  | 00:10:57 pod-bridge: connected to Zenoh router at tls/router.fabric.h1:7447
+pod-bridge-1  | 00:10:57 pod-bridge: bridging tls/router.p1.h1:7447 and tls/router.fabric.h1:7447 as 18214b1a34e3c722d1cac283b272a62c site p1
+pod-bridge-1  | 00:11:27 pod-bridge: forwarded {'up': 32, 'down': 3}; dropped {}
+pod-bridge-1  | 00:11:57 pod-bridge: forwarded {'up': 68, 'down': 5}; dropped {}
+pod-bridge-1  | 00:12:06 pod-bridge: fabric router lost
+pod-bridge-1  | 00:12:27 pod-bridge: forwarded {'up': 79, 'down': 5}; dropped {'other_side_down': 22}
+pod-bridge-1  | 00:12:29 pod-bridge: fabric router back
+pod-bridge-1  | 00:12:57 pod-bridge: forwarded {'up': 112, 'down': 7}; dropped {'other_side_down': 25}
+pod-bridge-1  | 00:13:27 pod-bridge: forwarded {'up': 147, 'down': 8}; dropped {'other_side_down': 25}
++task-10-g1-06.sh:26> dg logs --no-color --timestamps
++dg:0> docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml logs --no-color --timestamps

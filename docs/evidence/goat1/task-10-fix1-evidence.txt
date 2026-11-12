@@ -1,0 +1,14 @@
+$ command grep host-fusion-1 .superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-10-g1-06-logs.txt | command grep -c removed
+0
+$ command grep host-fusion-1 .superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-10-g1-06-logs.txt | command grep -c 'request "Registration"'
+0
+$ command grep fusion-node-1 .superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-10-g1-06-logs.txt | command grep '<- detection_report' | command grep -c -E 'T00:1(1:5[7-9]|2:[0-2][0-9])'
+8
+$ python3 -I -c 'import hashlib, uuid; print(str(uuid.UUID(bytes=hashlib.sha256(b"goat1-pod1:3").digest()[:16], version=4)))'
+83ff6077-6265-4c97-9085-efcdbc04ebc0
+$ shasum -a 256 zenoh/goat1/router-pod1.json5
+c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5
+$ command grep -c 83ff6077-6265-4c97-9085-efcdbc04ebc0 zenoh/goat1/router-pod1.json5
+7
+$ command grep -E 'T00:17:2[0-5]' .superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-10-g1-09-logs.txt | command grep -c 'request "Registration"'
+0

@@ -1,0 +1,44 @@
+$ dg restart host-fusion   (at 23:42:06 UTC)
+$ dg logs --since 40s fusion-node | grep -v detection_report
+fusion-node-1  | 23:42:19 fusion: <- task f0000002 -> f0000001 XGCHSB request "Registration"
+fusion-node-1  | 23:42:19 fusion: -> registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1  | 23:42:19 fusion: -> up task_ack f0000001 -> f0000002 XGCHSB TASK_STATUS_ACCEPTED ['Registration sent again']
+fusion-node-1  | 23:42:19 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:42:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1  | 23:42:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1  | 23:42:36 fusion: <- task f0000002 -> f0000001 RW0H5S request "Status"
+fusion-node-1  | 23:42:36 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1  | 23:42:36 fusion: -> up task_ack f0000001 -> f0000002 RW0H5S TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1  | 23:42:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1  | 23:42:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1  | 23:42:56 fusion: <- task f0000002 -> f0000001 N7F0BG look_at {"location_list": {"locations": [{"x": -1.8171591404361664, "y": 51.1781856287436, "z": 120.
+fusion-node-1  | 23:42:56 fusion: -> task f0000001 -> 1aef1b86 MC9GSY look_at {"location_list": {"locations": [{"x": -1.8171591404361664, "y": 51.1781856287436, "z": 120.
+fusion-node-1  | 23:42:56 fusion: -> task f0000001 -> 86ca6000 BPJ3YT look_at {"location_list": {"locations": [{"x": -1.8171591404361664, "y": 51.1781856287436, "z": 120.
+fusion-node-1  | 23:42:56 fusion: -> up task_ack f0000001 -> f0000002 N7F0BG TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1  | 23:42:56 fusion: <- task_ack 86ca6000 -> f0000001 BPJ3YT TASK_STATUS_ACCEPTED ['Pointing at (51.17819, -1.81716)']
+fusion-node-1  | 23:42:56 fusion: <- task_ack 1aef1b86 -> f0000001 MC9GSY TASK_STATUS_ACCEPTED ['Pointing at (51.17819, -1.81716)']
+$ dg logs --since 40s fusion-node | grep -c "request \"Registration\""
+1
+$ dg logs --since 40s fusion-node | grep -c "<- registration_ack"
+1
+$ dg logs --since 40s --no-log-prefix host-fusion | grep -v detection_report
+23:42:16 fusion: connected to Zenoh router at tls/router.fabric.h1:7447
+23:42:16 fusion: joined the fabric as fusion node f0000002-0000-4000-8000-000000000002 below anchor b005ae3a8f2baf89160bd71632902672, site h1
+23:42:16 fusion: new track GDDKMQ from f0000001
+23:42:19 fusion: -> task f0000002 -> f0000001 XGCHSB request "Registration"
+23:42:19 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+23:42:19 fusion: -> registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+23:42:19 fusion: <- task_ack f0000001 -> f0000002 XGCHSB TASK_STATUS_ACCEPTED ['Registration sent again']
+23:42:23 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+23:42:24 fusion: -> registration f0000002 "fake fusion node" [FUSION_NODE]
+23:42:24 fusion: -> status_report f0000002 SYSTEM_OK INFO_NEW mode=Default
+23:42:34 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+23:42:36 fusion: auto-task request:Status -> 1 node(s)
+23:42:36 fusion: -> task f0000002 -> f0000001 RW0H5S request "Status"
+23:42:36 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+23:42:36 fusion: <- task_ack f0000001 -> f0000002 RW0H5S TASK_STATUS_ACCEPTED ['Status report sent']
+23:42:44 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+23:42:54 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+23:42:56 fusion: auto-task look_at -> 1 node(s)
+23:42:56 fusion: -> task f0000002 -> f0000001 N7F0BG look_at {"location_list": {"locations": [{"x": -1.8171591404361664, "y": 51.1781856287436, "z": 120.0, "x_error": 0.0
+23:42:56 fusion: <- task_ack f0000001 -> f0000002 N7F0BG TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']

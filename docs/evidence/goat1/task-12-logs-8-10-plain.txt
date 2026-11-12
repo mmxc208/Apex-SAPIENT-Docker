@@ -1,0 +1,749 @@
+zenohd-pod-1  | 2026-11-12T01:28:48.537384402Z #!/bin/ash
+zenohd-pod-1  | 2026-11-12T01:28:48.537406069Z cat /entrypoint.sh
+zenohd-pod-1  | 2026-11-12T01:28:48.537407569Z echo " * Starting: /$BINARY $@"
+zenohd-pod-1  | 2026-11-12T01:28:48.537408402Z exec /$BINARY $@
+zenohd-pod-1  | 2026-11-12T01:28:48.537409069Z  * Starting: /zenohd -c /config/router.json5
+zenohd-pod-1  | 2026-11-12T01:28:48.537836653Z 2026-11-12T01:28:48.537792Z  INFO main ThreadId(01) zenohd: zenohd v1.10.2 built with rustc 1.97.1 (8bab26f4f 2026-07-14)
+zenohd-pod-1  | 2026-11-12T01:28:48.538998364Z 2026-11-12T01:28:48.538714Z  INFO main ThreadId(01) zenohd: Initial conf: {"access_control":{"default_permission":"deny","enabled":true,"policies":[{"id":null,"rules":["fusion-down","fusion-own-up"],"subjects":["fusion"]},{"id":null,"rules":["read-all"],"subjects":["fusion","recorder"]},{"id":null,"rules":["bridge-r","bridge-w"],"subjects":["bridge"]},{"id":null,"rules":["slot-w-1aef1b86-9b67-47a8-b565-2e40f235d2ba","slot-r-1aef1b86-9b67-47a8-b565-2e40f235d2ba"],"subjects":["slot-1aef1b86-9b67-47a8-b565-2e40f235d2ba"]},{"id":null,"rules":["slot-w-86ca6000-1c36-4aed-875f-ac18ec0b5ab2","slot-r-86ca6000-1c36-4aed-875f-ac18ec0b5ab2"],"subjects":["slot-86ca6000-1c36-4aed-875f-ac18ec0b5ab2"]},{"id":null,"rules":["slot-w-341b9172-dc37-467a-add2-3ac5625e8682","slot-r-341b9172-dc37-467a-add2-3ac5625e8682"],"subjects":["slot-341b9172-dc37-467a-add2-3ac5625e8682"]},{"id":null,"rules":["slot-w-83ff6077-6265-4c97-9085-efcdbc04ebc0","slot-r-83ff6077-6265-4c97-9085-efcdbc04ebc0"],"subjects":["slot-83ff6077-6265-4c97-9085-efcdbc04ebc0"]},{"id":null,"rules":["slot-w-bb75dc13-9471-478f-af4d-ad2f96d9b8b9","slot-r-bb75dc13-9471-478f-af4d-ad2f96d9b8b9"],"subjects":["slot-bb75dc13-9471-478f-af4d-ad2f96d9b8b9"]},{"id":null,"rules":["slot-w-691f5a1e-5ba8-404e-9071-a71cf24f1f30","slot-r-691f5a1e-5ba8-404e-9071-a71cf24f1f30"],"subjects":["slot-691f5a1e-5ba8-404e-9071-a71cf24f1f30"]},{"id":null,"rules":["slot-w-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529","slot-r-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529"],"subjects":["slot-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529"]},{"id":null,"rules":["slot-w-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9","slot-r-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9"],"subjects":["slot-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9"]},{"id":null,"rules":["egress-all"],"subjects":["fusion","recorder","bridge","slot-1aef1b86-9b67-47a8-b565-2e40f235d2ba","slot-86ca6000-1c36-4aed-875f-ac18ec0b5ab2","slot-341b9172-dc37-467a-add2-3ac5625e8682","slot-83ff6077-6265-4c97-9085-efcdbc04ebc0","slot-bb75dc13-9471-478f-af4d-ad2f96d9b8b9","slot-691f5a1e-5ba8-404e-9071-a71cf24f1f30","slot-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529","slot-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9"]}],"rules":[{"flows":["ingress"],"id":"fusion-down","key_exprs":["h1/p1/sapient/v2/*/down/**","h1/p1/fusion/up/**"],"messages":["put"],"permission":"allow"},{"flows":["ingress"],"id":"fusion-own-up","key_exprs":["h1/p1/sapient/v2/f0000001-0000-4000-8000-000000000001/up/**","h1/p1/sapient/v2/live/f0000001-0000-4000-8000-000000000001"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"read-all","key_exprs":["h1/p1/**"],"messages":["declare_subscriber","query","liveliness_query","declare_liveliness_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"bridge-r","key_exprs":["h1/p1/fusion/up/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"bridge-w","key_exprs":["h1/p1/fusion/down/**"],"messages":["put"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-1aef1b86-9b67-47a8-b565-2e40f235d2ba","key_exprs":["h1/p1/sapient/v2/1aef1b86-9b67-47a8-b565-2e40f235d2ba/up/**","h1/p1/sapient/v2/live/1aef1b86-9b67-47a8-b565-2e40f235d2ba"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-86ca6000-1c36-4aed-875f-ac18ec0b5ab2","key_exprs":["h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/**","h1/p1/sapient/v2/live/86ca6000-1c36-4aed-875f-ac18ec0b5ab2"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-341b9172-dc37-467a-add2-3ac5625e8682","key_exprs":["h1/p1/sapient/v2/341b9172-dc37-467a-add2-3ac5625e8682/up/**","h1/p1/sapient/v2/live/341b9172-dc37-467a-add2-3ac5625e8682"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-83ff6077-6265-4c97-9085-efcdbc04ebc0","key_exprs":["h1/p1/sapient/v2/83ff6077-6265-4c97-9085-efcdbc04ebc0/up/**","h1/p1/sapient/v2/live/83ff6077-6265-4c97-9085-efcdbc04ebc0"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-bb75dc13-9471-478f-af4d-ad2f96d9b8b9","key_exprs":["h1/p1/sapient/v2/bb75dc13-9471-478f-af4d-ad2f96d9b8b9/up/**","h1/p1/sapient/v2/live/bb75dc13-9471-478f-af4d-ad2f96d9b8b9"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-691f5a1e-5ba8-404e-9071-a71cf24f1f30","key_exprs":["h1/p1/sapient/v2/691f5a1e-5ba8-404e-9071-a71cf24f1f30/up/**","h1/p1/sapient/v2/live/691f5a1e-5ba8-404e-9071-a71cf24f1f30"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529","key_exprs":["h1/p1/sapient/v2/ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529/up/**","h1/p1/sapient/v2/live/ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9","key_exprs":["h1/p1/sapient/v2/d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9/up/**","h1/p1/sapient/v2/live/d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9"],"messages":["put","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-1aef1b86-9b67-47a8-b565-2e40f235d2ba","key_exprs":["h1/p1/sapient/v2/1aef1b86-9b67-47a8-b565-2e40f235d2ba/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-86ca6000-1c36-4aed-875f-ac18ec0b5ab2","key_exprs":["h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-341b9172-dc37-467a-add2-3ac5625e8682","key_exprs":["h1/p1/sapient/v2/341b9172-dc37-467a-add2-3ac5625e8682/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-83ff6077-6265-4c97-9085-efcdbc04ebc0","key_exprs":["h1/p1/sapient/v2/83ff6077-6265-4c97-9085-efcdbc04ebc0/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-bb75dc13-9471-478f-af4d-ad2f96d9b8b9","key_exprs":["h1/p1/sapient/v2/bb75dc13-9471-478f-af4d-ad2f96d9b8b9/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-691f5a1e-5ba8-404e-9071-a71cf24f1f30","key_exprs":["h1/p1/sapient/v2/691f5a1e-5ba8-404e-9071-a71cf24f1f30/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529","key_exprs":["h1/p1/sapient/v2/ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["ingress"],"id":"slot-r-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9","key_exprs":["h1/p1/sapient/v2/d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9/down/**"],"messages":["declare_subscriber"],"permission":"allow"},{"flows":["egress"],"id":"egress-all","key_exprs":["h1/p1/**"],"messages":["put","delete","query","reply","declare_subscriber","declare_queryable","liveliness_token","liveliness_query","declare_liveliness_subscriber"],"permission":"allow"}],"subjects":[{"cert_common_names":["fusion.p1.h1"],"id":"fusion","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["recorder.p1.h1"],"id":"recorder","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["podbridge.p1.h1"],"id":"bridge","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["1aef1b86-9b67-47a8-b565-2e40f235d2ba"],"id":"slot-1aef1b86-9b67-47a8-b565-2e40f235d2ba","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["86ca6000-1c36-4aed-875f-ac18ec0b5ab2"],"id":"slot-86ca6000-1c36-4aed-875f-ac18ec0b5ab2","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["341b9172-dc37-467a-add2-3ac5625e8682"],"id":"slot-341b9172-dc37-467a-add2-3ac5625e8682","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["83ff6077-6265-4c97-9085-efcdbc04ebc0"],"id":"slot-83ff6077-6265-4c97-9085-efcdbc04ebc0","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["bb75dc13-9471-478f-af4d-ad2f96d9b8b9"],"id":"slot-bb75dc13-9471-478f-af4d-ad2f96d9b8b9","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["691f5a1e-5ba8-404e-9071-a71cf24f1f30"],"id":"slot-691f5a1e-5ba8-404e-9071-a71cf24f1f30","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529"],"id":"slot-ac1f11e3-5b83-4aa3-a5cf-7aa53bf72529","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9"],"id":"slot-d80c8b41-af6d-4b3d-98a0-ab5f4a96dda9","interfaces":null,"link_protocols":null,"usernames":null,"zids":null}]},"adminspace":{"enabled":true,"permissions":{"read":true,"write":false}},"aggregation":{"publishers":[],"subscribers":[]},"connect":{"endpoints":[],"exit_on_failure":null,"retry":null,"timeout_ms":null},"downsampling":[],"gateway":{"south":null},"id":null,"listen":{"endpoints":["tls/0.0.0.0:7447"],"exit_on_failure":null,"retry":null,"timeout_ms":null},"low_pass_filter":[],"metadata":null,"mode":"router","namespace":null,"open":{"return_conditions":{"connect_scouted":null,"declares":null}},"plugins":{},"plugins_loading":{"enabled":true,"search_dirs":[{"kind":"current_exe_parent","value":null},".","~/.zenoh/lib","/opt/homebrew/lib","/usr/local/lib","/usr/lib"]},"qos":{"network":[],"publication":[]},"queries_default_timeout":null,"region_name":null,"routing":{"interests":{"timeout":null},"router":{"linkstate":{"transport_weights":[]}}},"scouting":{"delay":null,"gossip":{"autoconnect":null,"autoconnect_strategy":null,"enabled":false,"multihop":null,"target":null},"multicast":{"address":null,"autoconnect":null,"autoconnect_strategy":null,"enabled":false,"interface":null,"listen":null,"ttl":null},"timeout":null},"stats":{"filters":[]},"timestamping":{"drop_future_timestamp":null,"enabled":null},"transport":{"auth":{"pubkey":{"key_size":null,"known_keys_file":null,"private_key_file":null,"private_key_pem":null,"public_key_file":null,"public_key_pem":null},"usrpwd":{"dictionary_file":null,"password":null,"user":null}},"link":{"protocols":null,"rx":{"buffer_size":65535,"max_message_size":1073741824},"tcp":{"so_rcvbuf":null,"so_sndbuf":null},"tls":{"close_link_on_expiration":true,"connect_certificate":null,"connect_private_key":null,"enable_mtls":true,"listen_certificate":"/certs/router.pem","listen_private_key":"/certs/router.key","root_ca_certificate":"/certs/ca.pem","so_rcvbuf":null,"so_sndbuf":null,"verify_name_on_connect":null},"tx":{"batch_size":65535,"keep_alive":4,"lease":5000,"queue":{"allocation":{"mode":"lazy"},"batching":{"enabled":true,"time_limit":1},"congestion_control":{"block":{"wait_before_close":5000000},"drop":{"max_wait_before_drop_fragments":50000,"wait_before_drop":1000}},"size":{"background":2,"control":2,"data":2,"data_high":2,"data_low":2,"interactive_high":2,"interactive_low":2,"real_time":2}},"sequence_number_resolution":"32bit","threads":1},"unixpipe":{"file_access_mask":null}},"multicast":{"compression":{"enabled":false},"join_interval":2500,"max_sessions":1000,"qos":{"enabled":false}},"shared_memory":{"enabled":true,"mode":"lazy","transport_optimization":{"enabled":true,"message_size_threshold":3072,"messages":["put","query","reply"],"pool_size":16777216}},"unicast":{"accept_pending":100,"accept_timeout":10000,"compression":{"enabled":false},"lowlatency":false,"max_links":1,"max_sessions":1000,"open_timeout":10000,"qos":{"enabled":true}}}}
+zenohd-pod-1  | 2026-11-12T01:28:48.539032155Z 2026-11-12T01:28:48.538944Z  INFO main ThreadId(01) zenoh::net::runtime: Using ZID: 244dd436aab24787789570454a77cdc4
+zenohd-pod-1  | 2026-11-12T01:28:48.540140491Z 2026-11-12T01:28:48.540091Z  INFO main ThreadId(01) zenoh::net::runtime::orchestrator: Zenoh can be reached at: tls/172.22.0.2:7447
+vehicle-1     | 2026-11-12T01:28:49.131587876Z 01:28:49 vehicle: connected to Apex at bridge-node:5020
+vehicle-1     | 2026-11-12T01:28:49.131796876Z 01:28:49 vehicle: -> registration 341b9172 "Fake vehicle (mobile platform)" [MOBILE_NODE] carries ['86ca6000']
+vehicle-1     | 2026-11-12T01:28:49.134284299Z 01:28:49 vehicle: <- registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+vehicle-1     | 2026-11-12T01:28:49.135134009Z 01:28:49 vehicle: -> status_report 341b9172 SYSTEM_OK INFO_NEW mode=Default
+zenohd-fabric-1  | 2026-11-12T01:37:12.545297608Z #!/bin/ash
+zenohd-fabric-1  | 2026-11-12T01:37:12.545305816Z cat /entrypoint.sh
+zenohd-fabric-1  | 2026-11-12T01:37:12.545307108Z echo " * Starting: /$BINARY $@"
+zenohd-fabric-1  | 2026-11-12T01:37:12.545307941Z exec /$BINARY $@
+zenohd-fabric-1  | 2026-11-12T01:37:12.545308566Z  * Starting: /zenohd -c /config/router.json5
+zenohd-fabric-1  | 2026-11-12T01:37:12.545569067Z 2026-11-12T01:37:12.545533Z  INFO main ThreadId(01) zenohd: zenohd v1.9.0 built with rustc 1.93.0 (254b59607 2026-01-19)
+zenohd-fabric-1  | 2026-11-12T01:37:12.546857945Z 2026-11-12T01:37:12.546638Z  INFO main ThreadId(01) zenohd: Initial conf: {"access_control":{"default_permission":"deny","enabled":true,"policies":[{"id":null,"rules":["peer-r-scoped","peer-deliver-scoped"],"subjects":["mtls-peer"]},{"id":null,"rules":["slot-w-18214b1a34e3c722d1cac283b272a62c"],"subjects":["slot-18214b1a34e3c722d1cac283b272a62c"]},{"id":null,"rules":["slot-w-b005ae3a8f2baf89160bd71632902672"],"subjects":["slot-b005ae3a8f2baf89160bd71632902672"]},{"id":null,"rules":["slot-w-1ab0be0bcfdc3997544545af2235dd6d"],"subjects":["slot-1ab0be0bcfdc3997544545af2235dd6d"]},{"id":null,"rules":["slot-w-ad19ee14f48bda3901a8bea949babb5a"],"subjects":["slot-ad19ee14f48bda3901a8bea949babb5a"]},{"id":null,"rules":["slot-w-152d4cc0860183a145076b78647a0456"],"subjects":["slot-152d4cc0860183a145076b78647a0456"]},{"id":null,"rules":["slot-w-606e6f8e6e28b967ee07ffbe967f0209"],"subjects":["slot-606e6f8e6e28b967ee07ffbe967f0209"]},{"id":null,"rules":["slot-w-5a4b7a481650fcd7032b6dd7bd0d1d53"],"subjects":["slot-5a4b7a481650fcd7032b6dd7bd0d1d53"]},{"id":null,"rules":["slot-w-7968d144209dc0dcd96f19625994c09f"],"subjects":["slot-7968d144209dc0dcd96f19625994c09f"]}],"rules":[{"flows":["egress","ingress"],"id":"peer-r-scoped","key_exprs":["*/**","**/@adv/**"],"messages":["declare_subscriber","query","declare_queryable","reply","declare_liveliness_subscriber","liveliness_query"],"permission":"allow"},{"flows":["egress"],"id":"peer-deliver-scoped","key_exprs":["*/**","**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-18214b1a34e3c722d1cac283b272a62c","key_exprs":["18214b1a34e3c722d1cac283b272a62c/**","volatile/18214b1a34e3c722d1cac283b272a62c/**","18214b1a34e3c722d1cac283b272a62c/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-b005ae3a8f2baf89160bd71632902672","key_exprs":["b005ae3a8f2baf89160bd71632902672/**","volatile/b005ae3a8f2baf89160bd71632902672/**","b005ae3a8f2baf89160bd71632902672/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-1ab0be0bcfdc3997544545af2235dd6d","key_exprs":["1ab0be0bcfdc3997544545af2235dd6d/**","volatile/1ab0be0bcfdc3997544545af2235dd6d/**","1ab0be0bcfdc3997544545af2235dd6d/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-ad19ee14f48bda3901a8bea949babb5a","key_exprs":["ad19ee14f48bda3901a8bea949babb5a/**","volatile/ad19ee14f48bda3901a8bea949babb5a/**","ad19ee14f48bda3901a8bea949babb5a/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-152d4cc0860183a145076b78647a0456","key_exprs":["152d4cc0860183a145076b78647a0456/**","volatile/152d4cc0860183a145076b78647a0456/**","152d4cc0860183a145076b78647a0456/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-606e6f8e6e28b967ee07ffbe967f0209","key_exprs":["606e6f8e6e28b967ee07ffbe967f0209/**","volatile/606e6f8e6e28b967ee07ffbe967f0209/**","606e6f8e6e28b967ee07ffbe967f0209/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-5a4b7a481650fcd7032b6dd7bd0d1d53","key_exprs":["5a4b7a481650fcd7032b6dd7bd0d1d53/**","volatile/5a4b7a481650fcd7032b6dd7bd0d1d53/**","5a4b7a481650fcd7032b6dd7bd0d1d53/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"},{"flows":["ingress"],"id":"slot-w-7968d144209dc0dcd96f19625994c09f","key_exprs":["7968d144209dc0dcd96f19625994c09f/**","volatile/7968d144209dc0dcd96f19625994c09f/**","7968d144209dc0dcd96f19625994c09f/**/@adv/**"],"messages":["put","delete","liveliness_token"],"permission":"allow"}],"subjects":[{"cert_common_names":null,"id":"mtls-peer","interfaces":null,"link_protocols":["tls"],"usernames":null,"zids":null},{"cert_common_names":["18214b1a34e3c722d1cac283b272a62c"],"id":"slot-18214b1a34e3c722d1cac283b272a62c","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["b005ae3a8f2baf89160bd71632902672"],"id":"slot-b005ae3a8f2baf89160bd71632902672","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["1ab0be0bcfdc3997544545af2235dd6d"],"id":"slot-1ab0be0bcfdc3997544545af2235dd6d","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["ad19ee14f48bda3901a8bea949babb5a"],"id":"slot-ad19ee14f48bda3901a8bea949babb5a","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["152d4cc0860183a145076b78647a0456"],"id":"slot-152d4cc0860183a145076b78647a0456","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["606e6f8e6e28b967ee07ffbe967f0209"],"id":"slot-606e6f8e6e28b967ee07ffbe967f0209","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["5a4b7a481650fcd7032b6dd7bd0d1d53"],"id":"slot-5a4b7a481650fcd7032b6dd7bd0d1d53","interfaces":null,"link_protocols":null,"usernames":null,"zids":null},{"cert_common_names":["7968d144209dc0dcd96f19625994c09f"],"id":"slot-7968d144209dc0dcd96f19625994c09f","interfaces":null,"link_protocols":null,"usernames":null,"zids":null}]},"adminspace":{"enabled":true,"permissions":{"read":true,"write":false}},"aggregation":{"publishers":[],"subscribers":[]},"connect":{"endpoints":[],"exit_on_failure":null,"retry":null,"timeout_ms":null},"downsampling":[],"gateway":{"south":null},"id":null,"listen":{"endpoints":["tls/0.0.0.0:7447"],"exit_on_failure":null,"retry":null,"timeout_ms":null},"low_pass_filter":[],"metadata":null,"mode":"router","namespace":null,"open":{"return_conditions":{"connect_scouted":null,"declares":null}},"plugins":{},"plugins_loading":{"enabled":true,"search_dirs":[{"kind":"current_exe_parent","value":null},".","~/.zenoh/lib","/opt/homebrew/lib","/usr/local/lib","/usr/lib"]},"qos":{"network":[],"publication":[]},"queries_default_timeout":null,"region_name":null,"routing":{"interests":{"timeout":null},"router":{"linkstate":{"transport_weights":[]}}},"scouting":{"delay":null,"gossip":{"autoconnect":null,"autoconnect_strategy":null,"enabled":false,"multihop":null,"target":null},"multicast":{"address":null,"autoconnect":null,"autoconnect_strategy":null,"enabled":false,"interface":null,"listen":null,"ttl":null},"timeout":null},"stats":{"filters":[]},"timestamping":{"drop_future_timestamp":null,"enabled":null},"transport":{"auth":{"pubkey":{"key_size":null,"known_keys_file":null,"private_key_file":null,"private_key_pem":null,"public_key_file":null,"public_key_pem":null},"usrpwd":{"dictionary_file":null,"password":null,"user":null}},"link":{"protocols":null,"rx":{"buffer_size":65535,"max_message_size":1073741824},"tcp":{"so_rcvbuf":null,"so_sndbuf":null},"tls":{"close_link_on_expiration":null,"connect_certificate":null,"connect_private_key":null,"enable_mtls":true,"listen_certificate":"/certs/router.pem","listen_private_key":"/certs/router.key","root_ca_certificate":"/certs/ca.pem","so_rcvbuf":null,"so_sndbuf":null,"verify_name_on_connect":null},"tx":{"batch_size":65535,"keep_alive":4,"lease":10000,"queue":{"allocation":{"mode":"lazy"},"batching":{"enabled":true,"time_limit":1},"congestion_control":{"block":{"wait_before_close":5000000},"drop":{"max_wait_before_drop_fragments":50000,"wait_before_drop":1000}},"size":{"background":2,"control":2,"data":2,"data_high":2,"data_low":2,"interactive_high":2,"interactive_low":2,"real_time":2}},"sequence_number_resolution":"32bit","threads":1},"unixpipe":{"file_access_mask":null}},"multicast":{"compression":{"enabled":false},"join_interval":2500,"max_sessions":1000,"qos":{"enabled":false}},"shared_memory":{"enabled":true,"mode":"lazy","transport_optimization":{"enabled":true,"message_size_threshold":3072,"pool_size":16777216}},"unicast":{"accept_pending":100,"accept_timeout":10000,"compression":{"enabled":false},"lowlatency":false,"max_links":1,"max_sessions":1000,"open_timeout":10000,"qos":{"enabled":true}}}}
+zenohd-fabric-1  | 2026-11-12T01:37:12.546890529Z 2026-11-12T01:37:12.546809Z  INFO main ThreadId(01) zenoh::net::runtime: Using ZID: 7d7cb31d8c742071c6efa0de446049a
+zenohd-fabric-1  | 2026-11-12T01:37:12.547782656Z 2026-11-12T01:37:12.547749Z  INFO main ThreadId(01) zenoh::net::runtime::orchestrator: Zenoh can be reached at: tls/172.21.0.2:7447
+zenohd-fabric-1  | 2026-11-12T01:37:12.547786406Z 2026-11-12T01:37:12.547755Z  INFO main ThreadId(01) zenoh::net::runtime::orchestrator: Zenoh can be reached at: tls/172.20.0.2:7447
+fusion-node-1    | 2026-11-12T01:28:48.702354348Z 01:28:48 fusion: connected to Zenoh router at tls/router.p1.h1:7447
+fusion-node-1    | 2026-11-12T01:28:48.702416765Z 01:28:48 fusion: joined Zenoh as fusion node f0000001-0000-4000-8000-000000000001
+fusion-node-1    | 2026-11-12T01:28:48.745289234Z 01:28:48 fusion: <- registration 86ca6000 "Fake camera on vehicle" [CAMERA]
+fusion-node-1    | 2026-11-12T01:28:48.749364493Z 01:28:48 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1    | 2026-11-12T01:28:48.751907915Z 01:28:48 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:28:48.752995918Z 01:28:48 fusion: new track WMK2P3 from Fake camera on vehicle
+fusion-node-1    | 2026-11-12T01:28:48.753007001Z 01:28:48 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17375, -1.81814, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:28:48.805908951Z 01:28:48 fusion: <- registration 1aef1b86 "Fake radar" [RADAR]
+fusion-node-1    | 2026-11-12T01:28:48.806890536Z 01:28:48 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1    | 2026-11-12T01:28:48.808685415Z 01:28:48 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:28:48.810868129Z 01:28:48 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17375, -1.81813, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:28:49.133273588Z 01:28:49 fusion: <- registration 341b9172 "Fake vehicle (mobile platform)" [MOBILE_NODE] carries ['86ca6000']
+fusion-node-1    | 2026-11-12T01:28:49.133935423Z 01:28:49 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1    | 2026-11-12T01:28:49.136032344Z 01:28:49 fusion: <- status_report 341b9172 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:28:53.754759477Z 01:28:53 fusion: -> registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1    | 2026-11-12T01:28:53.757967442Z 01:28:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:28:53.764218331Z 01:28:53 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1    | 2026-11-12T01:28:53.789237969Z 01:28:53 fusion: -> up alert f0000001 ALERT_TYPE_INFORMATION "new track WMK2P3"
+fusion-node-1    | 2026-11-12T01:28:53.792020476Z 01:28:53 fusion: <- alert_ack f0000002 -> f0000001 ALERT_ACK_STATUS_ACCEPTED
+fusion-node-1    | 2026-11-12T01:28:58.819469530Z 01:28:58 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17397, -1.81646, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:28:58.861434248Z 01:28:58 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17397, -1.81645, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:03.766541470Z 01:29:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:29:08.893233121Z 01:29:08 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17465, -1.81513, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:08.919191804Z 01:29:08 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17465, -1.81513, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:09.102978128Z 01:29:09 fusion: <- task f0000002 -> f0000001 GQ90FM request "Status"
+fusion-node-1    | 2026-11-12T01:29:09.104406381Z 01:29:09 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:29:09.105380508Z 01:29:09 fusion: -> up task_ack f0000001 -> f0000002 GQ90FM TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:29:13.774791833Z 01:29:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:29:18.961852287Z 01:29:18 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17564, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:18.962333996Z 01:29:18 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17564, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+pod-bridge-1     | 2026-11-12T01:28:49.031958407Z 01:28:49 pod-bridge: connected to Zenoh router at tls/router.p1.h1:7447
+pod-bridge-1     | 2026-11-12T01:28:49.034360620Z 01:28:49 pod-bridge: connected to Zenoh router at tls/router.fabric.h1:7447
+pod-bridge-1     | 2026-11-12T01:28:49.034457787Z 01:28:49 pod-bridge: bridging tls/router.p1.h1:7447 and tls/router.fabric.h1:7447 as 18214b1a34e3c722d1cac283b272a62c site p1
+camera-1         | 2026-11-12T01:28:48.742884312Z 01:28:48 camera: connected to Zenoh router at tls/router.p1.h1:7447
+camera-1         | 2026-11-12T01:28:48.743319438Z 01:28:48 camera: joined Zenoh as node 86ca6000-1c36-4aed-875f-ac18ec0b5ab2
+camera-1         | 2026-11-12T01:28:48.744203024Z 01:28:48 camera: -> registration 86ca6000 "Fake camera on vehicle" [CAMERA]
+camera-1         | 2026-11-12T01:28:48.749740661Z 01:28:48 camera: <- registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+pod-bridge-1     | 2026-11-12T01:29:19.056119497Z 01:29:19 pod-bridge: forwarded {'up': 33, 'down': 3}; dropped {}
+pod-bridge-1     | 2026-11-12T01:29:49.076487539Z 01:29:49 pod-bridge: forwarded {'up': 66, 'down': 4}; dropped {}
+pod-bridge-1     | 2026-11-12T01:29:59.114766880Z 01:29:59 pod-bridge: fabric router lost
+pod-bridge-1     | 2026-11-12T01:30:19.099566420Z 01:30:19 pod-bridge: forwarded {'up': 78, 'down': 5}; dropped {'other_side_down': 22}
+pod-bridge-1     | 2026-11-12T01:30:29.109451967Z 01:30:29 pod-bridge: no traffic from f0000001-0000-4000-8000-000000000001 for 30 s; token removed
+pod-bridge-1     | 2026-11-12T01:30:30.161635451Z 01:30:30 pod-bridge: fabric router back
+pod-bridge-1     | 2026-11-12T01:30:49.123427847Z 01:30:49 pod-bridge: forwarded {'up': 101, 'down': 7}; dropped {'other_side_down': 34}
+fusion-node-1    | 2026-11-12T01:29:23.779024480Z 01:29:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:29:29.029487535Z 01:29:29 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17671, -1.81460, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:29.029932411Z 01:29:29 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17671, -1.81460, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:29.110138299Z 01:29:29 fusion: <- task f0000002 -> f0000001 X9VENW look_at {"location_list": {"locations": [{"x": -1.8145989378400653, "y": 51.17671307233625, "z": 120.0, "x_error": 0.0001434506597615179, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:29:29.110572550Z 01:29:29 fusion: -> task f0000001 -> 86ca6000 P4N4F9 look_at {"location_list": {"locations": [{"x": -1.8145989378400653, "y": 51.17671307233625, "z": 120.0, "x_error": 0.0001434506597615179, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:29:29.111167343Z 01:29:29 fusion: -> task f0000001 -> 1aef1b86 VHNVN2 look_at {"location_list": {"locations": [{"x": -1.8145989378400653, "y": 51.17671307233625, "z": 120.0, "x_error": 0.0001434506597615179, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:29:29.113381723Z 01:29:29 fusion: -> up task_ack f0000001 -> f0000002 X9VENW TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:29:29.113791599Z 01:29:29 fusion: <- task_ack 86ca6000 -> f0000001 P4N4F9 TASK_STATUS_ACCEPTED ['Pointing at (51.17671, -1.81460)']
+fusion-node-1    | 2026-11-12T01:29:29.114039974Z 01:29:29 fusion: <- task_ack 1aef1b86 -> f0000001 VHNVN2 TASK_STATUS_ACCEPTED ['Pointing at (51.17671, -1.81460)']
+fusion-node-1    | 2026-11-12T01:29:33.787437886Z 01:29:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:29:33.791833812Z 01:29:33 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:29:33.852765865Z 01:29:33 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:29:39.094876028Z 01:29:39 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17762, -1.81552, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+pod-bridge-1     | 2026-11-12T01:31:19.145190941Z 01:31:19 pod-bridge: forwarded {'up': 138, 'down': 10}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:31:49.159523487Z 01:31:49 pod-bridge: forwarded {'up': 174, 'down': 12}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:32:19.173784968Z 01:32:19 pod-bridge: forwarded {'up': 208, 'down': 13}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:32:49.181398879Z 01:32:49 pod-bridge: forwarded {'up': 244, 'down': 15}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:33:19.186634948Z 01:33:19 pod-bridge: forwarded {'up': 279, 'down': 16}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:33:49.190205067Z 01:33:49 pod-bridge: forwarded {'up': 313, 'down': 18}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:34:19.199137057Z 01:34:19 pod-bridge: forwarded {'up': 348, 'down': 20}; dropped {'other_side_down': 34}
+host-recorder-1  | 2026-11-12T01:28:48.975473782Z 01:28:48 recorder: connected to Zenoh router at tls/router.fabric.h1:7447
+fusion-node-1    | 2026-11-12T01:29:39.095638447Z 01:29:39 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17762, -1.81552, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:43.790558485Z 01:29:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:29:49.112620912Z 01:29:49 fusion: <- task f0000002 -> f0000001 JSKTSP request "Status"
+host-fusion-1    | 2026-11-12T01:28:49.091170370Z 01:28:49 fusion: connected to Zenoh router at tls/router.fabric.h1:7447
+host-fusion-1    | 2026-11-12T01:28:49.091405538Z 01:28:49 fusion: joined the fabric as fusion node f0000002-0000-4000-8000-000000000002 below anchor b005ae3a8f2baf89160bd71632902672, site h1
+host-fusion-1    | 2026-11-12T01:28:53.757757608Z 01:28:53 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+host-fusion-1    | 2026-11-12T01:28:53.763308662Z 01:28:53 fusion: -> registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+host-fusion-1    | 2026-11-12T01:28:53.763655830Z 01:28:53 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:29:49.113600872Z 01:29:49 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:29:49.114465082Z 01:29:49 fusion: -> up task_ack f0000001 -> f0000002 JSKTSP TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:29:49.151138457Z 01:29:49 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17816, -1.81700, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:49.151150332Z 01:29:49 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17816, -1.81700, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:53.799871720Z 01:29:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:29:59.199597572Z 01:29:59 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17820, -1.81871, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:29:59.200257532Z 01:29:59 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17820, -1.81871, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:03.807939989Z 01:30:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:30:09.258429872Z 01:30:09 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17774, -1.82026, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+pod-bridge-1     | 2026-11-12T01:34:49.208420591Z 01:34:49 pod-bridge: forwarded {'up': 384, 'down': 22}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:35:19.218292396Z 01:35:19 pod-bridge: forwarded {'up': 419, 'down': 23}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:35:49.224123687Z 01:35:49 pod-bridge: forwarded {'up': 455, 'down': 25}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:36:19.234273672Z 01:36:19 pod-bridge: forwarded {'up': 489, 'down': 26}; dropped {'other_side_down': 34}
+pod-bridge-1     | 2026-11-12T01:36:37.541600326Z 01:36:37 pod-bridge: fabric router lost
+pod-bridge-1     | 2026-11-12T01:36:38.555830250Z 01:36:38 pod-bridge: fabric router back
+pod-bridge-1     | 2026-11-12T01:36:49.251316421Z 01:36:49 pod-bridge: forwarded {'up': 524, 'down': 28}; dropped {'other_side_down': 35}
+pod-bridge-1     | 2026-11-12T01:37:12.367127499Z 01:37:12 pod-bridge: fabric router lost
+host-fusion-1    | 2026-11-12T01:28:53.790296638Z 01:28:53 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track WMK2P3"
+host-fusion-1    | 2026-11-12T01:28:53.791276307Z 01:28:53 fusion: -> alert_ack f0000002 -> f0000001 ALERT_ACK_STATUS_ACCEPTED
+host-fusion-1    | 2026-11-12T01:28:53.791650475Z 01:28:53 fusion: new track M1QVSG from fake fusion node
+host-fusion-1    | 2026-11-12T01:28:53.791753683Z 01:28:53 fusion: <- detection_report f0000001 object WMK2P3 at (51.17380, -1.81728, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:28:58.769063544Z 01:28:58 fusion: -> registration f0000002 "fake fusion node" [FUSION_NODE]
+host-fusion-1    | 2026-11-12T01:28:58.770644297Z 01:28:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:29:03.854628040Z 01:29:03 fusion: <- detection_report f0000001 object WMK2P3 at (51.17426, -1.81573, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+radar-1          | 2026-11-12T01:28:48.802543194Z 01:28:48 radar: connected to Zenoh router at tls/router.p1.h1:7447
+radar-1          | 2026-11-12T01:28:48.802905528Z 01:28:48 radar: joined Zenoh as node 1aef1b86-9b67-47a8-b565-2e40f235d2ba
+radar-1          | 2026-11-12T01:28:48.803392612Z 01:28:48 radar: -> registration 1aef1b86 "Fake radar" [RADAR]
+radar-1          | 2026-11-12T01:28:48.807256787Z 01:28:48 radar: <- registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+radar-1          | 2026-11-12T01:28:48.808459457Z 01:28:48 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:28:48.808505290Z 01:28:48 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17375, -1.81813, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:28:58.860815121Z 01:28:58 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17397, -1.81645, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:29:08.918308843Z 01:29:08 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17465, -1.81513, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:29:18.960144783Z 01:29:18 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17564, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:29:29.026796321Z 01:29:29 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17671, -1.81460, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:30:09.258665706Z 01:30:09 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17774, -1.82026, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:13.816648752Z 01:30:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:30:19.313404448Z 01:30:19 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17689, -1.82130, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+recorder-1       | 2026-11-12T01:28:48.853852556Z 01:28:48 recorder: connected to Zenoh router at tls/router.p1.h1:7447
+radar-1          | 2026-11-12T01:29:29.111838969Z 01:29:29 radar: <- task f0000001 -> 1aef1b86 VHNVN2 look_at {"location_list": {"locations": [{"x": -1.8145989378400653, "y": 51.17671307233625, "z": 120.0, "x_error": 0.0001434506597615179, "y_error": 8.99
+radar-1          | 2026-11-12T01:29:29.113059139Z 01:29:29 radar: -> task_ack 1aef1b86 -> f0000001 VHNVN2 TASK_STATUS_ACCEPTED ['Pointing at (51.17671, -1.81460)']
+radar-1          | 2026-11-12T01:29:33.851533487Z 01:29:33 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:29:39.091791146Z 01:29:39 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17762, -1.81552, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:29:49.147112364Z 01:29:49 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17816, -1.81700, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:29:59.195911605Z 01:29:59 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17820, -1.81871, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:09.255256073Z 01:30:09 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17774, -1.82026, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:19.311221193Z 01:30:19 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17689, -1.82130, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:29.361519542Z 01:30:29 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17583, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:39.418501646Z 01:30:39 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17481, -1.82104, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+bridge-node-1    | 2026-11-12T01:28:48.908803261Z 01:28:48 bridge-node-side: connected to Zenoh router at tls/router.p1.h1:7447
+bridge-node-1    | 2026-11-12T01:28:48.908989469Z 01:28:48 bridge-node-side: listening for SAPIENT nodes on port 5020
+bridge-node-1    | 2026-11-12T01:28:49.132182294Z 01:28:49 bridge-node-side: node 341b9172-dc37-467a-add2-3ac5625e8682 registered
+host-fusion-1    | 2026-11-12T01:29:08.773592564Z 01:29:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:29:09.097408324Z 01:29:09 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:29:09.099722121Z 01:29:09 fusion: -> task f0000002 -> f0000001 GQ90FM request "Status"
+host-fusion-1    | 2026-11-12T01:29:09.105559800Z 01:29:09 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:29:09.106380719Z 01:29:09 fusion: <- task_ack f0000001 -> f0000002 GQ90FM TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:29:13.932102933Z 01:29:13 fusion: <- detection_report f0000001 object WMK2P3 at (51.17512, -1.81470, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:29:18.777223376Z 01:29:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:29:24.000638058Z 01:29:24 fusion: <- detection_report f0000001 object WMK2P3 at (51.17618, -1.81443, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:29:28.784932697Z 01:29:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:29:29.100906653Z 01:29:29 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:29:29.108164628Z 01:29:29 fusion: -> task f0000002 -> f0000001 X9VENW look_at {"location_list": {"locations": [{"x": -1.8145989378400653, "y": 51.17671307233625, "z": 120.0, "x_error": 0.0001434506597615179, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:29:29.114875059Z 01:29:29 fusion: <- task_ack f0000001 -> f0000002 X9VENW TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+camera-1         | 2026-11-12T01:28:48.751882832Z 01:28:48 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:28:48.751964207Z 01:28:48 camera: -> detection_report 86ca6000 object MX0RZY at (51.17375, -1.81814, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:28:58.816540648Z 01:28:58 camera: -> detection_report 86ca6000 object MX0RZY at (51.17397, -1.81646, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:29:08.889768697Z 01:29:08 camera: -> detection_report 86ca6000 object MX0RZY at (51.17465, -1.81513, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:29:18.958681738Z 01:29:18 camera: -> detection_report 86ca6000 object MX0RZY at (51.17564, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:29:29.026796238Z 01:29:29 camera: -> detection_report 86ca6000 object MX0RZY at (51.17671, -1.81460, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:29:29.111305343Z 01:29:29 camera: <- task f0000001 -> 86ca6000 P4N4F9 look_at {"location_list": {"locations": [{"x": -1.8145989378400653, "y": 51.17671307233625, "z": 120.0, "x_error": 0.0001434506597615179, "y_error": 8.99
+camera-1         | 2026-11-12T01:29:29.112889888Z 01:29:29 camera: -> task_ack 86ca6000 -> f0000001 P4N4F9 TASK_STATUS_ACCEPTED ['Pointing at (51.17671, -1.81460)']
+camera-1         | 2026-11-12T01:29:33.790652893Z 01:29:33 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:29:39.091783771Z 01:29:39 camera: -> detection_report 86ca6000 object MX0RZY at (51.17762, -1.81552, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:49.129822903Z 01:30:49 radar: <- task f0000001 -> 1aef1b86 HEQSD6 look_at {"location_list": {"locations": [{"x": -1.8199548351405936, "y": 51.1741150835779, "z": 120.0, "x_error": 0.0001434425770669392, "y_error": 8.993
+radar-1          | 2026-11-12T01:30:49.130979573Z 01:30:49 radar: -> task_ack 1aef1b86 -> f0000001 HEQSD6 TASK_STATUS_ACCEPTED ['Pointing at (51.17412, -1.81995)']
+radar-1          | 2026-11-12T01:30:49.472082481Z 01:30:49 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17406, -1.81981, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:53.951472062Z 01:30:53 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:30:19.313814074Z 01:30:19 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17689, -1.82130, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:23.824473838Z 01:30:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:30:29.363428963Z 01:30:29 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17583, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:29.363696422Z 01:30:29 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17583, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:33.372754990Z 01:30:33 fusion: <- task f0000002 -> f0000001 R5NRPQ request "Registration"
+host-fusion-1    | 2026-11-12T01:29:34.063097669Z 01:29:34 fusion: <- detection_report f0000001 object WMK2P3 at (51.17720, -1.81497, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:29:38.787914381Z 01:29:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:29:44.117703637Z 01:29:44 fusion: <- detection_report f0000001 object WMK2P3 at (51.17795, -1.81621, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:29:48.795752865Z 01:29:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:29:49.110224573Z 01:29:49 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:29:49.111397534Z 01:29:49 fusion: -> task f0000002 -> f0000001 JSKTSP request "Status"
+host-fusion-1    | 2026-11-12T01:29:58.806898435Z 01:29:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:30:08.824336763Z 01:30:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:30:09.114222379Z 01:30:09 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:30:09.117209135Z 01:30:09 fusion: -> task f0000002 -> f0000001 CK3R81 look_at {"location_list": {"locations": [{"x": -1.8168364441240492, "y": 51.178126675082844, "z": 120.0, "x_error": 0.00014345505817751894, "y_error": 8.
+host-fusion-1    | 2026-11-12T01:30:18.171153226Z 01:30:18 fusion: node f0000001 gone for 20 s; removed
+host-fusion-1    | 2026-11-12T01:30:18.827688260Z 01:30:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:30:28.833913297Z 01:30:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:30:30.369609258Z 01:30:30 fusion: new track DHV7EM from f0000001
+host-fusion-1    | 2026-11-12T01:30:33.371329862Z 01:30:33 fusion: -> task f0000002 -> f0000001 R5NRPQ request "Registration"
+fusion-node-1    | 2026-11-12T01:30:33.376198498Z 01:30:33 fusion: -> registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1    | 2026-11-12T01:30:33.377073375Z 01:30:33 fusion: -> up task_ack f0000001 -> f0000002 R5NRPQ TASK_STATUS_ACCEPTED ['Registration sent again']
+fusion-node-1    | 2026-11-12T01:30:33.382474095Z 01:30:33 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1    | 2026-11-12T01:30:33.828986615Z 01:30:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:30:39.423422074Z 01:30:39 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17481, -1.82104, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:39.423837533Z 01:30:39 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17481, -1.82104, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:43.840735523Z 01:30:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:30:49.128018149Z 01:30:49 fusion: <- task f0000002 -> f0000001 N6S3EH look_at {"location_list": {"locations": [{"x": -1.8199548351405936, "y": 51.1741150835779, "z": 120.0, "x_error": 0.0001434425770669392, "y_error": 8.993
+fusion-node-1    | 2026-11-12T01:30:49.128618567Z 01:30:49 fusion: -> task f0000001 -> 86ca6000 JKXR1W look_at {"location_list": {"locations": [{"x": -1.8199548351405936, "y": 51.1741150835779, "z": 120.0, "x_error": 0.0001434425770669392, "y_error": 8.993
+fusion-node-1    | 2026-11-12T01:30:49.129174694Z 01:30:49 fusion: -> task f0000001 -> 1aef1b86 HEQSD6 look_at {"location_list": {"locations": [{"x": -1.8199548351405936, "y": 51.1741150835779, "z": 120.0, "x_error": 0.0001434425770669392, "y_error": 8.993
+fusion-node-1    | 2026-11-12T01:30:49.130543405Z 01:30:49 fusion: -> up task_ack f0000001 -> f0000002 N6S3EH TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:30:49.131413699Z 01:30:49 fusion: <- task_ack 86ca6000 -> f0000001 JKXR1W TASK_STATUS_ACCEPTED ['Pointing at (51.17412, -1.81995)']
+fusion-node-1    | 2026-11-12T01:30:49.131793950Z 01:30:49 fusion: <- task_ack 1aef1b86 -> f0000001 HEQSD6 TASK_STATUS_ACCEPTED ['Pointing at (51.17412, -1.81995)']
+fusion-node-1    | 2026-11-12T01:30:49.473324567Z 01:30:49 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17406, -1.81981, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+camera-1         | 2026-11-12T01:29:49.147146906Z 01:29:49 camera: -> detection_report 86ca6000 object MX0RZY at (51.17816, -1.81700, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:29:59.195857105Z 01:29:59 camera: -> detection_report 86ca6000 object MX0RZY at (51.17820, -1.81871, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:30:09.255309448Z 01:30:09 camera: -> detection_report 86ca6000 object MX0RZY at (51.17774, -1.82026, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:30:59.534762907Z 01:30:59 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17375, -1.81816, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:09.582720827Z 01:31:09 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17396, -1.81648, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:19.638087666Z 01:31:19 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17464, -1.81515, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:29.140966621Z 01:31:29 radar: <- task f0000001 -> 1aef1b86 BB0AH3 look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+radar-1          | 2026-11-12T01:31:29.142641417Z 01:31:29 radar: -> task_ack 1aef1b86 -> f0000001 BB0AH3 TASK_STATUS_ACCEPTED ['Pointing at (51.17552, -1.81450)']
+camera-1         | 2026-11-12T01:30:19.311458694Z 01:30:19 camera: -> detection_report 86ca6000 object MX0RZY at (51.17689, -1.82130, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:30:29.361539792Z 01:30:29 camera: -> detection_report 86ca6000 object MX0RZY at (51.17583, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:30:39.418331020Z 01:30:39 camera: -> detection_report 86ca6000 object MX0RZY at (51.17481, -1.82104, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:29.697608039Z 01:31:29 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17562, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:34.001272374Z 01:31:34 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:31:39.756564643Z 01:31:39 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17670, -1.81459, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:49.827084713Z 01:31:49 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17761, -1.81550, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:31:59.867540900Z 01:31:59 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17815, -1.81697, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:32:09.146650570Z 01:32:09 radar: <- task f0000001 -> 1aef1b86 CYCSRM look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+radar-1          | 2026-11-12T01:32:09.147439489Z 01:32:09 radar: -> task_ack 1aef1b86 -> f0000001 CYCSRM TASK_STATUS_ACCEPTED ['Pointing at (51.17823, -1.81851)']
+radar-1          | 2026-11-12T01:32:09.901275925Z 01:32:09 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17821, -1.81868, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:32:14.032535045Z 01:32:14 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:32:19.938413185Z 01:32:19 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17776, -1.82023, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+host-fusion-1    | 2026-11-12T01:30:33.378824879Z 01:30:33 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+host-fusion-1    | 2026-11-12T01:30:33.379712714Z 01:30:33 fusion: -> registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+host-fusion-1    | 2026-11-12T01:30:33.379914756Z 01:30:33 fusion: <- task_ack f0000001 -> f0000002 R5NRPQ TASK_STATUS_ACCEPTED ['Registration sent again']
+host-fusion-1    | 2026-11-12T01:30:33.831231329Z 01:30:33 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:30:49.129213235Z 01:30:49 camera: <- task f0000001 -> 86ca6000 JKXR1W look_at {"location_list": {"locations": [{"x": -1.8199548351405936, "y": 51.1741150835779, "z": 120.0, "x_error": 0.0001434425770669392, "y_error": 8.993
+camera-1         | 2026-11-12T01:30:49.130719864Z 01:30:49 camera: -> task_ack 86ca6000 -> f0000001 JKXR1W TASK_STATUS_ACCEPTED ['Pointing at (51.17412, -1.81995)']
+fusion-node-1    | 2026-11-12T01:30:49.479079663Z 01:30:49 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17406, -1.81981, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:53.846568946Z 01:30:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:30:53.860023644Z 01:30:53 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:32:29.970763533Z 01:32:29 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17691, -1.82128, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:32:39.998760763Z 01:32:39 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17585, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:32:49.152864770Z 01:32:49 radar: <- task f0000001 -> 1aef1b86 9FP7SZ look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+radar-1          | 2026-11-12T01:32:49.153612938Z 01:32:49 radar: -> task_ack 1aef1b86 -> f0000001 9FP7SZ TASK_STATUS_ACCEPTED ['Pointing at (51.17493, -1.82115)']
+radar-1          | 2026-11-12T01:32:50.023102832Z 01:32:50 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17483, -1.82107, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:30:53.953072857Z 01:30:53 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:30:59.534800741Z 01:30:59 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17375, -1.81816, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:30:59.535604617Z 01:30:59 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17375, -1.81816, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:03.860352790Z 01:31:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:31:09.132830122Z 01:31:09 fusion: <- task f0000002 -> f0000001 V8FTXZ request "Status"
+camera-1         | 2026-11-12T01:30:49.476402491Z 01:30:49 camera: -> detection_report 86ca6000 object MX0RZY at (51.17406, -1.81981, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:30:53.858258890Z 01:30:53 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:30:59.531475441Z 01:30:59 camera: -> detection_report 86ca6000 object MX0RZY at (51.17375, -1.81816, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:31:09.134043583Z 01:31:09 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:31:09.135131752Z 01:31:09 fusion: -> up task_ack f0000001 -> f0000002 V8FTXZ TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:31:09.584618873Z 01:31:09 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17396, -1.81648, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:09.584627498Z 01:31:09 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17396, -1.81648, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:10.189689354Z 01:31:10 fusion: <- registration 83ff6077 "Fake second radar" [RADAR]
+fusion-node-1    | 2026-11-12T01:31:10.190368189Z 01:31:10 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1    | 2026-11-12T01:31:10.192038901Z 01:31:10 fusion: <- status_report 83ff6077 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:31:10.192761153Z 01:31:10 fusion: <- detection_report 83ff6077 object NCTM2D at (51.17399, -1.81639, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:13.867528729Z 01:31:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:31:15.195197507Z 01:31:15 fusion: -> registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1    | 2026-11-12T01:31:15.200690937Z 01:31:15 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node (re-registration)']
+fusion-node-1    | 2026-11-12T01:31:19.640754255Z 01:31:19 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17464, -1.81515, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:19.641222757Z 01:31:19 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17464, -1.81515, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:20.260425649Z 01:31:20 fusion: <- detection_report 83ff6077 object NCTM2D at (51.17469, -1.81508, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:23.877029573Z 01:31:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:31:29.139321242Z 01:31:29 fusion: <- task f0000002 -> f0000001 E0NX2B look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+fusion-node-1    | 2026-11-12T01:31:29.139593826Z 01:31:29 fusion: -> task f0000001 -> 86ca6000 56FRBY look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+fusion-node-1    | 2026-11-12T01:31:29.139805619Z 01:31:29 fusion: -> task f0000001 -> 1aef1b86 BB0AH3 look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+fusion-node-1    | 2026-11-12T01:31:29.140440953Z 01:31:29 fusion: -> task f0000001 -> 83ff6077 FN437R look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+radar-1          | 2026-11-12T01:32:54.053629850Z 01:32:54 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:33:00.050955632Z 01:33:00 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17408, -1.81986, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:33:10.078481527Z 01:33:10 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17376, -1.81822, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:33:20.104572222Z 01:33:20 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17395, -1.81654, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:33:29.158838437Z 01:33:29 radar: <- task f0000001 -> 1aef1b86 74B0MQ look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+host-fusion-1    | 2026-11-12T01:30:35.399501871Z 01:30:35 fusion: <- detection_report f0000001 object WMK2P3 at (51.17519, -1.82135, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:30:38.393762426Z 01:30:38 fusion: -> registration f0000002 "fake fusion node" [FUSION_NODE]
+host-fusion-1    | 2026-11-12T01:30:38.845479126Z 01:30:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:30:45.451585215Z 01:30:45 fusion: <- detection_report f0000001 object WMK2P3 at (51.17431, -1.82037, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+camera-1         | 2026-11-12T01:31:09.584105081Z 01:31:09 camera: -> detection_report 86ca6000 object MX0RZY at (51.17396, -1.81648, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:31:19.638146999Z 01:31:19 camera: -> detection_report 86ca6000 object MX0RZY at (51.17464, -1.81515, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:31:29.142154291Z 01:31:29 fusion: -> up task_ack f0000001 -> f0000002 E0NX2B TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+fusion-node-1    | 2026-11-12T01:31:29.143092668Z 01:31:29 fusion: <- task_ack 86ca6000 -> f0000001 56FRBY TASK_STATUS_ACCEPTED ['Pointing at (51.17552, -1.81450)']
+fusion-node-1    | 2026-11-12T01:31:29.143469419Z 01:31:29 fusion: <- task_ack 1aef1b86 -> f0000001 BB0AH3 TASK_STATUS_ACCEPTED ['Pointing at (51.17552, -1.81450)']
+fusion-node-1    | 2026-11-12T01:31:29.143986753Z 01:31:29 fusion: <- task_ack 83ff6077 -> f0000001 FN437R TASK_STATUS_ACCEPTED ['Pointing at (51.17552, -1.81450)']
+fusion-node-1    | 2026-11-12T01:31:29.698401958Z 01:31:29 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17562, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+radar-1          | 2026-11-12T01:33:29.159615689Z 01:33:29 radar: -> task_ack 1aef1b86 -> f0000001 74B0MQ TASK_STATUS_ACCEPTED ['Pointing at (51.17452, -1.81530)']
+radar-1          | 2026-11-12T01:33:30.129186758Z 01:33:30 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17460, -1.81519, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:33:34.079100210Z 01:33:34 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:33:40.164284495Z 01:33:40 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17558, -1.81448, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:33:50.195118480Z 01:33:50 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17665, -1.81457, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:31:29.698756792Z 01:31:29 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17562, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:30.213541612Z 01:31:30 fusion: <- status_report 83ff6077 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:31:30.322202032Z 01:31:30 fusion: <- detection_report 83ff6077 object NCTM2D at (51.17569, -1.81445, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:33.889776115Z 01:31:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:31:33.891713203Z 01:31:33 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:31:34.002053376Z 01:31:34 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:31:39.760040859Z 01:31:39 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17670, -1.81459, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:39.760455610Z 01:31:39 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17670, -1.81459, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:40.386358901Z 01:31:40 fusion: <- detection_report 83ff6077 object NCTM2D at (51.17676, -1.81462, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:43.894969703Z 01:31:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:31:49.144015493Z 01:31:49 fusion: <- task f0000002 -> f0000001 K24NKX request "Status"
+fusion-node-1    | 2026-11-12T01:31:49.145460913Z 01:31:49 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:30:48.848914675Z 01:30:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:30:49.122481762Z 01:30:49 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:30:49.126035395Z 01:30:49 fusion: -> task f0000002 -> f0000001 N6S3EH look_at {"location_list": {"locations": [{"x": -1.8199548351405936, "y": 51.1741150835779, "z": 120.0, "x_error": 0.0001434425770669392, "y_error": 8.993
+host-fusion-1    | 2026-11-12T01:30:49.132061283Z 01:30:49 fusion: <- task_ack f0000001 -> f0000002 N6S3EH TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+radar-1          | 2026-11-12T01:34:00.221358087Z 01:34:00 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17757, -1.81543, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:34:09.163588254Z 01:34:09 radar: <- task f0000001 -> 1aef1b86 191BZE look_at {"location_list": {"locations": [{"x": -1.8165638221465805, "y": 51.1780601409903, "z": 120.0, "x_error": 0.00014345485114910391, "y_error": 8.99
+radar-1          | 2026-11-12T01:34:09.164313297Z 01:34:09 radar: -> task_ack 1aef1b86 -> f0000001 191BZE TASK_STATUS_ACCEPTED ['Pointing at (51.17806, -1.81656)']
+fusion-node-1    | 2026-11-12T01:31:49.147418751Z 01:31:49 fusion: -> up task_ack f0000001 -> f0000002 K24NKX TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:31:49.829641844Z 01:31:49 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17761, -1.81550, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:49.829922011Z 01:31:49 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17761, -1.81550, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:50.464646660Z 01:31:50 fusion: <- detection_report 83ff6077 object NCTM2D at (51.17766, -1.81558, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:53.900102271Z 01:31:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:30:55.508720934Z 01:30:55 fusion: <- detection_report f0000001 object WMK2P3 at (51.17382, -1.81885, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:30:58.862492193Z 01:30:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:31:05.573501532Z 01:31:05 fusion: <- detection_report f0000001 object WMK2P3 at (51.17382, -1.81713, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:31:08.866672216Z 01:31:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:31:09.128980446Z 01:31:09 fusion: auto-task request:Status -> 1 node(s)
+radar-1          | 2026-11-12T01:34:10.249329330Z 01:34:10 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17814, -1.81689, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:34:14.103807337Z 01:34:14 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:34:20.277609413Z 01:34:20 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17822, -1.81859, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:31:59.870996742Z 01:31:59 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17815, -1.81697, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:31:59.871019408Z 01:31:59 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17815, -1.81697, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:03.903779939Z 01:32:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:32:09.145690985Z 01:32:09 fusion: <- task f0000002 -> f0000001 KA3ZBS look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:31:09.130933742Z 01:31:09 fusion: -> task f0000002 -> f0000001 V8FTXZ request "Status"
+host-fusion-1    | 2026-11-12T01:31:09.135235502Z 01:31:09 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:31:09.136331338Z 01:31:09 fusion: <- task_ack f0000001 -> f0000002 V8FTXZ TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:31:15.198617724Z 01:31:15 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+host-fusion-1    | 2026-11-12T01:31:15.199709935Z 01:31:15 fusion: -> registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node (re-registration)']
+host-fusion-1    | 2026-11-12T01:31:15.615210479Z 01:31:15 fusion: <- detection_report f0000001 object WMK2P3 at (51.17432, -1.81562, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:31:18.877181445Z 01:31:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:31:23.879344911Z 01:31:23 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:31:25.674295366Z 01:31:25 fusion: <- detection_report f0000001 object WMK2P3 at (51.17520, -1.81465, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:09.146148861Z 01:32:09 fusion: -> task f0000001 -> 86ca6000 MHC583 look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:32:09.146154402Z 01:32:09 fusion: -> task f0000001 -> 1aef1b86 CYCSRM look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+camera-1         | 2026-11-12T01:31:29.140070952Z 01:31:29 camera: <- task f0000001 -> 86ca6000 56FRBY look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+camera-1         | 2026-11-12T01:31:29.141926123Z 01:31:29 camera: -> task_ack 86ca6000 -> f0000001 56FRBY TASK_STATUS_ACCEPTED ['Pointing at (51.17552, -1.81450)']
+camera-1         | 2026-11-12T01:31:29.695740993Z 01:31:29 camera: -> detection_report 86ca6000 object MX0RZY at (51.17562, -1.81446, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:31:33.890008115Z 01:31:33 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:31:39.756681518Z 01:31:39 camera: -> detection_report 86ca6000 object MX0RZY at (51.17670, -1.81459, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:34:30.309668051Z 01:34:30 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17779, -1.82016, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:34:40.341412985Z 01:34:40 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17696, -1.82124, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:34:49.169183621Z 01:34:49 radar: <- task f0000001 -> 1aef1b86 GCBQPB look_at {"location_list": {"locations": [{"x": -1.8215803813263824, "y": 51.17612814414316, "z": 120.0, "x_error": 0.00014344883986557817, "y_error": 8.9
+host-fusion-1    | 2026-11-12T01:31:28.881358018Z 01:31:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:31:29.136422194Z 01:31:29 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:31:29.137890614Z 01:31:29 fusion: -> task f0000002 -> f0000001 E0NX2B look_at {"location_list": {"locations": [{"x": -1.8144975584691299, "y": 51.175516892258024, "z": 120.0, "x_error": 0.00014344693813365123, "y_error": 8.
+host-fusion-1    | 2026-11-12T01:31:29.143603127Z 01:31:29 fusion: <- task_ack f0000001 -> f0000002 E0NX2B TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+host-fusion-1    | 2026-11-12T01:31:35.730596480Z 01:31:35 fusion: <- detection_report f0000001 object WMK2P3 at (51.17627, -1.81444, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:31:38.892574256Z 01:31:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:31:45.801006357Z 01:31:45 fusion: <- detection_report f0000001 object WMK2P3 at (51.17728, -1.81505, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:31:48.897786001Z 01:31:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:31:49.139573441Z 01:31:49 fusion: auto-task request:Status -> 1 node(s)
+fusion-node-1    | 2026-11-12T01:32:09.146155819Z 01:32:09 fusion: -> task f0000001 -> 83ff6077 Y31FGW look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:32:09.147264530Z 01:32:09 fusion: -> up task_ack f0000001 -> f0000002 KA3ZBS TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+radar-1          | 2026-11-12T01:34:49.170178874Z 01:34:49 radar: -> task_ack 1aef1b86 -> f0000001 GCBQPB TASK_STATUS_ACCEPTED ['Pointing at (51.17613, -1.82158)']
+radar-1          | 2026-11-12T01:34:50.369424704Z 01:34:50 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17591, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:34:54.132379225Z 01:34:54 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:35:00.405136444Z 01:35:00 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17488, -1.82111, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:35:10.430751327Z 01:35:10 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17411, -1.81993, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:35:20.460383221Z 01:35:20 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17376, -1.81831, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:35:29.173315685Z 01:35:29 radar: <- task f0000001 -> 1aef1b86 MC9W57 look_at {"location_list": {"locations": [{"x": -1.816947868804065, "y": 51.17385063221791, "z": 120.0, "x_error": 0.00014344175439058698, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:31:49.141883404Z 01:31:49 fusion: -> task f0000002 -> f0000001 K24NKX request "Status"
+host-fusion-1    | 2026-11-12T01:31:49.146924499Z 01:31:49 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:31:49.148688337Z 01:31:49 fusion: <- task_ack f0000001 -> f0000002 K24NKX TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:31:55.857954642Z 01:31:55 fusion: <- detection_report f0000001 object WMK2P3 at (51.17799, -1.81633, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:31:58.904921396Z 01:31:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+radar-1          | 2026-11-12T01:35:29.174281604Z 01:35:29 radar: -> task_ack 1aef1b86 -> f0000001 MC9W57 TASK_STATUS_ACCEPTED ['Pointing at (51.17385, -1.81695)']
+radar-1          | 2026-11-12T01:35:30.488480069Z 01:35:30 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17392, -1.81662, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:35:34.155980420Z 01:35:34 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:35:40.512385531Z 01:35:40 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17456, -1.81525, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:35:50.541120794Z 01:35:50 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17552, -1.81450, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:36:00.567004840Z 01:36:00 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17659, -1.81454, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:36:09.176221019Z 01:36:09 radar: <- task f0000001 -> 1aef1b86 M9SNEF look_at {"location_list": {"locations": [{"x": -1.8151497333855027, "y": 51.177364475787535, "z": 120.0, "x_error": 0.00014345268655487873, "y_error": 8.
+radar-1          | 2026-11-12T01:36:09.177413022Z 01:36:09 radar: -> task_ack 1aef1b86 -> f0000001 M9SNEF TASK_STATUS_ACCEPTED ['Pointing at (51.17736, -1.81515)']
+radar-1          | 2026-11-12T01:36:10.595936639Z 01:36:10 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17753, -1.81537, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:36:14.177770502Z 01:36:14 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:36:20.629055528Z 01:36:20 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17812, -1.81680, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:36:30.666348172Z 01:36:30 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17823, -1.81850, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:36:40.717168094Z 01:36:40 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17783, -1.82009, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:36:49.189034184Z 01:36:49 radar: <- task f0000001 -> 1aef1b86 AYAY2H look_at {"location_list": {"locations": [{"x": -1.8210362373184736, "y": 51.177196463485856, "z": 120.0, "x_error": 0.0001434521637898502, "y_error": 8.9
+radar-1          | 2026-11-12T01:36:49.190020269Z 01:36:49 radar: -> task_ack 1aef1b86 -> f0000001 AYAY2H TASK_STATUS_ACCEPTED ['Pointing at (51.17720, -1.82104)']
+fusion-node-1    | 2026-11-12T01:32:09.147707698Z 01:32:09 fusion: <- task_ack 86ca6000 -> f0000001 MHC583 TASK_STATUS_ACCEPTED ['Pointing at (51.17823, -1.81851)']
+fusion-node-1    | 2026-11-12T01:32:09.148129407Z 01:32:09 fusion: <- task_ack 1aef1b86 -> f0000001 CYCSRM TASK_STATUS_ACCEPTED ['Pointing at (51.17823, -1.81851)']
+fusion-node-1    | 2026-11-12T01:32:09.905198601Z 01:32:09 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17821, -1.81868, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:09.905230184Z 01:32:09 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17821, -1.81868, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+radar-1          | 2026-11-12T01:36:49.200037169Z 01:36:49 radar: -> status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+radar-1          | 2026-11-12T01:36:50.772578855Z 01:36:50 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17701, -1.82121, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:37:00.835765795Z 01:37:00 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17596, -1.82159, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+radar-1          | 2026-11-12T01:37:10.899231311Z 01:37:10 radar: -> detection_report 1aef1b86 object 2R2SW6 at (51.17492, -1.82114, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:31:49.826701003Z 01:31:49 camera: -> detection_report 86ca6000 object MX0RZY at (51.17761, -1.81550, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:31:59.867703359Z 01:31:59 camera: -> detection_report 86ca6000 object MX0RZY at (51.17815, -1.81697, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+host-fusion-1    | 2026-11-12T01:32:05.891980059Z 01:32:05 fusion: <- detection_report f0000001 object WMK2P3 at (51.17825, -1.81799, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:32:08.905739880Z 01:32:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:32:09.143579980Z 01:32:09 fusion: auto-task look_at -> 1 node(s)
+fusion-node-1    | 2026-11-12T01:32:13.909300381Z 01:32:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:32:13.909826298Z 01:32:13 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:32:14.033289839Z 01:32:14 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:32:19.938966311Z 01:32:19 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17776, -1.82023, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:19.939222811Z 01:32:19 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17776, -1.82023, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:23.912207208Z 01:32:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:32:29.150183431Z 01:32:29 fusion: <- task f0000002 -> f0000001 832967 request "Status"
+fusion-node-1    | 2026-11-12T01:32:29.150966183Z 01:32:29 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:32:29.151525684Z 01:32:29 fusion: -> up task_ack f0000001 -> f0000002 832967 TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:32:29.972094453Z 01:32:29 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17691, -1.82128, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:29.972159412Z 01:32:29 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17691, -1.82128, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:33.914832802Z 01:32:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:32:40.000386475Z 01:32:40 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17585, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:40.000711851Z 01:32:40 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17585, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:43.918563080Z 01:32:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+camera-1         | 2026-11-12T01:32:09.146373403Z 01:32:09 camera: <- task f0000001 -> 86ca6000 MHC583 look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+camera-1         | 2026-11-12T01:32:09.147448530Z 01:32:09 camera: -> task_ack 86ca6000 -> f0000001 MHC583 TASK_STATUS_ACCEPTED ['Pointing at (51.17823, -1.81851)']
+camera-1         | 2026-11-12T01:32:09.901292675Z 01:32:09 camera: -> detection_report 86ca6000 object MX0RZY at (51.17821, -1.81868, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:32:13.908877838Z 01:32:13 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:32:19.937607099Z 01:32:19 camera: -> detection_report 86ca6000 object MX0RZY at (51.17776, -1.82023, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:32:29.970396033Z 01:32:29 camera: -> detection_report 86ca6000 object MX0RZY at (51.17691, -1.82128, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:32:39.998790805Z 01:32:39 camera: -> detection_report 86ca6000 object MX0RZY at (51.17585, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:32:49.155129775Z 01:32:49 camera: <- task f0000001 -> 86ca6000 ZAZ2EY look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+camera-1         | 2026-11-12T01:32:49.155993319Z 01:32:49 camera: -> task_ack 86ca6000 -> f0000001 ZAZ2EY TASK_STATUS_ACCEPTED ['Pointing at (51.17493, -1.82115)']
+camera-1         | 2026-11-12T01:32:50.022728457Z 01:32:50 camera: -> detection_report 86ca6000 object MX0RZY at (51.17483, -1.82107, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:32:53.927991635Z 01:32:53 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:33:00.050418714Z 01:33:00 camera: -> detection_report 86ca6000 object MX0RZY at (51.17408, -1.81986, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:33:10.076871607Z 01:33:10 camera: -> detection_report 86ca6000 object MX0RZY at (51.17376, -1.81822, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:33:20.104530972Z 01:33:20 camera: -> detection_report 86ca6000 object MX0RZY at (51.17395, -1.81654, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:33:29.158309978Z 01:33:29 camera: <- task f0000001 -> 86ca6000 R31EMC look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+camera-1         | 2026-11-12T01:33:29.159775939Z 01:33:29 camera: -> task_ack 86ca6000 -> f0000001 R31EMC TASK_STATUS_ACCEPTED ['Pointing at (51.17452, -1.81530)']
+camera-1         | 2026-11-12T01:33:30.131303388Z 01:33:30 camera: -> detection_report 86ca6000 object MX0RZY at (51.17460, -1.81519, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+host-fusion-1    | 2026-11-12T01:32:09.144584440Z 01:32:09 fusion: -> task f0000002 -> f0000001 KA3ZBS look_at {"location_list": {"locations": [{"x": -1.8185089215752472, "y": 51.17822554998584, "z": 120.0, "x_error": 0.0001434553658395143, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:32:09.148217407Z 01:32:09 fusion: <- task_ack f0000001 -> f0000002 KA3ZBS TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+host-fusion-1    | 2026-11-12T01:32:15.924530367Z 01:32:15 fusion: <- detection_report f0000001 object WMK2P3 at (51.17799, -1.81966, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:32:18.910965808Z 01:32:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:32:25.959457574Z 01:32:25 fusion: <- detection_report f0000001 object WMK2P3 at (51.17729, -1.82094, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:32:28.916244754Z 01:32:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:32:29.147838842Z 01:32:29 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:32:29.149377512Z 01:32:29 fusion: -> task f0000002 -> f0000001 832967 request "Status"
+host-fusion-1    | 2026-11-12T01:32:29.151704393Z 01:32:29 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:33:33.947423894Z 01:33:33 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:33:40.164334703Z 01:33:40 camera: -> detection_report 86ca6000 object MX0RZY at (51.17558, -1.81448, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:33:50.192373140Z 01:33:50 camera: -> detection_report 86ca6000 object MX0RZY at (51.17665, -1.81457, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:34:00.221881547Z 01:34:00 camera: -> detection_report 86ca6000 object MX0RZY at (51.17757, -1.81543, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+host-fusion-1    | 2026-11-12T01:32:29.152368561Z 01:32:29 fusion: <- task_ack f0000001 -> f0000002 832967 TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:32:35.990111620Z 01:32:35 fusion: <- detection_report f0000001 object WMK2P3 at (51.17629, -1.82156, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:32:38.921962758Z 01:32:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:32:46.015934129Z 01:32:46 fusion: <- detection_report f0000001 object WMK2P3 at (51.17522, -1.82136, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+camera-1         | 2026-11-12T01:34:09.163222045Z 01:34:09 camera: <- task f0000001 -> 86ca6000 K9P40F look_at {"location_list": {"locations": [{"x": -1.8165638221465805, "y": 51.1780601409903, "z": 120.0, "x_error": 0.00014345485114910391, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:32:48.926435733Z 01:32:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:32:49.151187891Z 01:32:49 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:32:49.151203432Z 01:32:49 fusion: -> task f0000002 -> f0000001 MNPQ83 look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:32:49.154634149Z 01:32:49 fusion: <- task_ack f0000001 -> f0000002 MNPQ83 TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+host-fusion-1    | 2026-11-12T01:32:56.045651203Z 01:32:56 fusion: <- detection_report f0000001 object WMK2P3 at (51.17433, -1.82041, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:32:58.929939469Z 01:32:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:33:06.073941287Z 01:33:06 fusion: <- detection_report f0000001 object WMK2P3 at (51.17382, -1.81890, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:33:08.931971797Z 01:33:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:33:09.153127157Z 01:33:09 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:33:09.154367535Z 01:33:09 fusion: -> task f0000002 -> f0000001 E4EYCF request "Status"
+host-fusion-1    | 2026-11-12T01:33:09.156583915Z 01:33:09 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:33:09.157260959Z 01:33:09 fusion: <- task_ack f0000001 -> f0000002 E4EYCF TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:33:16.101384964Z 01:33:16 fusion: <- detection_report f0000001 object WMK2P3 at (51.17381, -1.81719, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:33:18.936332393Z 01:33:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:33:26.123613889Z 01:33:26 fusion: <- detection_report f0000001 object WMK2P3 at (51.17429, -1.81567, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:33:28.939041328Z 01:33:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:32:49.152023726Z 01:32:49 fusion: <- task f0000002 -> f0000001 MNPQ83 look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:32:49.152267268Z 01:32:49 fusion: -> task f0000001 -> 86ca6000 ZAZ2EY look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:32:49.152592769Z 01:32:49 fusion: -> task f0000001 -> 1aef1b86 9FP7SZ look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:32:49.152895811Z 01:32:49 fusion: -> task f0000001 -> 83ff6077 83SN90 look_at {"location_list": {"locations": [{"x": -1.821151323015045, "y": 51.174926855016615, "z": 120.0, "x_error": 0.0001434451024682133, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:32:49.153746063Z 01:32:49 fusion: -> up task_ack f0000001 -> f0000002 MNPQ83 TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+camera-1         | 2026-11-12T01:34:09.164653173Z 01:34:09 camera: -> task_ack 86ca6000 -> f0000001 K9P40F TASK_STATUS_ACCEPTED ['Pointing at (51.17806, -1.81656)']
+camera-1         | 2026-11-12T01:34:10.249992748Z 01:34:10 camera: -> detection_report 86ca6000 object MX0RZY at (51.17814, -1.81689, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:34:13.968337010Z 01:34:13 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:34:20.277820205Z 01:34:20 camera: -> detection_report 86ca6000 object MX0RZY at (51.17822, -1.81859, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:34:30.309732427Z 01:34:30 camera: -> detection_report 86ca6000 object MX0RZY at (51.17779, -1.82016, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:34:40.341464860Z 01:34:40 camera: -> detection_report 86ca6000 object MX0RZY at (51.17696, -1.82124, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:34:49.169093038Z 01:34:49 camera: <- task f0000001 -> 86ca6000 CEY84T look_at {"location_list": {"locations": [{"x": -1.8215803813263824, "y": 51.17612814414316, "z": 120.0, "x_error": 0.00014344883986557817, "y_error": 8.9
+camera-1         | 2026-11-12T01:34:49.170160540Z 01:34:49 camera: -> task_ack 86ca6000 -> f0000001 CEY84T TASK_STATUS_ACCEPTED ['Pointing at (51.17613, -1.82158)']
+camera-1         | 2026-11-12T01:34:50.370797707Z 01:34:50 camera: -> detection_report 86ca6000 object MX0RZY at (51.17591, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:34:53.999740903Z 01:34:53 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:32:49.154175064Z 01:32:49 fusion: <- task_ack 1aef1b86 -> f0000001 9FP7SZ TASK_STATUS_ACCEPTED ['Pointing at (51.17493, -1.82115)']
+fusion-node-1    | 2026-11-12T01:32:49.156284194Z 01:32:49 fusion: <- task_ack 86ca6000 -> f0000001 ZAZ2EY TASK_STATUS_ACCEPTED ['Pointing at (51.17493, -1.82115)']
+fusion-node-1    | 2026-11-12T01:32:50.024630128Z 01:32:50 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17483, -1.82107, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:50.024638919Z 01:32:50 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17483, -1.82107, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:32:53.921233703Z 01:32:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:32:53.928758137Z 01:32:53 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:32:54.054330977Z 01:32:54 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:33:00.051884843Z 01:33:00 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17408, -1.81986, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:00.052223094Z 01:33:00 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17408, -1.81986, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:03.926880971Z 01:33:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:33:09.155162787Z 01:33:09 fusion: <- task f0000002 -> f0000001 E4EYCF request "Status"
+fusion-node-1    | 2026-11-12T01:33:09.155909831Z 01:33:09 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:33:09.156698124Z 01:33:09 fusion: -> up task_ack f0000001 -> f0000002 E4EYCF TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:33:10.078601278Z 01:33:10 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17376, -1.81822, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:10.081574118Z 01:33:10 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17376, -1.81822, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+camera-1         | 2026-11-12T01:35:00.405309903Z 01:35:00 camera: -> detection_report 86ca6000 object MX0RZY at (51.17488, -1.82111, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:35:10.429671283Z 01:35:10 camera: -> detection_report 86ca6000 object MX0RZY at (51.17411, -1.81993, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:35:20.460382721Z 01:35:20 camera: -> detection_report 86ca6000 object MX0RZY at (51.17376, -1.81831, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:35:29.173011643Z 01:35:29 camera: <- task f0000001 -> 86ca6000 NP987T look_at {"location_list": {"locations": [{"x": -1.816947868804065, "y": 51.17385063221791, "z": 120.0, "x_error": 0.00014344175439058698, "y_error": 8.99
+camera-1         | 2026-11-12T01:35:29.173991687Z 01:35:29 camera: -> task_ack 86ca6000 -> f0000001 NP987T TASK_STATUS_ACCEPTED ['Pointing at (51.17385, -1.81695)']
+camera-1         | 2026-11-12T01:35:30.488481861Z 01:35:30 camera: -> detection_report 86ca6000 object MX0RZY at (51.17392, -1.81662, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:35:34.031983075Z 01:35:34 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:35:40.513492409Z 01:35:40 camera: -> detection_report 86ca6000 object MX0RZY at (51.17456, -1.81525, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:35:50.541005752Z 01:35:50 camera: -> detection_report 86ca6000 object MX0RZY at (51.17552, -1.81450, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+host-fusion-1    | 2026-11-12T01:33:29.155611638Z 01:33:29 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:33:29.156594557Z 01:33:29 fusion: -> task f0000002 -> f0000001 0DNJ1G look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+host-fusion-1    | 2026-11-12T01:33:29.160636816Z 01:33:29 fusion: <- task_ack f0000001 -> f0000002 0DNJ1G TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+host-fusion-1    | 2026-11-12T01:33:37.155710036Z 01:33:37 fusion: <- detection_report f0000001 object WMK2P3 at (51.17526, -1.81461, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:33:38.941235439Z 01:33:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:33:47.189503138Z 01:33:47 fusion: <- detection_report f0000001 object WMK2P3 at (51.17633, -1.81445, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:13.929108535Z 01:33:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:33:20.106004392Z 01:33:20 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17395, -1.81654, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:20.106291393Z 01:33:20 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17395, -1.81654, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:23.931473527Z 01:33:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:33:29.157514851Z 01:33:29 fusion: <- task f0000002 -> f0000001 0DNJ1G look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:33:29.157897477Z 01:33:29 fusion: -> task f0000001 -> 86ca6000 R31EMC look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:33:29.158483978Z 01:33:29 fusion: -> task f0000001 -> 1aef1b86 74B0MQ look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:33:29.158635937Z 01:33:29 fusion: -> task f0000001 -> 83ff6077 QWAAY8 look_at {"location_list": {"locations": [{"x": -1.8153010520393944, "y": 51.17451951663943, "z": 120.0, "x_error": 0.00014344383523367862, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:33:29.160107357Z 01:33:29 fusion: -> up task_ack f0000001 -> f0000002 0DNJ1G TASK_STATUS_ACCEPTED ['look_at sent to 3 nodes']
+fusion-node-1    | 2026-11-12T01:33:29.160307649Z 01:33:29 fusion: <- task_ack 86ca6000 -> f0000001 R31EMC TASK_STATUS_ACCEPTED ['Pointing at (51.17452, -1.81530)']
+fusion-node-1    | 2026-11-12T01:33:29.160399858Z 01:33:29 fusion: <- task_ack 1aef1b86 -> f0000001 74B0MQ TASK_STATUS_ACCEPTED ['Pointing at (51.17452, -1.81530)']
+host-fusion-1    | 2026-11-12T01:33:48.942620389Z 01:33:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:33:49.157219487Z 01:33:49 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:33:49.158180073Z 01:33:49 fusion: -> task f0000002 -> f0000001 DFJJ5J request "Status"
+host-fusion-1    | 2026-11-12T01:33:49.160535454Z 01:33:49 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:33:49.161314289Z 01:33:49 fusion: <- task_ack f0000001 -> f0000002 DFJJ5J TASK_STATUS_ACCEPTED ['Status report sent']
+camera-1         | 2026-11-12T01:36:00.566869214Z 01:36:00 camera: -> detection_report 86ca6000 object MX0RZY at (51.17659, -1.81454, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:36:09.175923143Z 01:36:09 camera: <- task f0000001 -> 86ca6000 7GFZDD look_at {"location_list": {"locations": [{"x": -1.8151497333855027, "y": 51.177364475787535, "z": 120.0, "x_error": 0.00014345268655487873, "y_error": 8.
+host-fusion-1    | 2026-11-12T01:33:55.508852625Z 01:33:55 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+host-fusion-1    | 2026-11-12T01:33:55.510177670Z 01:33:55 fusion: -> registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node (re-registration)']
+host-fusion-1    | 2026-11-12T01:33:57.217593777Z 01:33:57 fusion: <- detection_report f0000001 object WMK2P3 at (51.17732, -1.81510, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:33:58.946354019Z 01:33:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:34:03.945387304Z 01:34:03 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:34:07.244712711Z 01:34:07 fusion: <- detection_report f0000001 object WMK2P3 at (51.17801, -1.81641, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:08.951492242Z 01:34:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:34:09.160182079Z 01:34:09 fusion: auto-task look_at -> 1 node(s)
+fusion-node-1    | 2026-11-12T01:33:30.136528442Z 01:33:30 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17460, -1.81519, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:30.136542942Z 01:33:30 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17460, -1.81519, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:33.934037904Z 01:33:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:33:33.947955979Z 01:33:33 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:33:34.083775721Z 01:33:34 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:33:40.166188958Z 01:33:40 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17558, -1.81448, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:09.161056331Z 01:34:09 fusion: -> task f0000002 -> f0000001 4HKE3J look_at {"location_list": {"locations": [{"x": -1.8165638221465805, "y": 51.1780601409903, "z": 120.0, "x_error": 0.00014345485114910391, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:34:09.165729509Z 01:34:09 fusion: <- task_ack f0000001 -> f0000002 4HKE3J TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+host-fusion-1    | 2026-11-12T01:34:17.272749863Z 01:34:17 fusion: <- detection_report f0000001 object WMK2P3 at (51.17825, -1.81808, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:18.954438758Z 01:34:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:34:27.302179523Z 01:34:27 fusion: <- detection_report f0000001 object WMK2P3 at (51.17797, -1.81973, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:28.957112319Z 01:34:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:34:29.162304316Z 01:34:29 fusion: auto-task request:Status -> 1 node(s)
+camera-1         | 2026-11-12T01:36:09.177151354Z 01:36:09 camera: -> task_ack 86ca6000 -> f0000001 7GFZDD TASK_STATUS_ACCEPTED ['Pointing at (51.17736, -1.81515)']
+camera-1         | 2026-11-12T01:36:10.596041222Z 01:36:10 camera: -> detection_report 86ca6000 object MX0RZY at (51.17753, -1.81537, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+host-fusion-1    | 2026-11-12T01:34:29.163258360Z 01:34:29 fusion: -> task f0000002 -> f0000001 6T7M1V request "Status"
+host-fusion-1    | 2026-11-12T01:34:29.166234784Z 01:34:29 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:34:29.166559159Z 01:34:29 fusion: <- task_ack f0000001 -> f0000002 6T7M1V TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:34:37.335607905Z 01:34:37 fusion: <- detection_report f0000001 object WMK2P3 at (51.17724, -1.82099, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:38.961778639Z 01:34:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:34:47.365349448Z 01:34:47 fusion: <- detection_report f0000001 object WMK2P3 at (51.17624, -1.82157, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:48.964195915Z 01:34:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:34:49.165208653Z 01:34:49 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:34:49.166596865Z 01:34:49 fusion: -> task f0000002 -> f0000001 X2N00V look_at {"location_list": {"locations": [{"x": -1.8215803813263824, "y": 51.17612814414316, "z": 120.0, "x_error": 0.00014344883986557817, "y_error": 8.9
+host-fusion-1    | 2026-11-12T01:34:49.170993501Z 01:34:49 fusion: <- task_ack f0000001 -> f0000002 X2N00V TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+host-fusion-1    | 2026-11-12T01:34:57.397305833Z 01:34:57 fusion: <- detection_report f0000001 object WMK2P3 at (51.17517, -1.82134, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:34:58.967410653Z 01:34:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+camera-1         | 2026-11-12T01:36:14.051055023Z 01:36:14 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:36:20.626172021Z 01:36:20 camera: -> detection_report 86ca6000 object MX0RZY at (51.17812, -1.81680, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:36:30.666314005Z 01:36:30 camera: -> detection_report 86ca6000 object MX0RZY at (51.17823, -1.81850, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:36:40.717166344Z 01:36:40 camera: -> detection_report 86ca6000 object MX0RZY at (51.17783, -1.82009, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:36:49.188956767Z 01:36:49 camera: <- task f0000001 -> 86ca6000 RRP6PW look_at {"location_list": {"locations": [{"x": -1.8210362373184736, "y": 51.177196463485856, "z": 120.0, "x_error": 0.0001434521637898502, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:33:40.166421333Z 01:33:40 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17558, -1.81448, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:43.938423878Z 01:33:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:33:49.159175826Z 01:33:49 fusion: <- task f0000002 -> f0000001 DFJJ5J request "Status"
+fusion-node-1    | 2026-11-12T01:33:49.159961952Z 01:33:49 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:33:49.160692037Z 01:33:49 fusion: -> up task_ack f0000001 -> f0000002 DFJJ5J TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:35:07.424694166Z 01:35:07 fusion: <- detection_report f0000001 object WMK2P3 at (51.17430, -1.82035, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:08.970736934Z 01:35:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:35:09.168076707Z 01:35:09 fusion: auto-task request:Status -> 1 node(s)
+fusion-node-1    | 2026-11-12T01:33:50.194966730Z 01:33:50 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17665, -1.81457, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:50.194978730Z 01:33:50 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17665, -1.81457, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:33:50.504210639Z 01:33:50 fusion: node 83ff6077 gone for 120 s; removed
+fusion-node-1    | 2026-11-12T01:33:53.941383232Z 01:33:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:33:55.507307580Z 01:33:55 fusion: -> registration f0000001 "fake fusion node" [FUSION_NODE]
+camera-1         | 2026-11-12T01:36:49.190047978Z 01:36:49 camera: -> task_ack 86ca6000 -> f0000001 RRP6PW TASK_STATUS_ACCEPTED ['Pointing at (51.17720, -1.82104)']
+camera-1         | 2026-11-12T01:36:50.770139682Z 01:36:50 camera: -> detection_report 86ca6000 object MX0RZY at (51.17701, -1.82121, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:36:54.084811643Z 01:36:54 camera: -> status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+camera-1         | 2026-11-12T01:37:00.835765795Z 01:37:00 camera: -> detection_report 86ca6000 object MX0RZY at (51.17596, -1.82159, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+camera-1         | 2026-11-12T01:37:10.900436439Z 01:37:10 camera: -> detection_report 86ca6000 object MX0RZY at (51.17492, -1.82114, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th)
+fusion-node-1    | 2026-11-12T01:33:55.510915047Z 01:33:55 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node (re-registration)']
+fusion-node-1    | 2026-11-12T01:34:00.222543882Z 01:34:00 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17757, -1.81543, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:00.222918258Z 01:34:00 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17757, -1.81543, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:03.944307218Z 01:34:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:34:09.162145125Z 01:34:09 fusion: <- task f0000002 -> f0000001 4HKE3J look_at {"location_list": {"locations": [{"x": -1.8165638221465805, "y": 51.1780601409903, "z": 120.0, "x_error": 0.00014345485114910391, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:34:09.162409334Z 01:34:09 fusion: -> task f0000001 -> 86ca6000 K9P40F look_at {"location_list": {"locations": [{"x": -1.8165638221465805, "y": 51.1780601409903, "z": 120.0, "x_error": 0.00014345485114910391, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:34:09.162806502Z 01:34:09 fusion: -> task f0000001 -> 1aef1b86 191BZE look_at {"location_list": {"locations": [{"x": -1.8165638221465805, "y": 51.1780601409903, "z": 120.0, "x_error": 0.00014345485114910391, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:34:09.164298255Z 01:34:09 fusion: -> up task_ack f0000001 -> f0000002 4HKE3J TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:34:09.165344675Z 01:34:09 fusion: <- task_ack 1aef1b86 -> f0000001 191BZE TASK_STATUS_ACCEPTED ['Pointing at (51.17806, -1.81656)']
+fusion-node-1    | 2026-11-12T01:34:09.165348883Z 01:34:09 fusion: <- task_ack 86ca6000 -> f0000001 K9P40F TASK_STATUS_ACCEPTED ['Pointing at (51.17806, -1.81656)']
+fusion-node-1    | 2026-11-12T01:34:10.251519877Z 01:34:10 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17814, -1.81689, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:09.169024668Z 01:35:09 fusion: -> task f0000002 -> f0000001 RCEVXY request "Status"
+host-fusion-1    | 2026-11-12T01:35:09.171810591Z 01:35:09 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:35:09.172438468Z 01:35:09 fusion: <- task_ack f0000001 -> f0000002 RCEVXY TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:35:17.453579254Z 01:35:17 fusion: <- detection_report f0000001 object WMK2P3 at (51.17381, -1.81882, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:18.973009839Z 01:35:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:35:27.481218172Z 01:35:27 fusion: <- detection_report f0000001 object WMK2P3 at (51.17382, -1.81711, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:28.975015283Z 01:35:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:34:10.251598669Z 01:34:10 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17814, -1.81689, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:13.949095881Z 01:34:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:35:29.169557093Z 01:35:29 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:35:29.170511262Z 01:35:29 fusion: -> task f0000002 -> f0000001 SM09WX look_at {"location_list": {"locations": [{"x": -1.816947868804065, "y": 51.17385063221791, "z": 120.0, "x_error": 0.00014344175439058698, "y_error": 8.99
+host-fusion-1    | 2026-11-12T01:35:29.174314146Z 01:35:29 fusion: <- task_ack f0000001 -> f0000002 SM09WX TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+host-fusion-1    | 2026-11-12T01:35:37.505501122Z 01:35:37 fusion: <- detection_report f0000001 object WMK2P3 at (51.17433, -1.81561, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:38.980810111Z 01:35:38 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:35:47.536037836Z 01:35:47 fusion: <- detection_report f0000001 object WMK2P3 at (51.17521, -1.81464, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:48.983685138Z 01:35:48 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:35:49.171221099Z 01:35:49 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:35:49.172397060Z 01:35:49 fusion: -> task f0000002 -> f0000001 RBR4WT request "Status"
+host-fusion-1    | 2026-11-12T01:35:49.174740232Z 01:35:49 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:35:49.175169400Z 01:35:49 fusion: <- task_ack f0000001 -> f0000002 RBR4WT TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:35:57.563244040Z 01:35:57 fusion: <- detection_report f0000001 object WMK2P3 at (51.17628, -1.81444, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:35:58.985954620Z 01:35:58 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:36:07.590195031Z 01:36:07 fusion: <- detection_report f0000001 object WMK2P3 at (51.17728, -1.81505, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:08.989086100Z 01:36:08 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:36:09.173486929Z 01:36:09 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:36:09.174334931Z 01:36:09 fusion: -> task f0000002 -> f0000001 TGP66W look_at {"location_list": {"locations": [{"x": -1.8151497333855027, "y": 51.177364475787535, "z": 120.0, "x_error": 0.00014345268655487873, "y_error": 8.
+host-fusion-1    | 2026-11-12T01:36:09.178173148Z 01:36:09 fusion: <- task_ack f0000001 -> f0000002 TGP66W TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+host-fusion-1    | 2026-11-12T01:36:17.619392191Z 01:36:17 fusion: <- detection_report f0000001 object WMK2P3 at (51.17799, -1.81633, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:18.993782454Z 01:36:18 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:36:27.650424892Z 01:36:27 fusion: <- detection_report f0000001 object WMK2P3 at (51.17825, -1.81799, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:28.998434804Z 01:36:28 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:36:29.178702999Z 01:36:29 fusion: auto-task request:Status -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:36:29.180067877Z 01:36:29 fusion: -> task f0000002 -> f0000001 FSG8NM request "Status"
+host-fusion-1    | 2026-11-12T01:36:29.183933553Z 01:36:29 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:36:29.184400929Z 01:36:29 fusion: <- task_ack f0000001 -> f0000002 FSG8NM TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:36:37.540637615Z 01:36:37 fusion: Zenoh transport lost; holding every node
+fusion-node-1    | 2026-11-12T01:34:13.969031512Z 01:34:13 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:34:14.104636506Z 01:34:14 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:34:20.279180292Z 01:34:20 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17822, -1.81859, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:38.555711791Z 01:36:38 fusion: Zenoh transport back; checking node tokens
+host-fusion-1    | 2026-11-12T01:36:38.716980607Z 01:36:38 fusion: <- detection_report f0000001 object WMK2P3 at (51.17794, -1.81980, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:39.008757120Z 01:36:39 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:36:48.768427850Z 01:36:48 fusion: <- detection_report f0000001 object WMK2P3 at (51.17720, -1.82104, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:49.015261587Z 01:36:49 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:36:49.181087581Z 01:36:49 fusion: auto-task look_at -> 1 node(s)
+host-fusion-1    | 2026-11-12T01:36:49.184159130Z 01:36:49 fusion: -> task f0000002 -> f0000001 JAJPYP look_at {"location_list": {"locations": [{"x": -1.8210362373184736, "y": 51.177196463485856, "z": 120.0, "x_error": 0.0001434521637898502, "y_error": 8.9
+host-fusion-1    | 2026-11-12T01:36:49.191665273Z 01:36:49 fusion: <- task_ack f0000001 -> f0000002 JAJPYP TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+host-fusion-1    | 2026-11-12T01:36:58.823836264Z 01:36:58 fusion: <- detection_report f0000001 object WMK2P3 at (51.17618, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:36:59.017143577Z 01:36:59 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:37:08.893466372Z 01:37:08 fusion: <- detection_report f0000001 object WMK2P3 at (51.17511, -1.82130, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+host-fusion-1    | 2026-11-12T01:37:09.028991876Z 01:37:09 fusion: -> status_report f0000002 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:37:09.185315847Z 01:37:09 fusion: auto-task request:Status -> 1 node(s)
+fusion-node-1    | 2026-11-12T01:34:20.279492209Z 01:34:20 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17822, -1.81859, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:23.953136297Z 01:34:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+host-fusion-1    | 2026-11-12T01:37:09.186866768Z 01:37:09 fusion: -> task f0000002 -> f0000001 GQANCT request "Status"
+host-fusion-1    | 2026-11-12T01:37:09.192905949Z 01:37:09 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+host-fusion-1    | 2026-11-12T01:37:09.194285828Z 01:37:09 fusion: <- task_ack f0000001 -> f0000002 GQANCT TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1    | 2026-11-12T01:37:12.367178082Z 01:37:12 fusion: Zenoh transport lost; holding every node
+fusion-node-1    | 2026-11-12T01:34:29.164451613Z 01:34:29 fusion: <- task f0000002 -> f0000001 6T7M1V request "Status"
+fusion-node-1    | 2026-11-12T01:34:29.165204531Z 01:34:29 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:34:29.165742116Z 01:34:29 fusion: -> up task_ack f0000001 -> f0000002 6T7M1V TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:34:30.311961307Z 01:34:30 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17779, -1.82016, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:30.311971557Z 01:34:30 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17779, -1.82016, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:33.956337924Z 01:34:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:34:40.343197197Z 01:34:40 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17696, -1.82124, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:40.343325906Z 01:34:40 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17696, -1.82124, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:43.959283262Z 01:34:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:34:49.167858701Z 01:34:49 fusion: <- task f0000002 -> f0000001 X2N00V look_at {"location_list": {"locations": [{"x": -1.8215803813263824, "y": 51.17612814414316, "z": 120.0, "x_error": 0.00014344883986557817, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:34:49.168173202Z 01:34:49 fusion: -> task f0000001 -> 86ca6000 CEY84T look_at {"location_list": {"locations": [{"x": -1.8215803813263824, "y": 51.17612814414316, "z": 120.0, "x_error": 0.00014344883986557817, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:34:49.168521078Z 01:34:49 fusion: -> task f0000001 -> 1aef1b86 GCBQPB look_at {"location_list": {"locations": [{"x": -1.8215803813263824, "y": 51.17612814414316, "z": 120.0, "x_error": 0.00014344883986557817, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:34:49.169449247Z 01:34:49 fusion: -> up task_ack f0000001 -> f0000002 X2N00V TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:34:49.171206418Z 01:34:49 fusion: <- task_ack 86ca6000 -> f0000001 CEY84T TASK_STATUS_ACCEPTED ['Pointing at (51.17613, -1.82158)']
+fusion-node-1    | 2026-11-12T01:34:49.171432377Z 01:34:49 fusion: <- task_ack 1aef1b86 -> f0000001 GCBQPB TASK_STATUS_ACCEPTED ['Pointing at (51.17613, -1.82158)']
+fusion-node-1    | 2026-11-12T01:34:50.371055708Z 01:34:50 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17591, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:50.371453792Z 01:34:50 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17591, -1.82158, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:34:53.962730604Z 01:34:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:34:54.000837239Z 01:34:54 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:34:54.133286811Z 01:34:54 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:35:00.407021115Z 01:35:00 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17488, -1.82111, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:00.407063032Z 01:35:00 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17488, -1.82111, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:03.967641077Z 01:35:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:35:09.170209504Z 01:35:09 fusion: <- task f0000002 -> f0000001 RCEVXY request "Status"
+fusion-node-1    | 2026-11-12T01:35:09.171173131Z 01:35:09 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:35:09.171606174Z 01:35:09 fusion: -> up task_ack f0000001 -> f0000002 RCEVXY TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:35:10.431666663Z 01:35:10 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17411, -1.81993, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:10.431958372Z 01:35:10 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17411, -1.81993, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:13.970420544Z 01:35:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:35:20.461869391Z 01:35:20 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17376, -1.81831, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:20.462356434Z 01:35:20 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17376, -1.81831, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:23.974897683Z 01:35:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:35:29.171997640Z 01:35:29 fusion: <- task f0000002 -> f0000001 SM09WX look_at {"location_list": {"locations": [{"x": -1.816947868804065, "y": 51.17385063221791, "z": 120.0, "x_error": 0.00014344175439058698, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:35:29.172225891Z 01:35:29 fusion: -> task f0000001 -> 86ca6000 NP987T look_at {"location_list": {"locations": [{"x": -1.816947868804065, "y": 51.17385063221791, "z": 120.0, "x_error": 0.00014344175439058698, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:35:29.172440975Z 01:35:29 fusion: -> task f0000001 -> 1aef1b86 MC9W57 look_at {"location_list": {"locations": [{"x": -1.816947868804065, "y": 51.17385063221791, "z": 120.0, "x_error": 0.00014344175439058698, "y_error": 8.99
+fusion-node-1    | 2026-11-12T01:35:29.173165768Z 01:35:29 fusion: -> up task_ack f0000001 -> f0000002 SM09WX TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:35:29.174504105Z 01:35:29 fusion: <- task_ack 86ca6000 -> f0000001 NP987T TASK_STATUS_ACCEPTED ['Pointing at (51.17385, -1.81695)']
+fusion-node-1    | 2026-11-12T01:35:29.174723189Z 01:35:29 fusion: <- task_ack 1aef1b86 -> f0000001 MC9W57 TASK_STATUS_ACCEPTED ['Pointing at (51.17385, -1.81695)']
+fusion-node-1    | 2026-11-12T01:35:30.490400116Z 01:35:30 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17392, -1.81662, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:30.490903825Z 01:35:30 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17392, -1.81662, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:33.978067401Z 01:35:33 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:35:34.032691076Z 01:35:34 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:35:34.156672588Z 01:35:34 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:35:40.515013746Z 01:35:40 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17456, -1.81525, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:40.515063663Z 01:35:40 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17456, -1.81525, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:43.981086117Z 01:35:43 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:35:49.173239270Z 01:35:49 fusion: <- task f0000002 -> f0000001 RBR4WT request "Status"
+fusion-node-1    | 2026-11-12T01:35:49.173999856Z 01:35:49 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:35:49.174540565Z 01:35:49 fusion: -> up task_ack f0000001 -> f0000002 RBR4WT TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:35:50.542556381Z 01:35:50 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17552, -1.81450, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:50.542879299Z 01:35:50 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17552, -1.81450, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:35:53.983376662Z 01:35:53 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:00.569435220Z 01:36:00 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17659, -1.81454, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:00.569488262Z 01:36:00 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17659, -1.81454, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:03.989224255Z 01:36:03 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:09.175230558Z 01:36:09 fusion: <- task f0000002 -> f0000001 TGP66W look_at {"location_list": {"locations": [{"x": -1.8151497333855027, "y": 51.177364475787535, "z": 120.0, "x_error": 0.00014345268655487873, "y_error": 8.
+fusion-node-1    | 2026-11-12T01:36:09.175518309Z 01:36:09 fusion: -> task f0000001 -> 86ca6000 7GFZDD look_at {"location_list": {"locations": [{"x": -1.8151497333855027, "y": 51.177364475787535, "z": 120.0, "x_error": 0.00014345268655487873, "y_error": 8.
+fusion-node-1    | 2026-11-12T01:36:09.176002476Z 01:36:09 fusion: -> task f0000001 -> 1aef1b86 M9SNEF look_at {"location_list": {"locations": [{"x": -1.8151497333855027, "y": 51.177364475787535, "z": 120.0, "x_error": 0.00014345268655487873, "y_error": 8.
+fusion-node-1    | 2026-11-12T01:36:09.176907020Z 01:36:09 fusion: -> up task_ack f0000001 -> f0000002 TGP66W TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:36:09.177625189Z 01:36:09 fusion: <- task_ack 1aef1b86 -> f0000001 M9SNEF TASK_STATUS_ACCEPTED ['Pointing at (51.17736, -1.81515)']
+fusion-node-1    | 2026-11-12T01:36:09.177837564Z 01:36:09 fusion: <- task_ack 86ca6000 -> f0000001 7GFZDD TASK_STATUS_ACCEPTED ['Pointing at (51.17736, -1.81515)']
+fusion-node-1    | 2026-11-12T01:36:10.598971730Z 01:36:10 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17753, -1.81537, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:10.598989188Z 01:36:10 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17753, -1.81537, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:13.991348251Z 01:36:13 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:14.052183068Z 01:36:14 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:36:14.178487754Z 01:36:14 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:36:20.627616441Z 01:36:20 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17812, -1.81680, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:20.628105317Z 01:36:20 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17812, -1.81680, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:23.993724785Z 01:36:23 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:29.181249255Z 01:36:29 fusion: <- task f0000002 -> f0000001 FSG8NM request "Status"
+fusion-node-1    | 2026-11-12T01:36:29.182619717Z 01:36:29 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:36:29.183596177Z 01:36:29 fusion: -> up task_ack f0000001 -> f0000002 FSG8NM TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:36:30.670204890Z 01:36:30 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17823, -1.81850, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:30.670675974Z 01:36:30 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17823, -1.81850, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:34.000391907Z 01:36:34 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:40.721693397Z 01:36:40 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17783, -1.82009, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:40.721820689Z 01:36:40 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17783, -1.82009, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:44.005555937Z 01:36:44 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:49.186918220Z 01:36:49 fusion: <- task f0000002 -> f0000001 JAJPYP look_at {"location_list": {"locations": [{"x": -1.8210362373184736, "y": 51.177196463485856, "z": 120.0, "x_error": 0.0001434521637898502, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:36:49.187655472Z 01:36:49 fusion: -> task f0000001 -> 86ca6000 RRP6PW look_at {"location_list": {"locations": [{"x": -1.8210362373184736, "y": 51.177196463485856, "z": 120.0, "x_error": 0.0001434521637898502, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:36:49.188446224Z 01:36:49 fusion: -> task f0000001 -> 1aef1b86 AYAY2H look_at {"location_list": {"locations": [{"x": -1.8210362373184736, "y": 51.177196463485856, "z": 120.0, "x_error": 0.0001434521637898502, "y_error": 8.9
+fusion-node-1    | 2026-11-12T01:36:49.190268520Z 01:36:49 fusion: -> up task_ack f0000001 -> f0000002 JAJPYP TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+fusion-node-1    | 2026-11-12T01:36:49.191002313Z 01:36:49 fusion: <- task_ack 1aef1b86 -> f0000001 AYAY2H TASK_STATUS_ACCEPTED ['Pointing at (51.17720, -1.82104)']
+fusion-node-1    | 2026-11-12T01:36:49.191241356Z 01:36:49 fusion: <- task_ack 86ca6000 -> f0000001 RRP6PW TASK_STATUS_ACCEPTED ['Pointing at (51.17720, -1.82104)']
+fusion-node-1    | 2026-11-12T01:36:49.201039880Z 01:36:49 fusion: <- status_report 1aef1b86 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:36:50.775117445Z 01:36:50 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17701, -1.82121, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:50.775695696Z 01:36:50 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17701, -1.82121, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:36:54.012273547Z 01:36:54 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:36:54.086508772Z 01:36:54 fusion: <- status_report 86ca6000 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:37:00.842372853Z 01:37:00 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17596, -1.82159, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:37:00.843054730Z 01:37:00 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17596, -1.82159, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:37:04.019153608Z 01:37:04 fusion: -> status_report f0000001 SYSTEM_OK INFO_UNCHANGED mode=Default
+fusion-node-1    | 2026-11-12T01:37:09.189417941Z 01:37:09 fusion: <- task f0000002 -> f0000001 GQANCT request "Status"
+fusion-node-1    | 2026-11-12T01:37:09.191316445Z 01:37:09 fusion: -> up status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+fusion-node-1    | 2026-11-12T01:37:09.192850532Z 01:37:09 fusion: -> up task_ack f0000001 -> f0000002 GQANCT TASK_STATUS_ACCEPTED ['Status report sent']
+fusion-node-1    | 2026-11-12T01:37:10.901459442Z 01:37:10 fusion: <- detection_report 1aef1b86 object 2R2SW6 at (51.17492, -1.82114, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)
+fusion-node-1    | 2026-11-12T01:37:10.901844984Z 01:37:10 fusion: <- detection_report 86ca6000 object MX0RZY at (51.17492, -1.82114, 120 m) Air Vehicle/UAV Rotary Wing conf=0.90  (logging every 10th per node)

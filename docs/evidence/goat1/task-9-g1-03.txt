@@ -1,0 +1,15 @@
+$ dg logs fusion-node | grep -c "registration_ack"
+4
+
+$ dg logs fusion-node | grep "registration_ack"
+fusion-node-1  | 23:34:28 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:34:31 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:34:31 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 23:34:33 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+
+$ dg logs host-fusion | grep -c "<- registration "
+1
+
+$ dg logs host-fusion | grep "<- registration "
+host-fusion-1  | 23:34:33 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+

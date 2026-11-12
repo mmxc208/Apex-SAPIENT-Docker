@@ -1,0 +1,26 @@
+ Network apex-pairing_default Creating 
+ Network apex-pairing_default Creating 
+ Network apex-pairing_default Created 
+ Network apex-pairing_default Created 
+ Container apex-pairing-zenohd-1 Creating 
+ Container apex-pairing-zenohd-1 Created 
+ Container apex-pairing-zenohd-1 Starting 
+ Container apex-pairing-zenohd-1 Started 
+ Container apex-pairing-zenohd-1 Running 
+ Container apex-pairing-probe-run-89daf78b00e7 Creating 
+ Container apex-pairing-probe-run-89daf78b00e7 Created 
+2026-11-11 22:33:25,676 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+PAIRING OK put-sub liveliness
+ Container apex-pairing-zenohd-1 Running 
+ Container pairing-probe Creating 
+ Container pairing-probe Created 
+3ad442c728101c15902d0ccd6943cc507d2485c5655ec4cf14d330ca713a5bcf
+ Container apex-pairing-zenohd-1 Restarting 
+ Container apex-pairing-zenohd-1 Started 
+Error response from daemon: No such container: pairing-probe
+ Container apex-pairing-zenohd-1 Stopping 
+ Container apex-pairing-zenohd-1 Stopped 
+ Container apex-pairing-zenohd-1 Removing 
+ Container apex-pairing-zenohd-1 Removed 
+ Network apex-pairing_default Removing 
+ Network apex-pairing_default Removed 

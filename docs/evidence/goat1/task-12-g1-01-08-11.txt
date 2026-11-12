@@ -1,0 +1,161 @@
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:5> git rev-parse --short HEAD
+c6a2db1
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:6> docker compose -f docker-compose.yml -f docker-compose.emulators.yml run --rm --no-deps radar python -m pytest -p no:cacheprovider -v -W error tests/test_pod_bridge.py -k 'stale or 4_s_old or age_limit'
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:6> grep -E 'PASSED|FAILED|passed|failed'
+tests/test_pod_bridge.py::test_down_drops_and_counts[stale_task] PASSED  [ 25%]
+tests/test_pod_bridge.py::test_a_task_4_s_old_is_forwarded PASSED        [ 50%]
+tests/test_pod_bridge.py::test_a_task_without_a_timestamp_is_stale PASSED [ 75%]
+tests/test_pod_bridge.py::test_registration_ack_is_not_subject_to_the_age_limit PASSED [100%]
+======================= 4 passed, 32 deselected in 0.04s =======================
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:8> zenoh/pki/make_certs.sh zenoh/pki/out
+certificates in zenoh/pki/out
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:9> dc up -d
++dc:0> docker compose -f docker-compose.pod1.yml up -d
+ Network apex-pod1_default Creating 
+ Network apex-pod1_default Creating 
+ Network apex-pod1_default Created 
+ Network apex-pod1_default Created 
+ Container apex-pod1-zenohd-1 Creating 
+ Container apex-pod1-zenohd-1 Created 
+ Container apex-pod1-bridge-node-1 Creating 
+ Container apex-pod1-fusion-node-1 Creating 
+ Container apex-pod1-radar-1 Creating 
+ Container apex-pod1-camera-1 Creating 
+ Container apex-pod1-recorder-1 Creating 
+ Container apex-pod1-fusion-node-1 Created 
+ Container apex-pod1-camera-1 Created 
+ Container apex-pod1-recorder-1 Created 
+ Container apex-pod1-radar-1 Created 
+ Container apex-pod1-bridge-node-1 Created 
+ Container apex-pod1-vehicle-1 Creating 
+ Container apex-pod1-vehicle-1 Created 
+ Container apex-pod1-zenohd-1 Starting 
+ Container apex-pod1-zenohd-1 Started 
+ Container apex-pod1-camera-1 Starting 
+ Container apex-pod1-fusion-node-1 Starting 
+ Container apex-pod1-radar-1 Starting 
+ Container apex-pod1-recorder-1 Starting 
+ Container apex-pod1-bridge-node-1 Starting 
+ Container apex-pod1-camera-1 Started 
+ Container apex-pod1-fusion-node-1 Started 
+ Container apex-pod1-radar-1 Started 
+ Container apex-pod1-recorder-1 Started 
+ Container apex-pod1-bridge-node-1 Started 
+ Container apex-pod1-vehicle-1 Starting 
+ Container apex-pod1-vehicle-1 Started 
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:10> sleep 3
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:11> dc logs zenohd
++dc:0> docker compose -f docker-compose.pod1.yml logs zenohd
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:11> grep -ci error
+0
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:12> sleep 27
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:13> dc logs radar
++dc:0> docker compose -f docker-compose.pod1.yml logs radar
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:13> grep -c registration_ack
+1
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:14> dc logs fusion-node
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:14> grep -c '<- registration '
++dc:0> docker compose -f docker-compose.pod1.yml logs fusion-node
+3
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:15> dc logs vehicle
++dc:0> docker compose -f docker-compose.pod1.yml logs vehicle
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:15> grep registration_ack
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:15> head -1
+vehicle-1  | 01:37:51 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:16> dc logs bridge-node
++dc:0> docker compose -f docker-compose.pod1.yml logs bridge-node
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:16> grep registered
+bridge-node-1  | 01:37:51 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:17> dc down
++dc:0> docker compose -f docker-compose.pod1.yml down
+ Container apex-pod1-camera-1 Stopping 
+ Container apex-pod1-radar-1 Stopping 
+ Container apex-pod1-vehicle-1 Stopping 
+ Container apex-pod1-fusion-node-1 Stopping 
+ Container apex-pod1-recorder-1 Stopping 
+ Container apex-pod1-fusion-node-1 Stopped 
+ Container apex-pod1-fusion-node-1 Removing 
+ Container apex-pod1-fusion-node-1 Removed 
+ Container apex-pod1-camera-1 Stopped 
+ Container apex-pod1-camera-1 Removing 
+ Container apex-pod1-camera-1 Removed 
+ Container apex-pod1-vehicle-1 Stopped 
+ Container apex-pod1-vehicle-1 Removing 
+ Container apex-pod1-vehicle-1 Removed 
+ Container apex-pod1-bridge-node-1 Stopping 
+ Container apex-pod1-radar-1 Stopped 
+ Container apex-pod1-radar-1 Removing 
+ Container apex-pod1-radar-1 Removed 
+ Container apex-pod1-recorder-1 Stopped 
+ Container apex-pod1-recorder-1 Removing 
+ Container apex-pod1-recorder-1 Removed 
+ Container apex-pod1-bridge-node-1 Stopped 
+ Container apex-pod1-bridge-node-1 Removing 
+ Container apex-pod1-bridge-node-1 Removed 
+ Container apex-pod1-zenohd-1 Stopping 
+ Container apex-pod1-zenohd-1 Stopped 
+ Container apex-pod1-zenohd-1 Removing 
+ Container apex-pod1-zenohd-1 Removed 
+ Network apex-pod1_default Removing 
+ Network apex-pod1_default Removed 
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:19> dcp up -d zenohd
++dcp:0> docker compose -f docker-compose.pairing.yml up -d zenohd
+ Network apex-pairing_default Creating 
+ Network apex-pairing_default Creating 
+ Network apex-pairing_default Created 
+ Network apex-pairing_default Created 
+ Container apex-pairing-zenohd-1 Creating 
+ Container apex-pairing-zenohd-1 Created 
+ Container apex-pairing-zenohd-1 Starting 
+ Container apex-pairing-zenohd-1 Started 
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:19> sleep 3
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:20> docker compose -f docker-compose.pairing.yml exec -T zenohd zenohd --version
+OCI runtime exec failed: exec failed: unable to start container process: exec: "zenohd": executable file not found in $PATH
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:21> dcp run --rm probe
++dcp:0> docker compose -f docker-compose.pairing.yml run --rm probe
+ Container apex-pairing-zenohd-1 Running 
+ Container apex-pairing-probe-run-da54f1e03e93 Creating 
+ Container apex-pairing-probe-run-da54f1e03e93 Created 
+2026-11-12 01:38:55,817 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+2026-11-12 01:38:55,820 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+PAIRING OK put-sub liveliness
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:22> echo 'exit 0'
+exit 0
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:23> PROBE_WAIT_RESTART=1 +.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:23> dcp run -d --name pairing-probe probe
++dcp:0> docker compose -f docker-compose.pairing.yml run -d --name pairing-probe probe
+ Container apex-pairing-zenohd-1 Running 
+ Container pairing-probe Creating 
+ Container pairing-probe Created 
+ea393961ed785080282f187e90766d93113552ff4e7c659e9f4350e3f66314d1
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:24> sleep 5
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:24> dcp restart zenohd
++dcp:0> docker compose -f docker-compose.pairing.yml restart zenohd
+ Container apex-pairing-zenohd-1 Restarting 
+ Container apex-pairing-zenohd-1 Started 
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:24> sleep 20
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:25> docker logs pairing-probe
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:25> tail -4
+2026-11-12 01:38:56,621 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+2026-11-12 01:38:56,624 probe-pairing connected to Zenoh router at tls/router.p1.h1:7447
+PAIRING OK put-sub liveliness
+PAIRING OK after router restart
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:26> docker wait pairing-probe
+0
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:27> docker rm -f pairing-probe
+pairing-probe
++.superpowers/sdd/2026-11-11-goat-step1-pod-to-host/task-12-g1-01-08-11.sh:27> dcp down
++dcp:0> docker compose -f docker-compose.pairing.yml down
+ Container apex-pairing-zenohd-1 Stopping 
+ Container apex-pairing-zenohd-1 Stopped 
+ Container apex-pairing-zenohd-1 Removing 
+ Container apex-pairing-zenohd-1 Removed 
+ Network apex-pairing_default Removing 
+ Network apex-pairing_default Removed 
+$ docker run --rm eclipse/zenoh:1.9.0 --version
+#!/bin/ash
+cat /entrypoint.sh
+echo " * Starting: /$BINARY $@"
+exec /$BINARY $@
+ * Starting: /zenohd --version
+[2m2026-11-12T01:39:47.996584Z[0m [32m INFO[0m main ThreadId(01) [2mzenohd[0m[2m:[0m zenohd v1.9.0 built with rustc 1.93.0 (254b59607 2026-01-19)
+zenohd v1.9.0 built with rustc 1.93.0 (254b59607 2026-01-19)

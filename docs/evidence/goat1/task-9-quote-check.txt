@@ -1,0 +1,236 @@
+# docs/acceptance-goat1.md, Task 9 entries: every backtick span
+NOT HELD	docker-compose.goat1.yml
+task-9-radar2-mount.txt:54	apex-goat1
+NOT HELD	08ef7c2
+NOT HELD	eclipse/zenoh:1.10.2
+NOT HELD	eclipse/zenoh:1.9.0
+task-9-radar2-mount.txt:56	apex-sapient:4.2.0
+task-9-g1-05.txt:2	dg up
+task-9-g1-05.txt:115	error
+task-9-up.txt:14	panic
+task-9-g1-02.txt:1	<- detection_report
+task-9-g1-02.txt:8	f0000001
+task-9-g1-02.txt:8	<- alert f0000001 ALERT_TYPE_INFORMATION "new track ..."
+task-9-g1-02.txt:12	anchor
+task-9-g1-02.txt:13	18214b1a...
+task-9-g1-02.txt:18	b005ae3a...
+task-9-g1-02.txt:26	msg.node_id
+task-9-g1-02.txt:8	f0000001
+task-9-g1-02.txt:24	f0000002
+task-9-g1-05.txt:64	*/telemetry/sapient/*/v2/*/*
+NOT HELD	*/ack/*/sapient/v2/*/*
+NOT HELD	*/task/*/sapient/v2/task/*
+task-9-g1-02.txt:10	host-recorder
+task-9-g1-02.txt:12	node_id
+task-9-g1-11.txt:16	bridge-node
+task-9-g1-03.txt:5	acceptance=True
+task-9-g1-03.txt:14	<- registration f0000001 "fake fusion node" [FUSION_NODE]
+task-9-g1-03.txt:8	<- registration_ack f0000002 -> f0000001 acceptance=True
+NOT HELD	FABRIC_HOST_ANCHORS
+task-9-g1-04.txt:17	23:34:27 fusion: joined the fabric as fusion node f0000002-0000-4000-8000-000000000002 below anchor b005ae3a8f2baf89160bd71632902672, site h1
+task-9-g1-04.txt:1	look_at
+task-9-g1-04.txt:6	radar-1   | 23:35:07 radar: <- task f0000001 -> 1aef1b86 9RBVP8 look_at ...
+task-9-g1-04.txt:5	camera-1  | 23:35:07 camera: <- task f0000001 -> 86ca6000 6KBV4V look_at ...
+task-9-g1-04.txt:13	host-fusion-1  | 23:35:07 fusion: <- task_ack f0000001 -> f0000002 70YMBK TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+task-9-host-restart.txt:43	23:42:56 fusion: -> task f0000002 -> f0000001 N7F0BG look_at ...
+task-9-host-restart.txt:14	fusion-node-1  | 23:42:56 fusion: <- task f0000002 -> f0000001 N7F0BG look_at ...
+task-9-host-restart.txt:15	fusion-node-1  | 23:42:56 fusion: -> task f0000001 -> 1aef1b86 MC9GSY look_at ...
+task-9-host-restart.txt:16	fusion-node-1  | 23:42:56 fusion: -> task f0000001 -> 86ca6000 BPJ3YT look_at ...
+task-9-host-restart.txt:17	fusion-node-1  | 23:42:56 fusion: -> up task_ack f0000001 -> f0000002 N7F0BG TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+task-9-host-restart.txt:18	fusion-node-1  | 23:42:56 fusion: <- task_ack 86ca6000 -> f0000001 BPJ3YT TASK_STATUS_ACCEPTED ['Pointing at (51.17819, -1.81716)']
+task-9-host-restart.txt:19	fusion-node-1  | 23:42:56 fusion: <- task_ack 1aef1b86 -> f0000001 MC9GSY TASK_STATUS_ACCEPTED ['Pointing at (51.17819, -1.81716)']
+task-9-host-restart.txt:44	23:42:56 fusion: <- task_ack f0000001 -> f0000002 N7F0BG TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+task-9-host-restart.txt:14	N7F0BG
+task-9-host-restart.txt:15	MC9GSY
+task-9-host-restart.txt:16	BPJ3YT
+task-9-host-restart.txt:14	N7F0BG
+task-9-g1-05.txt:119	request:Status
+task-9-g1-04.txt:1	look_at
+task-9-g1-05.txt:119	request:Status
+NOT HELD	move_to
+NOT HELD	follow
+NOT HELD	patrol
+task-9-g1-05.txt:1	RUST_LOG=zenoh::net::routing::interceptor=trace
+NOT HELD	emulators/probe_access.py
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:20	unauthorized
+NOT HELD	zenoh/src/net/routing/interceptor/access_control.rs
+NOT HELD	1.9.0
+NOT HELD	1.10.2
+NOT HELD	action
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:20	authorized
+NOT HELD	<host fusion anchor>/task/p1/sapient/v2/task/<pod fusion node ID>
+task-9-g1-05.txt:22	CN=18214b1a34e3c722d1cac283b272a62c is unauthorized to Put (ingress)
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:108	sed
+task-9-g1-05.txt:20	CN=
+NOT HELD	<pod anchor>/telemetry/sapient/p1/v2/alert/<pod fusion node ID>
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:64	**
+task-9-g1-05.txt:74	unauthorized to Declare Subscriber (ingress) on **
+task-9-g1-05.txt:64	*/telemetry/sapient/*/v2/*/*
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:12	bad_kind
+task-9-g1-05.txt:115	does not match the owner of its key
+task-9-g1-05.txt:150	info
+task-9-g1-05.txt:14	put
+NOT HELD	declare_subscriber
+task-9-g1-05.txt:20	unauthorized to Put (ingress)
+NOT HELD	compute_keyexpr_cache
+NOT HELD	action
+NOT HELD	Using cached result:
+NOT HELD	dg down
+task-9-g1-11.txt:2	427 passed
+task-9-g1-11.txt:1	-W error
+task-9-g1-11.txt:10	dc logs radar | grep -c registration_ack
+task-9-g1-11.txt:12	dc logs fusion-node | grep -c "<- registration "
+task-9-g1-02.txt:21	registration_ack
+task-9-g1-11.txt:16	bridge-node
+NOT HELD	emulators/probe_access.py
+task-9-host-restart.txt:1	dg restart host-fusion
+task-9-host-restart.txt:3	<- task f0000002 -> f0000001 ... request "Registration"
+task-9-g1-03.txt:8	<- registration_ack f0000002 -> f0000001 acceptance=True
+
+# README.md, Goat step 1 section: every line of the ```text output blocks
+task-9-readme-run.txt:110	fusion-node-1  | 23:47:51 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:111	fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:112	fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:113	fusion-node-1  | 23:47:56 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:116	host-fusion-1  | 23:47:56 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+task-9-g1-02.txt:8	4
+task-9-readme-run.txt:125	host-fusion-1  | 23:47:56 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track 6TR3WR"
+task-9-readme-run.txt:128	records: 93
+task-9-readme-run.txt:129	anchor not the pod or the host fusion node: 0
+task-9-readme-run.txt:130	msg.node_id of the radar, camera or vehicle: 0
+task-9-readme-run.txt:136	radar-1   | 23:48:31 radar: <- task f0000001 -> 1aef1b86 AG2327 look_at {"location_list":
+task-9-readme-run.txt:137	camera-1  | 23:48:31 camera: <- task f0000001 -> 86ca6000 VPS33S look_at {"location_list":
+task-9-readme-run.txt:140	host-fusion-1  | 23:48:11 fusion: <- task_ack f0000001 -> f0000002 9WWS9Q TASK_STATUS_ACCEPTED ['Status report sent']
+task-9-readme-run.txt:141	host-fusion-1  | 23:48:31 fusion: <- task_ack f0000001 -> f0000002 SBNACR TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+task-9-readme-run.txt:159	pod-bridge-1  | 23:48:46 pod-bridge: fabric router lost
+task-9-readme-run.txt:160	pod-bridge-1  | 23:48:46 pod-bridge: pod router lost
+task-9-readme-run.txt:161	pod-bridge-1  | 23:48:47 pod-bridge: fabric router back
+task-9-readme-run.txt:162	pod-bridge-1  | 23:48:47 pod-bridge: pod router back
+task-9-readme-run.txt:163	pod-bridge-1  | 23:48:51 pod-bridge: forwarded {'up': 64, 'down': 4}; dropped {}
+task-9-g1-05.txt:17	put: 1 status report on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+task-9-readme-run.txt:184	samples: 1 on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+task-9-g1-02.txt:8	2
+task-9-g1-02.txt:8	0
+task-9-g1-05.txt:44	samples: 0 on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+task-9-g1-02.txt:8	2
+task-9-g1-02.txt:8	0
+task-9-g1-05.txt:66	samples: 0 on ** in 15 s; from this probe: 0
+task-9-readme-run.txt:233	samples: 31 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0
+task-9-g1-02.txt:8	2
+task-9-g1-05.txt:82	samples: 3 on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report in 15 s; from this probe: 0
+task-9-g1-02.txt:5	1
+task-9-g1-02.txt:8	0
+task-9-readme-run.txt:293	fusion-node-1  | 23:50:45 fusion: <- task f0000002 -> f0000001 K2JYBJ request "Registration"
+task-9-readme-run.txt:294	fusion-node-1  | 23:50:45 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+
+# README.md, Goat step 1 section: backtick spans in prose
+NOT HELD	docker-compose.goat1.yml
+task-9-g1-05.txt:16	pod1
+task-9-g1-05.txt:2	zenohd-pod
+NOT HELD	eclipse/zenoh:1.10.2
+task-9-radar2-mount.txt:33	zenoh/goat1/router-pod1.json5
+task-9-g1-11.txt:16	bridge-node
+task-9-g1-05.txt:79	h1/p1/
+task-9-g1-05.txt:16	pod1
+task-9-readme-run.txt:23	mesh
+NOT HELD	pod_bridge.py
+task-9-g1-02.txt:1	host
+task-9-g1-05.txt:2	zenohd-fabric
+NOT HELD	${FABRIC_ZENOH_IMAGE:-eclipse/zenoh:1.9.0}
+NOT HELD	zenoh/goat1/router-fabric.json5
+NOT HELD	TRANSPORT=fabric
+NOT HELD	RECORD_KEYS=fabric
+task-9-radar2-mount.txt:5	radar2
+task-9-g1-04.txt:17	join
+task-9-g1-05.txt:2	dg up
+NOT HELD	zenoh/goat1/goat1.env
+task-9-radar2-mount.txt:13	zenoh/goat1/
+task-9-radar2-mount.txt:54	apex-goat1
+task-9-radar2-mount.txt:56	apex-sapient:4.2.0
+NOT HELD	08ef7c2
+task-9-g1-05.txt:15	dg run
+task-9-g1-04.txt:16	connected to Zenoh router
+task-9-g1-05.txt:15	probe
+NOT HELD	emulators/probe_access.py
+NOT HELD	put <key>
+NOT HELD	sub <key expression> <seconds>
+NOT HELD	podfabric
+NOT HELD	< /dev/null
+task-9-readme-run.txt:91	running
+task-9-g1-11.txt:16	bridge-node
+task-9-g1-02.txt:26	camera
+task-9-g1-03.txt:1	fusion-node
+task-9-g1-02.txt:1	host-fusion
+task-9-g1-02.txt:10	host-recorder
+task-9-g1-05.txt:4	pod-bridge
+task-9-g1-02.txt:26	radar
+task-9-g1-02.txt:10	recorder
+task-9-g1-02.txt:26	vehicle
+task-9-g1-05.txt:2	zenohd-fabric
+task-9-g1-05.txt:2	zenohd-pod
+task-9-g1-02.txt:8	0
+NOT HELD	dg down
+task-9-g1-05.txt:119	request:Status
+task-9-g1-04.txt:1	look_at
+task-9-g1-04.txt:1	look_at
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:20	authorized
+NOT HELD	action
+NOT HELD	zenoh/src/net/routing/interceptor/access_control.rs
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:20	unauthorized
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:20	authorized
+task-9-g1-05.txt:150	info
+NOT HELD	dg down
+task-9-readme-run.txt:31	apex-goat1_pod-records
+task-9-readme-run.txt:25	apex-goat1_host-records
+task-9-g1-05.txt:118	-v
+NOT HELD	docs/acceptance-goat1.md
+
+# README ```text lines, each looked up in task-9-readme-run.txt only (a line may follow the zsh prompt "%   aidev-1% ")
+task-9-readme-run.txt:110	fusion-node-1  | 23:47:51 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:111	fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:112	fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:113	fusion-node-1  | 23:47:56 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+task-9-readme-run.txt:116	host-fusion-1  | 23:47:56 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+task-9-readme-run.txt:122	4
+task-9-readme-run.txt:125	host-fusion-1  | 23:47:56 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track 6TR3WR"
+task-9-readme-run.txt:128	records: 93
+task-9-readme-run.txt:129	anchor not the pod or the host fusion node: 0
+task-9-readme-run.txt:130	msg.node_id of the radar, camera or vehicle: 0
+task-9-readme-run.txt:136	radar-1   | 23:48:31 radar: <- task f0000001 -> 1aef1b86 AG2327 look_at {"location_list":
+task-9-readme-run.txt:137	camera-1  | 23:48:31 camera: <- task f0000001 -> 86ca6000 VPS33S look_at {"location_list":
+task-9-readme-run.txt:140	host-fusion-1  | 23:48:11 fusion: <- task_ack f0000001 -> f0000002 9WWS9Q TASK_STATUS_ACCEPTED ['Status report sent']
+task-9-readme-run.txt:141	host-fusion-1  | 23:48:31 fusion: <- task_ack f0000001 -> f0000002 SBNACR TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+task-9-readme-run.txt:159	pod-bridge-1  | 23:48:46 pod-bridge: fabric router lost
+task-9-readme-run.txt:160	pod-bridge-1  | 23:48:46 pod-bridge: pod router lost
+task-9-readme-run.txt:161	pod-bridge-1  | 23:48:47 pod-bridge: fabric router back
+task-9-readme-run.txt:162	pod-bridge-1  | 23:48:47 pod-bridge: pod router back
+task-9-readme-run.txt:163	pod-bridge-1  | 23:48:51 pod-bridge: forwarded {'up': 64, 'down': 4}; dropped {}
+task-9-readme-run.txt:181	put: 1 status report on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+task-9-readme-run.txt:184	samples: 1 on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+task-9-readme-run.txt:188	2
+task-9-readme-run.txt:104	0
+task-9-readme-run.txt:212	samples: 0 on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+task-9-readme-run.txt:188	2
+task-9-readme-run.txt:104	0
+task-9-readme-run.txt:227	samples: 0 on ** in 15 s; from this probe: 0
+task-9-readme-run.txt:233	samples: 31 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0
+task-9-readme-run.txt:188	2
+task-9-readme-run.txt:261	samples: 3 on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report in 15 s; from this probe: 0
+task-9-readme-run.txt:265	1
+task-9-readme-run.txt:104	0
+task-9-readme-run.txt:293	fusion-node-1  | 23:50:45 fusion: <- task f0000002 -> f0000001 K2JYBJ request "Registration"
+task-9-readme-run.txt:294	fusion-node-1  | 23:50:45 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+lines: 34, not held: 0

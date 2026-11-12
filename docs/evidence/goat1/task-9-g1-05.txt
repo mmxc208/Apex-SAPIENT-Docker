@@ -1,0 +1,164 @@
+# G1-05 on the live routers, both restarted with ZENOHD_RUST_LOG=zenoh::net::routing::interceptor=trace
+$ ZENOHD_RUST_LOG=zenoh::net::routing::interceptor=trace dg up -d zenohd-pod zenohd-fabric   (at 23:36:16 UTC)
+pod bridge through that restart:
+23:36:26 pod-bridge: fabric router lost
+23:36:26 pod-bridge: pod router lost
+23:36:27 pod-bridge: fabric router back
+23:36:27 pod-bridge: pod router back
+23:36:28 pod-bridge: forwarded {'up': 136, 'down': 8}; dropped {}
+23:36:58 pod-bridge: forwarded {'up': 171, 'down': 9}; dropped {}
+23:37:28 pod-bridge: forwarded {'up': 207, 'down': 11}; dropped {}
+23:37:58 pod-bridge: forwarded {'up': 241, 'down': 12}; dropped {}
+23:38:28 pod-bridge: forwarded {'up': 276, 'down': 14}; dropped {'bad_kind': 1}
+
+=== Case 1, denied: the pod's slot certificate (CN 18214b1a34e3c722d1cac283b272a62c) puts on the host fusion node's task key
+$ dg run --rm --no-deps -T host-recorder python probe_access.py sub b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 15   (in the background)
+$ dg run --rm --no-deps -T -e ZENOH_CONNECT=tls/router.fabric.h1:7447 -e ZENOH_TLS_CA=/certs/fabric/ca.pem -e ZENOH_TLS_CERT=/certs/fabric/pod1.pem -e ZENOH_TLS_KEY=/certs/fabric/pod1.key pod-bridge python probe_access.py put b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+put: 1 status report on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+samples: 0 on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+$ router zenohd-fabric trace for the key since 2026-11-11T23:38:50Z (put and subscriber decisions):
+2026-11-11T23:38:50.526116Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:38:50.526118Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:38:56.588947Z CN=18214b1a34e3c722d1cac283b272a62c is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:38:56.588975Z CN=18214b1a34e3c722d1cac283b272a62c is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+  (egress lines omitted; count of Put (egress) lines for the key: 2)
+
+=== Case 1, control: the host fusion certificate (CN b005ae3a8f2baf89160bd71632902672) puts on the same key
+$ dg run --rm --no-deps -T host-recorder python probe_access.py sub b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 15   (in the background)
+$ dg run --rm --no-deps -T  host-fusion python probe_access.py put b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+put: 1 status report on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+samples: 1 on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 1
+  e.g. b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+$ router zenohd-fabric trace for the key since 2026-11-11T23:39:07Z (put and subscriber decisions):
+2026-11-11T23:39:07.882827Z CN=b005ae3a8f2baf89160bd71632902672 is authorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:08.030666Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:08.030667Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:14.075160Z CN=b005ae3a8f2baf89160bd71632902672 is unauthorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:14.075201Z CN=b005ae3a8f2baf89160bd71632902672 is authorized to Put (ingress) on b005ae3a8f2baf89160bd71632902672/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001
+  (egress lines omitted; count of Put (egress) lines for the key: 11)
+
+=== Case 2, denied: the host fusion certificate (CN b005ae3a8f2baf89160bd71632902672) puts on the pod's alert key
+$ dg run --rm --no-deps -T host-recorder python probe_access.py sub 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 15   (in the background)
+$ dg run --rm --no-deps -T  host-fusion python probe_access.py put 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+put: 1 status report on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+samples: 0 on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 0
+$ router zenohd-fabric trace for the key since 2026-11-11T23:39:25Z (put and subscriber decisions):
+2026-11-11T23:39:25.527916Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:25.527919Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:31.569695Z CN=b005ae3a8f2baf89160bd71632902672 is unauthorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:31.569721Z CN=b005ae3a8f2baf89160bd71632902672 is unauthorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+  (egress lines omitted; count of Put (egress) lines for the key: 1)
+
+=== Case 2, control: the pod's slot certificate (CN 18214b1a34e3c722d1cac283b272a62c) puts on the same key
+$ dg run --rm --no-deps -T host-recorder python probe_access.py sub 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 15   (in the background)
+$ dg run --rm --no-deps -T -e ZENOH_CONNECT=tls/router.fabric.h1:7447 -e ZENOH_TLS_CA=/certs/fabric/ca.pem -e ZENOH_TLS_CERT=/certs/fabric/pod1.pem -e ZENOH_TLS_KEY=/certs/fabric/pod1.key pod-bridge python probe_access.py put 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+put: 1 status report on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+samples: 1 on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001 in 15 s; from this probe: 1
+  e.g. 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+$ router zenohd-fabric trace for the key since 2026-11-11T23:39:42Z (put and subscriber decisions):
+2026-11-11T23:39:43.025408Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:43.025410Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+2026-11-11T23:39:49.068619Z CN=18214b1a34e3c722d1cac283b272a62c is authorized to Put (ingress) on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
+  (egress lines omitted; count of Put (egress) lines for the key: 5)
+
+=== Case 3: the host recorder certificate (CN 1ab0be0bcfdc3997544545af2235dd6d) subscribes to ** and to */telemetry/sapient/*/v2/*/*
+$ dg run --rm --no-deps -T host-recorder python probe_access.py sub "**" 15
+samples: 0 on ** in 15 s; from this probe: 0
+$ dg run --rm --no-deps -T host-recorder python probe_access.py sub "*/telemetry/sapient/*/v2/*/*" 15
+samples: 33 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0
+  e.g. 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001
+  e.g. 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/status_report/f0000001-0000-4000-8000-000000000001
+  e.g. b005ae3a8f2baf89160bd71632902672/telemetry/sapient/h1/v2/detection_report/f0000002-0000-4000-8000-000000000002
+  e.g. b005ae3a8f2baf89160bd71632902672/telemetry/sapient/h1/v2/status_report/f0000002-0000-4000-8000-000000000002
+$ router zenohd-fabric trace, subscriber decisions since 2026-11-11T23:40:00Z:
+2026-11-11T23:40:00.528694Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Declare Subscriber (ingress) on **
+2026-11-11T23:40:00.528706Z CN=1ab0be0bcfdc3997544545af2235dd6d is unauthorized to Declare Subscriber (ingress) on **
+2026-11-11T23:40:15.873832Z CN=1ab0be0bcfdc3997544545af2235dd6d is authorized to Declare Subscriber (ingress) on */telemetry/sapient/*/v2/*/*
+
+=== Case 4, denied: in the pod, the radar certificate (CN 1aef1b86-9b67-47a8-b565-2e40f235d2ba) puts on the camera's up key
+$ dg run --rm --no-deps -T recorder python probe_access.py sub h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report 15   (in the background)
+$ dg run --rm --no-deps -T  radar python probe_access.py put h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+put: 1 status report on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+samples: 3 on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report in 15 s; from this probe: 0
+  e.g. h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+$ router zenohd-pod trace for the key since 2026-11-11T23:40:31Z (put and subscriber decisions):
+2026-11-11T23:40:31.278681Z CN=recorder.p1.h1 is unauthorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:31.496346Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:36.500965Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:37.306389Z CN=1aef1b86-9b67-47a8-b565-2e40f235d2ba is unauthorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:41.503722Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:46.505939Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+  (egress lines omitted; count of Put (egress) lines for the key: 12)
+
+=== Case 4, control: the camera certificate (CN 86ca6000-1c36-4aed-875f-ac18ec0b5ab2) puts on the same key
+$ dg run --rm --no-deps -T recorder python probe_access.py sub h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report 15   (in the background)
+$ dg run --rm --no-deps -T  camera python probe_access.py put h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+put: 1 status report on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+samples: 4 on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report in 15 s; from this probe: 1
+  e.g. h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+$ router zenohd-pod trace for the key since 2026-11-11T23:40:48Z (put and subscriber decisions):
+2026-11-11T23:40:48.783781Z c1cbf2524028efad7705430addb211d on Interface(eth0)+CertCommonName(recorder.p1.h1)+Transport(Tls)+c1cbf2524028efad7705430addb211d is unauthorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:51.509537Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:54.805645Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:40:56.513803Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+2026-11-11T23:41:01.517580Z CN=86ca6000-1c36-4aed-875f-ac18ec0b5ab2 is authorized to Put (ingress) on h1/p1/sapient/v2/86ca6000-1c36-4aed-875f-ac18ec0b5ab2/up/status_report
+  (egress lines omitted; count of Put (egress) lines for the key: 13)
+
+=== The other side, in the services' own logs, 23:38:45 to 23:41:05 UTC
+$ dg logs --no-log-prefix pod-bridge | sed -n "/23:38:5/,/23:41:0/p"
+23:38:58 pod-bridge: forwarded {'up': 311, 'down': 15}; dropped {'bad_kind': 1}
+23:39:28 pod-bridge: forwarded {'up': 347, 'down': 17}; dropped {'bad_kind': 2}
+23:39:58 pod-bridge: forwarded {'up': 381, 'down': 19}; dropped {'bad_kind': 2}
+23:40:28 pod-bridge: forwarded {'up': 417, 'down': 21}; dropped {'bad_kind': 2}
+23:40:58 pod-bridge: forwarded {'up': 452, 'down': 22}; dropped {'bad_kind': 2}
+$ dg logs --no-log-prefix fusion-node | grep -E "^23:(38:[45]|39|40|41:0)" | grep -i -E "invalid|a0000009|dropped"
+23:39:49 fusion: <- error f0000002 -> f0000001 node_id a0000009-0000-4000-8000-000000000009 does not match the owner of its key, f0000001-0000-4000-8000-000000000001
+23:40:54 fusion: invalid message from 'a0000009' dropped: node_id a0000009-0000-4000-8000-000000000009 does not match the owner of its key, 86ca6000-1c36-4aed-875f-ac18ec0b5ab2
+23:40:54 fusion: -> error f0000001 -> 86ca6000 node_id a0000009-0000-4000-8000-000000000009 does not match the owner of its key, 86ca6000-1c36-4aed-875f-ac18ec0b5ab2
+$ dg logs --no-log-prefix host-fusion | grep -E "^23:(38:[45]|39|40|41:0)" | grep -v -E "detection_report|-> status_report f0000002"
+23:38:47 fusion: auto-task request:Status -> 1 node(s)
+23:38:47 fusion: -> task f0000002 -> f0000001 XXH5C4 request "Status"
+23:38:47 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+23:38:47 fusion: <- task_ack f0000001 -> f0000002 XXH5C4 TASK_STATUS_ACCEPTED ['Status report sent']
+23:39:07 fusion: auto-task look_at -> 1 node(s)
+23:39:07 fusion: -> task f0000002 -> f0000001 T411XJ look_at {"location_list": {"locations": [{"x": -1.8215149769968755, "y": 51.17644589075241, "z": 120.0, "x_
+23:39:07 fusion: <- task_ack f0000001 -> f0000002 T411XJ TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+23:39:27 fusion: auto-task request:Status -> 1 node(s)
+23:39:27 fusion: -> task f0000002 -> f0000001 J263WC request "Status"
+23:39:27 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+23:39:27 fusion: <- task_ack f0000001 -> f0000002 J263WC TASK_STATUS_ACCEPTED ['Status report sent']
+23:39:47 fusion: auto-task look_at -> 1 node(s)
+23:39:47 fusion: -> task f0000002 -> f0000001 N2EV8M look_at {"location_list": {"locations": [{"x": -1.8175955525161966, "y": 51.17376603981795, "z": 120.0, "x_
+23:39:47 fusion: <- task_ack f0000001 -> f0000002 N2EV8M TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+23:39:49 fusion: invalid message from 'a0000009' dropped: node_id a0000009-0000-4000-8000-000000000009 does not match the owner of its key, f0000001-0000-4000-8
+23:39:49 fusion: -> error f0000002 -> f0000001 node_id a0000009-0000-4000-8000-000000000009 does not match the owner of its key, f0000001-0000-4000-8000-0000000
+23:40:07 fusion: auto-task request:Status -> 1 node(s)
+23:40:07 fusion: -> task f0000002 -> f0000001 VR5GWQ request "Status"
+23:40:07 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+23:40:07 fusion: <- task_ack f0000001 -> f0000002 VR5GWQ TASK_STATUS_ACCEPTED ['Status report sent']
+23:40:27 fusion: auto-task look_at -> 1 node(s)
+23:40:27 fusion: -> task f0000002 -> f0000001 B3WDQD look_at {"location_list": {"locations": [{"x": -1.8148058440332737, "y": 51.177022161050026, "z": 120.0, "x
+23:40:27 fusion: <- task_ack f0000001 -> f0000002 B3WDQD TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+23:40:47 fusion: auto-task request:Status -> 1 node(s)
+23:40:47 fusion: -> task f0000002 -> f0000001 8GHDXX request "Status"
+23:40:47 fusion: <- status_report f0000001 SYSTEM_OK INFO_NEW mode=Default
+23:40:47 fusion: <- task_ack f0000001 -> f0000002 8GHDXX TASK_STATUS_ACCEPTED ['Status report sent']
+23:41:07 fusion: auto-task look_at -> 1 node(s)
+23:41:07 fusion: -> task f0000002 -> f0000001 Q60T1N look_at {"location_list": {"locations": [{"x": -1.820652194792366, "y": 51.1775133285267, "z": 120.0, "x_er
+23:41:07 fusion: <- task_ack f0000001 -> f0000002 Q60T1N TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+
+=== Routers back to info
+$ dg up -d zenohd-pod zenohd-fabric
+2
+$ dg exec zenohd-fabric env | grep RUST_LOG ; dg exec zenohd-pod env | grep RUST_LOG
+RUST_LOG=info
+RUST_LOG=info
+$ dg logs --since 35s --no-log-prefix pod-bridge
+23:41:28 pod-bridge: forwarded {'up': 488, 'down': 24}; dropped {'bad_kind': 2}
+23:41:30 pod-bridge: pod router lost
+23:41:30 pod-bridge: fabric router lost
+23:41:31 pod-bridge: fabric router back
+23:41:31 pod-bridge: pod router back
+23:41:58 pod-bridge: forwarded {'up': 520, 'down': 25}; dropped {'bad_kind': 2}
+$ dg logs --since 35s --no-log-prefix host-fusion | grep -c "<- detection_report"
+4

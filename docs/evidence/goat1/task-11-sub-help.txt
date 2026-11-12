@@ -1,0 +1,117 @@
+Subscribe to a topic key expression.
+
+Usage: goat sub [OPTIONS] <KEY_PATTERN>
+
+Arguments:
+  <KEY_PATTERN>
+          Zenoh key expression to subscribe to (e.g. `acme/**`)
+
+Options:
+      --follow
+          Accepted and ignored: streaming until you stop it IS the default. Kept so the many
+          runbooks, demo pages and muscle-memory invocations that spell `--follow`/`--watch` keep
+          working unchanged
+          
+          [aliases: --watch]
+
+      --profile-dir <PROFILE_DIR>
+          Override the profile directory (default: $GOAT_PROFILE_DIR or ~/.goat).
+          
+          [env: GOAT_PROFILE_DIR=]
+
+      --context <CONTEXT>
+          Override the active context (default: $GOAT_CONTEXT env, then current_context in
+          config.toml, then "default").
+          
+          [env: GOAT_CONTEXT=]
+
+      --decode
+          Decode payload bytes against the topic's portal-registered schema
+
+      --narrate
+          Show the substrate cascade a mutating command sets off.
+
+      --tui
+          Interactive Tail lens for live tail (default is line-oriented): event table, rate
+          sparkline, on-demand decoded/hex viewer. Requires a terminal (refuses on a non-TTY)
+
+      --count <COUNT>
+          Exit after this many events. Omitted, `goat sub` streams until you stop it — a live tail
+          is what an operator almost always wants, and the old exit-after-one default made a working
+          subscription look like a failure. `--take` is the same flag (the spelling every health
+          runbook already uses)
+          
+          [aliases: --take]
+
+      --narrate-json
+          Emit the substrate cascade as NDJSON (one object per consequence) for incident logs +
+          scripting. Implies --narrate.
+
+      --keys-only
+          Print only each event's key, never the payload. The prefix-census form: `goat sub '**'
+          --keys-only --take 200 | sort -u`
+
+      --uuid
+          Show raw UUID slot anchors instead of human aliases (ADR 1039). Aliases are the default
+          display; this forces the canonical form. `--json` always carries the UUID regardless of
+          this flag
+
+      --for <DURATION>
+          Stop after this long (`30s`, `2m`, `1h30m`) whether or not `--take` was satisfied. A
+          bounded tail otherwise waits forever for events that may never come, so a runbook
+          acceptance check hangs instead of failing. With `--take`, an unmet count at the deadline
+          exits non-zero; without it, reaching the deadline is simply the end of the tail
+
+  -v, --verbose
+          Enable verbose debug output (or set RUST_LOG=goat=debug).
+
+      --color <COLOR>
+          Color mode for terminal output (auto|always|never).
+          
+          [default: auto]
+          [possible values: auto, always, never]
+
+      --since <SINCE>
+          Replay past events from the audit-tail instead of subscribing live. A duration (`1h`,
+          `90m`) or an RFC3339 timestamp
+
+      --lang <LANG>
+          Language for human-facing prose (e.g. en, uk). Falls back to GOAT_LANG, then the OS
+          locale, then English.
+          
+          [env: GOAT_LANG=]
+
+      --open
+          Decrypt each received sample with the grant-keyed DEK you hold (grant-keyed encryption,
+          ADR 1094). Query-history-then-subscribe: you get retained samples plus the live tail. A
+          sample you have no key for prints DENIED — the read cut, enforced by the crypto, not the
+          router
+
+      --key-service-bundle <KEY_SERVICE_BUNDLE>
+          (with --open) The key service's SPIRE trust bundle PEM
+
+      --timeout <TIMEOUT>
+          Max seconds to wait establishing a fabric session before failing fast (default 5). Bounds
+          the connect/handshake phase for network commands (health/sub/pub/presence) so an
+          unreachable router errors cleanly instead of blocking. Does NOT cap steady-state streaming
+          — `sub --watch` runs as long as you want. Also reads GOAT_TIMEOUT
+          
+          [env: GOAT_TIMEOUT=]
+
+      --trust-domain <TRUST_DOMAIN>
+          (with --open) The goatnet's SPIFFE trust domain
+
+      --key-service-id <KEY_SERVICE_ID>
+          (with --open) The key service's SPIFFE id (default spiffe://<td>/grant-keyd)
+
+      --literal
+          Subscribe on the key exactly as written — skip slot-alias resolution of the leading
+          segment. For a namespace that is not a slot anchor on a slot-pool goatnet: a seeded
+          per-vendor prefix such as `airdefenders/` (seeded beside the slot pool), where the
+          resolver would refuse the segment as an unknown alias. Read-only, so a typo costs an empty
+          tail, never a phantom write prefix (the F-177 case the fail-closed resolver exists for).
+          `goat demo` sets this for its generated key
+
+  -h, --help
+          Print help (see a summary with '-h')
+exit 0

@@ -1,0 +1,73 @@
+$ dg config -q ; echo $?
+0
+$ dg --profile join config -q ; echo $?
+0
+$ dg --profile join config radar2 | sed -n "/volumes:/,/working_dir/p"
+    volumes:
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/emulators
+        target: /emulators
+        read_only: true
+        bind: {}
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/ca.pem
+        target: /certs/ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/radar2.pem
+        target: /certs/radar2.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/radar2.key
+        target: /certs/radar2.key
+        read_only: true
+        bind:
+          create_host_path: false
+    working_dir: /emulators
+    volumes:
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/router-pod1.json5
+        target: /config/router.json5
+        read_only: true
+        bind: {}
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/ca.pem
+        target: /certs/ca.pem
+        read_only: true
+        bind: {}
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/router.pem
+        target: /certs/router.pem
+        read_only: true
+        bind: {}
+      - type: bind
+        source: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/router.key
+        target: /certs/router.key
+        read_only: true
+        bind: {}
+networks:
+  pod1:
+    name: apex-goat1_pod1
+x-emulator:
+  image: apex-sapient:4.2.0
+  restart: unless-stopped
+  working_dir: /emulators
+$ find zenoh/goat1/pki -name "radar2*"   (before)
+$ dg --profile join up -d --no-deps radar2 ; echo exit $?
+ Network apex-goat1_pod1 Creating 
+ Network apex-goat1_pod1 Creating 
+ Network apex-goat1_pod1 Created 
+ Network apex-goat1_pod1 Created 
+ Container apex-goat1-radar2-1 Creating 
+ service:radar2:1 Error response from daemon: invalid mount config for type "bind": bind source path does not exist: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/radar2.pem 
+Error response from daemon: invalid mount config for type "bind": bind source path does not exist: <workspace>/Apex-SAPIENT-Docker/zenoh/goat1/pki/pod1/radar2.pem
+exit 1
+$ find zenoh/goat1/pki -name "radar2*"   (after)
+$ dg --profile join ps -a --format "{{.Service}} {{.State}}"
+$ dg --profile join down
+ Network apex-goat1_pod1 Removing 
+ Network apex-goat1_pod1 Removed 

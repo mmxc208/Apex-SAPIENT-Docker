@@ -1,0 +1,19 @@
+$ dg ps --format '{{.Service}} {{.State}}' | sort
+bridge-node running
+camera running
+fusion-node running
+host-fusion running
+host-recorder running
+pod-bridge running
+radar running
+recorder running
+vehicle running
+zenohd-fabric running
+zenohd-pod running
+
+$ dg logs zenohd-pod zenohd-fabric | grep -ci -E 'error|panic'
+0
+
+$ find zenoh/goat1/pki -name 'radar2*' | wc -l
+       0
+

@@ -1,0 +1,18 @@
+$ dg logs radar camera | grep -c "<- task .* look_at"
+2
+
+$ dg logs radar camera | grep "<- task .* look_at" | cut -c1-140
+camera-1  | 23:35:07 camera: <- task f0000001 -> 86ca6000 6KBV4V look_at {"location_list": {"locations": [{"x": -1.8204334577048762, "y": 51
+radar-1   | 23:35:07 radar: <- task f0000001 -> 1aef1b86 9RBVP8 look_at {"location_list": {"locations": [{"x": -1.8204334577048762, "y": 51.
+
+$ dg logs host-fusion | grep "<- task_ack" | grep -c TASK_STATUS_ACCEPTED
+2
+
+$ dg logs host-fusion | grep "<- task_ack" | grep TASK_STATUS_ACCEPTED
+host-fusion-1  | 23:34:47 fusion: <- task_ack f0000001 -> f0000002 DX01AH TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1  | 23:35:07 fusion: <- task_ack f0000001 -> f0000002 70YMBK TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+
+$ dg logs --no-log-prefix host-fusion | head -2
+23:34:27 fusion: connected to Zenoh router at tls/router.fabric.h1:7447
+23:34:27 fusion: joined the fabric as fusion node f0000002-0000-4000-8000-000000000002 below anchor b005ae3a8f2baf89160bd71632902672, site h1
+

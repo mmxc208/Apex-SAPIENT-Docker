@@ -1,0 +1,10 @@
+time="2026-11-11T20:11:30-05:00" level=warning msg="Found orphan containers (apex-elasticsearch-1) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container apex-radar-run-5d62401c4ca9 Creating 
+ Container apex-radar-run-5d62401c4ca9 Created 
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 50%]
+........................................................................ [ 67%]
+........................................................................ [ 84%]
+...................................................................      [100%]
+427 passed in 15.26s

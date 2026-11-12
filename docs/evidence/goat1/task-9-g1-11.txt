@@ -1,0 +1,20 @@
+$ docker compose -f docker-compose.yml -f docker-compose.emulators.yml run --rm --no-deps radar python -m pytest -p no:cacheprovider -q -W error tests
+427 passed in 15.39s   (tail of the output; no warning line)
+
+$ dc() { docker compose -f docker-compose.pod1.yml "$@"; }
+$ zenoh/pki/make_certs.sh zenoh/pki/out
+certificates in zenoh/pki/out
+$ dc up -d ; sleep 3 ; dc logs zenohd | grep -ci error
+7
+0
+$ sleep 27 ; dc logs radar | grep -c registration_ack
+1
+$ dc logs fusion-node | grep -c "<- registration "
+3
+$ dc logs vehicle | grep registration_ack | head -1
+vehicle-1  | 23:44:11 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']
+$ dc logs bridge-node | grep registered
+bridge-node-1  | 23:44:11 bridge-node-side: node a0000003-0000-4000-8000-000000000003 registered
+$ dc down
+ Network apex-pod1_default Removed 
+       1

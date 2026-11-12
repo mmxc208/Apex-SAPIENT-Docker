@@ -1,0 +1,23 @@
+README   task-11-readme-run.txt:3 |     Finished `release` profile [optimized] target(s) in 0.15s
+README   task-11-readme-run.txt:4 | goat 0.5.19
+README   task-11-readme-run.txt:11 | listening on `18214b1a34e3c722d1cac283b272a62c/**` via tls/router.fabric.h1:7447 — stopping after 1 event(s). 
+README   task-11-readme-run.txt:12 | 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001
+README   task-11-readme-run.txt:13 | done after 0s — 1 event(s) on `18214b1a34e3c722d1cac283b272a62c/**` (the requested 1)
+README   task-11-readme-run.txt:14 | exit 0
+README   task-11-readme-run.txt:15 | listening on `18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/*` via tls/router.fabr
+README   task-11-readme-run.txt:16 | 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001
+README   task-11-readme-run.txt:16 | 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001
+README   task-11-readme-run.txt:16 | 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001
+README   task-11-readme-run.txt:19 | done after 2s — 3 event(s) on `18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/*` (t
+README   task-11-readme-run.txt:14 | exit 0
+README   task-11-readme-run.txt:21 | 2
+README   task-11-readme-run.txt:22 | 4
+README   task-11-readme-run.txt:23 | 0
+ACCEPT   task-11-readme-run.txt:4 | goat 0.5.19
+ACCEPT   task-11-run-shortened.txt:2 | 18214b1a…/telemetry/sapient/p1/v2/status_report/f0000001-0000-4000-8000-000000000001
+ACCEPT   task-11-readme-run.txt:12 | 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001
+ACCEPT   task-11-router-trace-plain.txt:22 | Declare Subscriber (ingress)
+ACCEPT   task-11-router-trace-plain.txt:15 | Put (egress)
+ACCEPT   task-11-router-trace-plain.txt:9 | Declare/Undeclare Liveliness Token
+ACCEPT   task-11-router-trace-plain.txt:1 | CertCommonName(ad19ee14f48bda3901a8bea949babb5a)
+missing: 0

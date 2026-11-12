@@ -1,0 +1,46 @@
+command: docker run --rm -v "$PWD/../usareur-af/goatcore:/src:ro" -v apex-goat1-cargo-target:/target -e CARGO_TARGET_DIR=/target -e CARGO_HOME=/target/cargo-home rust:1.95.0-bookworm ... cargo build --release --locked -j 2 --manifest-path /src/crates/Cargo.toml -p goat-cli
+goatcore HEAD: cbf2cb7f5147c5b7879f4d12420845b2e4d3a067
+start 2026-11-12T00:43:31Z
+cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+rustc 1.95.0 (59807616e 2026-04-14)
+--- last 40 lines ---
+   Compiling hex v0.4.3
+   Compiling grant-crypto v0.1.0 (/src/ops/grant-crypto/sdk/core)
+   Compiling zenoh-ext v1.9.0
+   Compiling unicode-truncate v1.1.0
+   Compiling age-core v0.11.0
+   Compiling ciborium-ll v0.2.2
+   Compiling rusty-s3 v0.10.2
+   Compiling pin-project v1.1.13
+   Compiling serde-value v0.7.0
+   Compiling compact_str v0.8.2
+   Compiling ureq v2.12.1
+   Compiling scrypt v0.11.0
+   Compiling reqwest v0.12.28
+   Compiling strum v0.26.3
+   Compiling ed25519-dalek v2.2.0
+   Compiling x509-parser v0.16.0
+   Compiling prost-types v0.13.5
+   Compiling i18n-embed-fl v0.9.4
+   Compiling toml v0.8.23
+   Compiling lru v0.12.5
+   Compiling x509-cert v0.2.5
+   Compiling quick-xml v0.42.0
+   Compiling unicode-width v0.2.0
+   Compiling bech32 v0.9.1
+   Compiling cassowary v0.3.0
+   Compiling age v0.11.3
+   Compiling ratatui v0.29.0
+   Compiling panoscope-core v0.1.0 (/src/crates/panoscope-core)
+   Compiling grant-keyd v0.1.0 (/src/ops/grant-crypto/keyd)
+   Compiling goat-federation v0.5.18 (/src/crates/goat-federation)
+   Compiling prost-reflect v0.14.7
+   Compiling ciborium v0.2.2
+   Compiling goat-fun v0.1.0 (/src/crates/goat-fun)
+   Compiling clap_complete v4.6.5
+   Compiling goat-errors v0.1.0 (/src/crates/goat-errors)
+   Compiling goat-selfupdate v0.1.0 (/src/crates/goat-selfupdate)
+   Compiling goat-cli v0.5.19 (/src/crates/goat-cli)
+    Finished `release` profile [optimized] target(s) in 4m 24s
+end 2026-11-12T00:47:56Z
+exit 0 elapsed 265 s
