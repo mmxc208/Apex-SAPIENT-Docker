@@ -966,6 +966,79 @@ This step carries pod 1's SAPIENT traffic to a host over a fabric that follows t
 
 `radar2` sits behind the compose profile `join`: the rig starts without `radar2` unless the profile `join` is named, as step 9 does. The generator writes the router configurations, the certificates and `zenoh/goat1/goat1.env` below `zenoh/goat1/`, which is git-ignored. The compose file is standalone: don't combine it with the other compose files. It uses the project name `apex-goat1` and the image `apex-sapient:4.2.0` built by the earlier stages. No router port is published to the host.
 
+### The rig of step 1
+
+One Docker Compose project, `apex-goat1`, on one machine. Three Docker networks take the place of the pod's local network, the mesh and the host's network.
+
+```
+ network pod1: pod 1, site p1                          network host: the host, site h1
++------------------------------------------------+    +----------------------------------------+
+|                                                |    |                                        |
+|  radar   (slot 0) ----+                        |    |  host-fusion          host-recorder    |
+|  camera  (slot 1) ----+                        |    |  (slot 1)             (slot 2)         |
+|  fusion-node ---------+--TLS-->  zenohd-pod    |    |       |                    |           |
+|  recorder ------------+          Zenoh 1.10.2  |    |       +------- TLS --------+           |
+|  bridge-node (slot 2)-+          pod CA        |    |                 |                      |
+|       ^                          8 slots       |    |                 v                      |
+|       | TCP, no TLS                 ^          |    |           zenohd-fabric                |
+|  vehicle (legacy node)              | TLS      |    |           Zenoh 1.9.0                  |
+|                                     |          |    |           fabric CA, 8 slots           |
+|  radar2 (slot 3) joins         pod-bridge      |    |                 ^                      |
+|  later, in step 9              (named cert)    |    |                 | TLS                  |
++-------------------------------------|----------+    +-----------------|----------------------+
+                                      |                                 |
+                                      +---------------------------------+
+                                          network mesh: TLS, the bridge uses fabric slot 0
+                                          (in place of the WireGuard mesh of a real goatnet)
+```
+
+- **Two CAs.** The pod CA signs everything inside the pod. The fabric CA signs the host side and the bridge's slot certificate.
+- **The pod bridge** is the only part on both sides. It has a named pod certificate for `zenohd-pod` and the certificate of fabric slot 0 for `zenohd-fabric`. It copies the bytes unchanged.
+- **Slots.** In the pod, a slot gives a sensor its certificate and its node ID. On the fabric, a slot gives a client its certificate and its anchor, the first part of every key that it may write. Fabric slot 3 is the `goat` test client of step 10.
+- **Named pod identities**, not in the pool: the pod router, `fusion-node`, `recorder` and `pod-bridge`.
+
+### The data flow of step 1
+
+```
+UP: registration, status, tracks, alerts, task acknowledgements
+
+ sensor        pod fusion node       pod bridge         fabric router        host fusion
+ (pod 1)                                                                   + host recorder
+    |                 |                   |                   |                   |
+    |------ (1) ----->|                   |                   |                   |
+    |                 |------- (2) ------>|                   |                   |
+    |                 |                   |------- (3) ------>|                   |
+    |                 |                   |                   |------- (3) ------>|
+
+DOWN: tasks and acknowledgements from the host
+
+ sensor        pod fusion node       pod bridge         fabric router        host fusion
+ (pod 1)                                                                   + host recorder
+    |                 |                   |                   |                   |
+    |                 |                   |                   |<------ (4) -------|
+    |                 |                   |<------ (4) -------|                   |
+    |                 |<------ (5) -------|                   |                   |
+    |<----- (6) ------|                   |                   |                   |
+```
+
+| Hop | Key | Who may write it |
+|---|---|---|
+| (1) | `h1/p1/sapient/v2/<sensor ID>/up/<kind>` | that sensor's slot only |
+| (2) | `h1/p1/fusion/up/<kind>` | the pod fusion node |
+| (3) | `<pod anchor>/telemetry/sapient/p1/v2/<kind>/<fusion node ID>`, and `<pod anchor>/ack/p1/sapient/v2/task_ack/<fusion node ID>` for a task acknowledgement | fabric slot 0, the pod bridge |
+| (4) | `<host anchor>/task/p1/sapient/v2/task/<fusion node ID>`, and `<host anchor>/ack/p1/sapient/v2/<kind>/<fusion node ID>` for an acknowledgement | fabric slot 1, the host fusion node |
+| (5) | `h1/p1/fusion/down/<kind>` | the pod bridge |
+| (6) | `h1/p1/sapient/v2/<sensor ID>/down/task` | the pod fusion node |
+
+- **Raw sensor data stops at the pod fusion node.** Only what the fusion node sends on (2) reaches the fabric: its registration, its status, its fused tracks and its alerts.
+- **The host tasks only the pod fusion node.** At (6) the fusion node sends a copy of the command, with a new task ID, to each registered sensor that the command is meant for.
+- **Presence.** While the pod fusion node sends traffic, the bridge holds a liveliness token on `<pod anchor>/telemetry/sapient/p1/v2/live/<fusion node ID>`. The host removes the node when the token has been away for the hold time.
+- **Checks on the way down, at the bridge.** It drops a message that does not decode, whose destination is not the node in the key, that is for a node it has not forwarded upward, or that is a task older than 5 seconds. The pod fusion node then validates what arrives; its validator also rejects a message whose timestamp is more than 0.9 s behind its clock.
+
+The values in this rig: the pod anchor is `18214b1a34e3c722d1cac283b272a62c` (fabric slot 0), the host anchor is `b005ae3a8f2baf89160bd71632902672` (fabric slot 1), and the pod fusion node's ID is `f0000001-0000-4000-8000-000000000001`.
+
+### Run it
+
 Run these in order, from the repo root, on a rig that is down. Below each block is what one run printed on 2026-11-12 UTC, with the code of commit `c6a2db1` and the commands of this section as written now (steps 3 and 5 were changed just before the run and committed after it): steps 1 to 10 pasted in order into one zsh, with no generated files below `zenoh/goat1/` and no `apex-goat1-cargo-target` volume at the start. The blocks are shortened: `dg` also prints container lines (`Creating`, `Recreate`, `Started` and the like), the probe prints a `connected to Zenoh router` line, and `sub` prints up to four `e.g.` lines with sample keys; all of these are left out here. The saved output of the run is `docs/evidence/goat1/task-12-readme-run.txt`. After the fixes of the final review, a run of the same steps at commit `e02a289` gave the same results in substance, with other times, IDs and record counts; its output is `docs/evidence/goat1/final-fix-readme-run.txt`, and `docs/acceptance-goat1.md` records it in the section "Run after the review fixes".
 
 ```bash

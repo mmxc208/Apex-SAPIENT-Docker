@@ -271,7 +271,7 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
    - `<anchor>/task/<site>/sapient/v2/task/<node_id>` for `task`
    - `<anchor>/telemetry/sapient/<site>/v2/live/<node_id>` for the liveliness token
 
-   `<anchor>` is the writer's 32-character slot anchor, `<site>` matches `[a-z0-9]+`, and `<node_id>` is a canonical UUID. A key never holds a report ID, a task ID, an object ID or a timestamp (Zenoh issue 2825: a router can freeze when a face uses up its 16-bit space of expression IDs), so the last segment is the node, not the event. For that reason the `ack/` and `task/` forms end with the node ID, not with goat's `<cmd-id>` or `<task-id>` of section 2.3.
+   `<anchor>` is the writer's 32-character slot anchor, `<site>` is 1 to 32 characters of `[a-z0-9]`, and `<node_id>` is a canonical UUID. A key never holds a report ID, a task ID, an object ID or a timestamp (Zenoh issue 2825: a router can freeze when a face uses up its 16-bit space of expression IDs), so the last segment is the node, not the event. For that reason the `ack/` and `task/` forms end with the node ID, not with goat's `<cmd-id>` or `<task-id>` of section 2.3.
 7. **Quality of service.** goat's classes by prefix are designed, not built. Our priorities for each message kind are set by the sender.
 8. **Time.** The signed clock report for each host is built. The time quality field for each message is not built (read: `hello-galaxy-time-hygiene/README.md`).
 9. **Federation.** The one-command procedure is not built.
