@@ -123,6 +123,17 @@ goat's rule for the order of the parts of a key is: stable parts with few values
 
 **For us.** A candidate key for SAPIENT on the fabric is `<pod-slot>/telemetry/sapient/<site>/v2/<kind>/<id>`, and for a task from the host `<host-slot>/task/<site>/v2/<task-id>`. Both are proposals. Inside the pod, our keys deliberately hold no report ID or task ID, so the two conventions differ, and the step 1 design must decide.
 
+### 2.11 The session ID is a label, not a credential
+
+- A Zenoh session ID (ZID) names a Zenoh runtime. It is random at each session open unless the configuration sets `id`. goat's ADR 1041 makes it a label for provenance and never a credential: the certificate stays the only input to access control.
+- A router's ID is fixed for each host. It is derived at render time from the host's inventory name and the realm, not stored in an image.
+- A publisher that goat owns attaches source info (its session ID and a sequence number) to each sample, so that a consumer can tell which node made it.
+- goat's command line tool sets a publisher's session ID to its slot anchor with leading zeros removed, because Zenoh rejects an ID with a leading `0`. `goat sub` keeps a random ID on purpose.
+- The router permits one transport for each session ID. A second session with the same pinned ID is refused (`MAX_LINKS`) until the first one is gone, or it displaces it.
+- Status: proposed (ADR status "Proposed", 2026-06-11); the pin in `goat pub` is built. Source (read): `goatcore/docs/adr/1041-zenoh-router-zid-pinning-and-source-provenance.md`, "Context", "Decision" and "Invariants"; `goatcore/crates/goat-cli/src/cmd/pubsub.rs` lines 25 to 31 and 1205 to 1222.
+
+**For us.** Step 1 sets no session ID: the pod bridge, the fusion nodes, the sensors, the recorders and both routers use random IDs, and no publisher attaches source info. Whether the pod bridge and the host fusion node set their ID to their anchor, whether the routers get a fixed ID, and whether our publishers attach source info is open for step 4.
+
 ## 3. Pods in goat
 
 ### 3.1 Two classes
@@ -249,16 +260,23 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
 
 ## 8. Gaps and unknowns
 
-1. **Zenoh versions.** Our pod uses 1.10.2 and goat uses 1.9.0. The pairing is not tested.
+1. **Zenoh versions.** Our pod uses 1.10.2 and goat uses 1.9.0. Measured in check G1-01 (`docs/acceptance-goat1.md`): two sessions of our Python binding (zenoh 1.10.2) exchanged a sample and a liveliness token over mutual TLS through a router from `eclipse/zenoh:1.9.0`, and again after one restart of that router, with no new declaration. The step 1 rig then ran with a 1.10.2 pod router and a 1.9.0 fabric router. Not measured: x86-64, load, the full access lists in the pairing probe, and any other pair of versions.
 2. **Slot identity on a goatlite.** No procedure found for a system that is not the founder.
 3. **Pod at the edge through the internet.** This needs goat's internet profile with relays and a public zone. It is not proven on a goatlite.
 4. **Router-to-router pod link.** Designed, not built, for operational pods. We use a bridge.
 5. **Schema declaration.** The format at `attest/schema/<topic>` was not read. `goatcore/docs/design/data-dictionary.md` describes it.
-6. **Key shape.** The exact key for SAPIENT below `<slot>/telemetry/` is not decided. Section 2.10 has goat's rule and a candidate.
+6. **Key shape.** Decided in the step 1 design (`docs/superpowers/specs/2026-11-11-goat-step1-pod-to-host-design.md`). The four key forms on the fabric are:
+   - `<anchor>/telemetry/sapient/<site>/v2/<kind>/<node_id>` for `registration`, `status_report`, `detection_report`, `alert` and `error`
+   - `<anchor>/ack/<site>/sapient/v2/<kind>/<node_id>` for `registration_ack`, `task_ack` and `alert_ack`
+   - `<anchor>/task/<site>/sapient/v2/task/<node_id>` for `task`
+   - `<anchor>/telemetry/sapient/<site>/v2/live/<node_id>` for the liveliness token
+
+   `<anchor>` is the writer's 32-character slot anchor, `<site>` matches `[a-z0-9]+`, and `<node_id>` is a canonical UUID. A key never holds a report ID, a task ID, an object ID or a timestamp (Zenoh issue 2825: a router can freeze when a face uses up its 16-bit space of expression IDs), so the last segment is the node, not the event. For that reason the `ack/` and `task/` forms end with the node ID, not with goat's `<cmd-id>` or `<task-id>` of section 2.3.
 7. **Quality of service.** goat's classes by prefix are designed, not built. Our priorities for each message kind are set by the sender.
 8. **Time.** The signed clock report for each host is built. The time quality field for each message is not built (read: `hello-galaxy-time-hygiene/README.md`).
 9. **Federation.** The one-command procedure is not built.
 10. **Scale.** goat's validated data stops near 100 peers (notes).
+11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and sets a publisher's to its slot anchor. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
 
 ## 9. Where to read more
 
@@ -267,6 +285,7 @@ All paths are in `../usareur-af/`.
 - `goatcore/docs/design/zenoh-data-fabric.md`: the fabric, the key taxonomy, the access list.
 - `goatcore/docs/design/zenoh-brokerless-consequences.md`: what is not possible with no broker.
 - `goatcore/docs/adr/1025-zenoh-dynamic-tenant-authz-slot-pool.md`: slots.
+- `goatcore/docs/adr/1041-zenoh-router-zid-pinning-and-source-provenance.md`: the session ID as a label, a fixed router ID, and source info.
 - `goatcore/docs/adr/1092-moon-pod-peer-classes.md` and `1122-scale-envelope-systems-vs-peers-pod-tier.md`: pods.
 - `goatcore/docs/adr/1157-cross-sovereign-federation-edge-terminated.md` and `1208-sovereign-environments-release-namespaces-and-grant-encryption.md`: sovereigns.
 - `goatcore/docs/design/goatlite.md` and `goatcore/docs/tutorials/00-goatlite.md`: the smallest real goatnet.

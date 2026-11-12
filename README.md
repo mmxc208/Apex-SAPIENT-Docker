@@ -966,7 +966,7 @@ This step carries pod 1's SAPIENT traffic to a host over a fabric that follows t
 
 `radar2` sits behind the compose profile `join`: the rig starts without `radar2` unless the profile `join` is named, as step 9 does. The generator writes the router configurations, the certificates and `zenoh/goat1/goat1.env` below `zenoh/goat1/`, which is git-ignored. The compose file is standalone: don't combine it with the other compose files. It uses the project name `apex-goat1` and the image `apex-sapient:4.2.0` built by the earlier stages. No router port is published to the host.
 
-Run these in order, from the repo root, on a rig that is down. Below each block is what one run printed on 2026-11-11 UTC, on top of commit `08ef7c2`. `dg run` also prints container lines, and the probe prints a `connected to Zenoh router` line; both are left out here.
+Run these in order, from the repo root, on a rig that is down. Below each block is what one run printed on 2026-11-12 UTC, at commit `c6a2db1`: steps 1 to 10 pasted in order into one zsh, with no generated files below `zenoh/goat1/` and no `apex-goat1-cargo-target` volume at the start. The blocks are shortened: `dg` also prints container lines (`Creating`, `Recreate`, `Started` and the like), the probe prints a `connected to Zenoh router` line, and `sub` prints up to four `e.g.` lines with sample keys; all of these are left out here. The saved output of the run is `docs/evidence/goat1/task-12-readme-run.txt`.
 
 ```bash
 dg() { docker compose --env-file zenoh/goat1/goat1.env -f docker-compose.goat1.yml "$@"; }
@@ -997,11 +997,11 @@ dg logs host-fusion | grep "<- registration "
 ```
 
 ```text
-fusion-node-1  | 23:47:51 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
-fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
-fusion-node-1  | 23:47:53 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
-fusion-node-1  | 23:47:56 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
-host-fusion-1  | 23:47:56 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1  | 01:23:42 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 01:23:42 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 01:23:42 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 01:23:47 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+host-fusion-1  | 01:23:47 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
 ```
 
 **3. Tracks and alerts up (G1-02).** The host gets the pod's fused tracks and one alert for each new track. The host recorder holds only messages below the pod's anchor or the host fusion node's anchor, and none of them carries a sensor's node ID.
@@ -1010,24 +1010,40 @@ host-fusion-1  | 23:47:56 fusion: <- registration f0000001 "fake fusion node" [F
 dg logs host-fusion | grep -c "<- detection_report"
 dg logs host-fusion | grep "<- alert"
 dg exec -T host-recorder sh -c 'cat /data/records/*.jsonl' < /dev/null | python3 -c '
-import json, sys
+import collections, json, sys
 anchors, sensors = set(sys.argv[1:3]), set(sys.argv[3:6])
 rows = [json.loads(line) for line in sys.stdin if line.strip()]
 print("records:", len(rows))
 print("anchor not the pod or the host fusion node:", sum(r.get("anchor") not in anchors for r in rows))
 print("msg.node_id of the radar, camera or vehicle:", sum(r.get("msg", {}).get("node_id") in sensors for r in rows))
+def paths(x, at):
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield from paths(v, at + "." + k)
+    elif isinstance(x, list):
+        for v in x:
+            yield from paths(v, at + "[]")
+    elif isinstance(x, str) and any(s in x for s in sensors):
+        yield at
+print("records that did not decode:", sum("error" in r for r in rows))
+print("records with a sensor node ID anywhere:", sum(any(True for _ in paths(r, "")) for r in rows))
+hits = collections.Counter((r.get("kind"), at) for r in rows for at in paths(r, ""))
+for (kind, at), n in sorted(hits.items()):
+    print(" ", kind, at, n)
 ' "$FABRIC_POD1_ID" "$FABRIC_HOST_FUSION_ID" "$POD1_RADAR_ID" "$POD1_CAMERA_ID" "$POD1_VEHICLE_ID"
 ```
 
 ```text
-4
-host-fusion-1  | 23:47:56 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track 6TR3WR"
-records: 93
+5
+host-fusion-1  | 01:23:47 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track Z6EWXY"
+records: 4656
 anchor not the pod or the host fusion node: 0
 msg.node_id of the radar, camera or vehicle: 0
+records that did not decode: 0
+records with a sensor node ID anywhere: 0
 ```
 
-The detection count is low because the fusion node logs every 10th detection report of each node. The recorder's volume survives `dg down`, so the record count includes any earlier run on the same UTC day.
+The detection count is low because the fusion node logs every 10th detection report of each node. The recorder's volume survives `dg down`, so the record count includes any earlier run on the same UTC day. The last three lines search each whole record, not only its top-level `node_id`: a record that did not decode would hold only base64, so it is counted apart; the next line counts the records that hold the node ID of the radar, the camera or the vehicle in any string field; below it each such field would be listed with its message kind. Here there were none.
 
 **4. A task down (G1-04).** The host's fusion node sends `request:Status` and `look_at` in turn, every 20 s. The pod's fusion node passes `look_at` to its registered sensors as a copy with a new task ID, and acknowledges upward.
 
@@ -1037,13 +1053,13 @@ dg logs host-fusion | grep "<- task_ack" | grep TASK_STATUS_ACCEPTED
 ```
 
 ```text
-radar-1   | 23:48:31 radar: <- task f0000001 -> 1aef1b86 AG2327 look_at {"location_list":
-camera-1  | 23:48:31 camera: <- task f0000001 -> 86ca6000 VPS33S look_at {"location_list":
-host-fusion-1  | 23:48:11 fusion: <- task_ack f0000001 -> f0000002 9WWS9Q TASK_STATUS_ACCEPTED ['Status report sent']
-host-fusion-1  | 23:48:31 fusion: <- task_ack f0000001 -> f0000002 SBNACR TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+camera-1  | 01:24:22 camera: <- task f0000001 -> 86ca6000 ETGGDQ look_at {"location_list":
+radar-1   | 01:24:22 radar: <- task f0000001 -> 1aef1b86 CGEN0T look_at {"location_list":
+host-fusion-1  | 01:24:02 fusion: <- task_ack f0000001 -> f0000002 9NZKWJ TASK_STATUS_ACCEPTED ['Status report sent']
+host-fusion-1  | 01:24:22 fusion: <- task_ack f0000001 -> f0000002 C6A1J0 TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
 ```
 
-**5. Access on the live routers (G1-05).** Restart both routers with the access-control trace. A denial is silent for the client, so each case shows two things: the subscriber, whose certificate may read the key, got nothing from the probe, and the router logged the denial. On the fabric router each certificate matches two subjects (any mutual-TLS peer, and its own slot). The router tries each subject in turn and logs `unauthorized` for each one that denies, and stops at the first that allows with one `authorized` line (function `action` in `zenoh/src/net/routing/interceptor/access_control.rs`, Zenoh 1.9.0 and 1.10.2). So one denied put logs two `unauthorized` lines and no `authorized` line, while an allowed put can also log an `unauthorized` line before its `authorized` line. The test is therefore: no `authorized` line and 0 probe samples.
+**5. Access on the live routers (G1-05).** Restart both routers with the access-control trace. A denial is silent for the client, so each case shows two things: the subscriber, whose certificate may read the key, got nothing from the probe, and the router logged the denial. On the fabric router each certificate matches two subjects (any mutual-TLS peer, and its own slot). The router tries each subject in turn and logs `unauthorized` for each one that denies, and stops at the first that allows with one `authorized` line (function `action` in `zenoh/src/net/routing/interceptor/access_control.rs`, Zenoh 1.9.0 and 1.10.2). So one denied put logs two `unauthorized` lines and no `authorized` line, while an allowed put can also log an `unauthorized` line before its `authorized` line. The test is therefore: no `authorized` line and 0 probe samples. Each count reads only the router's log since `T`, the second just before the probe started, so a line from before the probe is not counted.
 
 ```bash
 ZENOHD_RUST_LOG=zenoh::net::routing::interceptor=trace dg up -d zenohd-pod zenohd-fabric
@@ -1052,23 +1068,24 @@ dg logs --since 30s pod-bridge
 ```
 
 ```text
-pod-bridge-1  | 23:48:46 pod-bridge: fabric router lost
-pod-bridge-1  | 23:48:46 pod-bridge: pod router lost
-pod-bridge-1  | 23:48:47 pod-bridge: fabric router back
-pod-bridge-1  | 23:48:47 pod-bridge: pod router back
-pod-bridge-1  | 23:48:51 pod-bridge: forwarded {'up': 64, 'down': 4}; dropped {}
+pod-bridge-1  | 01:24:38 pod-bridge: pod router lost
+pod-bridge-1  | 01:24:38 pod-bridge: fabric router lost
+pod-bridge-1  | 01:24:39 pod-bridge: fabric router back
+pod-bridge-1  | 01:24:39 pod-bridge: pod router back
+pod-bridge-1  | 01:24:42 pod-bridge: forwarded {'up': 67, 'down': 5}; dropped {}
 ```
 
 Case 1: the pod's slot certificate puts on the host fusion node's task key.
 
 ```bash
 K="$FABRIC_HOST_FUSION_ID/task/p1/sapient/v2/task/$POD1_FUSION_NODE_ID"
+T=$(date +%s)
 probe host-recorder sub "$K" 15 &
 sleep 5
 podfabric put "$K"
 wait
-dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_POD1_ID)" | grep -c "is unauthorized to Put (ingress)"
-dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_POD1_ID)" | grep -c "is authorized to Put (ingress)"
+dg logs --since "$T" zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_POD1_ID)" | grep -c "is unauthorized to Put (ingress)"
+dg logs --since "$T" zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_POD1_ID)" | grep -c "is authorized to Put (ingress)"
 ```
 
 ```text
@@ -1084,12 +1101,13 @@ Case 2: the host fusion certificate puts on the pod's alert key.
 
 ```bash
 K="$FABRIC_POD1_ID/telemetry/sapient/p1/v2/alert/$POD1_FUSION_NODE_ID"
+T=$(date +%s)
 probe host-recorder sub "$K" 15 &
 sleep 5
 probe host-fusion put "$K"
 wait
-dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_HOST_FUSION_ID)" | grep -c "is unauthorized to Put (ingress)"
-dg logs zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_HOST_FUSION_ID)" | grep -c "is authorized to Put (ingress)"
+dg logs --since "$T" zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_HOST_FUSION_ID)" | grep -c "is unauthorized to Put (ingress)"
+dg logs --since "$T" zenohd-fabric | grep -F "$K" | grep -F "CertCommonName($FABRIC_HOST_FUSION_ID)" | grep -c "is authorized to Put (ingress)"
 ```
 
 ```text
@@ -1101,14 +1119,15 @@ samples: 0 on 18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/alert/f00
 Case 3: the host recorder's certificate may not subscribe to everything, only to the fabric's telemetry.
 
 ```bash
+T=$(date +%s)
 probe host-recorder sub "**" 15
 probe host-recorder sub "*/telemetry/sapient/*/v2/*/*" 15
-dg logs zenohd-fabric | grep -F "CertCommonName($FABRIC_HOST_RECORDER_ID)" | grep -F "Declare Subscriber (ingress) on **" | grep -c unauthorized
+dg logs --since "$T" zenohd-fabric | grep -F "CertCommonName($FABRIC_HOST_RECORDER_ID)" | grep -F "Declare Subscriber (ingress) on **" | grep -c unauthorized
 ```
 
 ```text
 samples: 0 on ** in 15 s; from this probe: 0
-samples: 31 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0
+samples: 33 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0
 2
 ```
 
@@ -1116,12 +1135,13 @@ Case 4: in the pod, the radar's certificate puts on the camera's up key.
 
 ```bash
 K="h1/p1/sapient/v2/$POD1_CAMERA_ID/up/status_report"
+T=$(date +%s)
 probe recorder sub "$K" 15 &
 sleep 5
 probe radar put "$K"
 wait
-dg logs zenohd-pod | grep -F "$K" | grep -F "CertCommonName($POD1_RADAR_ID)" | grep -c "is unauthorized to Put (ingress)"
-dg logs zenohd-pod | grep -F "$K" | grep -F "CertCommonName($POD1_RADAR_ID)" | grep -c "is authorized to Put (ingress)"
+dg logs --since "$T" zenohd-pod | grep -F "$K" | grep -F "CertCommonName($POD1_RADAR_ID)" | grep -c "is unauthorized to Put (ingress)"
+dg logs --since "$T" zenohd-pod | grep -F "$K" | grep -F "CertCommonName($POD1_RADAR_ID)" | grep -c "is authorized to Put (ingress)"
 ```
 
 ```text
@@ -1147,11 +1167,9 @@ dg logs --since 40s fusion-node | grep -E 'request "Registration"|registration_a
 ```
 
 ```text
-fusion-node-1  | 23:50:45 fusion: <- task f0000002 -> f0000001 K2JYBJ request "Registration"
-fusion-node-1  | 23:50:45 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 01:26:37 fusion: <- task f0000002 -> f0000001 Q39T3Z request "Registration"
+fusion-node-1  | 01:26:37 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
 ```
-
-Steps 7 to 9 were added later. What is printed below them comes from one run on 2026-11-12 UTC, on top of commit `8db9951`, that pasted steps 1 to 9 in order into one zsh.
 
 **7. Short outage (G1-06).** Cut the pod bridge off the `mesh` network for 30 s, less than the host's hold time of 120 s. The pod's sensors and fusion node log no loss, and the pod's fusion node still takes the sensors' detections. After the link returns, tracks reach the host again with no new registration. The bridge counts what the pod sent meanwhile as `other_side_down`.
 
@@ -1172,14 +1190,14 @@ dg logs --since 70s pod-bridge
 6
 2
 0
-pod-bridge-1  | 00:22:48 pod-bridge: forwarded {'up': 242, 'down': 13}; dropped {}
-pod-bridge-1  | 00:23:02 pod-bridge: fabric router lost
-pod-bridge-1  | 00:23:18 pod-bridge: forwarded {'up': 258, 'down': 14}; dropped {'other_side_down': 18}
-pod-bridge-1  | 00:23:25 pod-bridge: fabric router back
-pod-bridge-1  | 00:23:48 pod-bridge: forwarded {'up': 283, 'down': 15}; dropped {'other_side_down': 26}
+pod-bridge-1  | 01:27:12 pod-bridge: forwarded {'up': 242, 'down': 13}; dropped {}
+pod-bridge-1  | 01:27:27 pod-bridge: fabric router lost
+pod-bridge-1  | 01:27:42 pod-bridge: forwarded {'up': 259, 'down': 14}; dropped {'other_side_down': 17}
+pod-bridge-1  | 01:27:50 pod-bridge: fabric router back
+pod-bridge-1  | 01:28:12 pod-bridge: forwarded {'up': 285, 'down': 15}; dropped {'other_side_down': 25}
 ```
 
-The bridge notices the loss only when its session to the fabric router times out: in two timed runs it logged `fabric router lost` 9 to 10 s after the disconnect, and `fabric router back` 0 to 2 s after the connect. What it publishes before it notices counts as forwarded; these steps don't show whether it arrived.
+The bridge notices the loss only when its session to the fabric router times out: in two timed runs of Task 10 it logged `fabric router lost` 9 to 10 s after the disconnect, and `fabric router back` 0 to 2 s after the connect. In the run above the step started at 01:27:17 and the loss was logged at 01:27:27. What it publishes before it notices counts as forwarded; these steps don't show whether it arrived.
 
 **8. Long outage (G1-07).** Restart the rig with a host hold time of 20 s, then cut the bridge off for 40 s. The host removes the pod's fusion node, and when the link returns it asks for a registration, which the pod sends and the host accepts. The rig keeps the 20 s hold until the next `dg up` without `HOST_HOLD_SECONDS`.
 
@@ -1196,12 +1214,12 @@ dg logs fusion-node | grep "<- registration_ack f0000002"
 ```
 
 ```text
-host-fusion-1  | 00:24:29 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
-host-fusion-1  | 00:25:54 fusion: node f0000001 gone for 20 s; removed
-host-fusion-1  | 00:26:09 fusion: -> task f0000002 -> f0000001 FWNQRB request "Registration"
-host-fusion-1  | 00:26:09 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
-fusion-node-1  | 00:24:29 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
-fusion-node-1  | 00:26:09 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+host-fusion-1  | 01:28:53 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+host-fusion-1  | 01:30:18 fusion: node f0000001 gone for 20 s; removed
+host-fusion-1  | 01:30:33 fusion: -> task f0000002 -> f0000001 R5NRPQ request "Registration"
+host-fusion-1  | 01:30:33 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1  | 01:28:53 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 01:30:33 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
 ```
 
 The first registration is the one at start; the other lines follow the outage.
@@ -1239,7 +1257,7 @@ exit 0
 c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5
 f7f5e342377767ddcf0e22d754d22236f1417967dcd2891927b6aea54a3bedf8  zenoh/goat1/router-fabric.json5
 1
-fusion-node-1  | 00:26:45 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 01:31:10 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']
 3
 router not restarted
 0
@@ -1265,9 +1283,9 @@ exit 0
 
 `git status` printed nothing: the registry is as committed.
 
-**10. A real goat client reads the pod's tracks (G1-10).** This is the one check with goat's own software. Build goat's command line tool `goat` from the goat source in `../usareur-af/goatcore`, at commit `cbf2cb7f` (`goat-cli` 0.5.19), give it the certificate of fabric slot 3 (`FABRIC_GOAT_CLI_ID`), and let `goat sub` read below the pod's anchor from the fabric router. Step 10 was added after step 9; what is printed below it comes from one run on 2026-11-12 UTC, on top of commit `4df6e2f`, with the rig of step 1 up and the build already cached.
+**10. A real goat client reads the pod's tracks (G1-10).** This is the one check with goat's own software. Build goat's command line tool `goat` from the goat source in `../usareur-af/goatcore`, at commit `cbf2cb7f` (`goat-cli` 0.5.19), give it the certificate of fabric slot 3 (`FABRIC_GOAT_CLI_ID`), and let `goat sub` read below the pod's anchor from the fabric router.
 
-The build runs in `rust:1.95.0-bookworm`, with the goat source mounted read-only, and needs the network for the image and for the crates. The first build took 265 s (4 min 25 s) on a Colima VM with 4 CPUs and 6 GiB; a later build takes seconds. The build output and the downloaded crates stay in the Docker volume `apex-goat1-cargo-target`; remove it with `docker volume rm apex-goat1-cargo-target`. The binary goes to `zenoh/goat1/bin/goat` (git-ignored) and runs in `debian:bookworm-slim`.
+The build runs in `rust:1.95.0-bookworm`, with the goat source mounted read-only, and needs the network for the image and for the crates. On an empty volume the build took 4 min 35 s by cargo's count, and the whole block 276 s, on a Colima VM with 4 CPUs and 6 GiB; a later build takes seconds. The build output and the downloaded crates stay in the Docker volume `apex-goat1-cargo-target`; remove it with `docker volume rm apex-goat1-cargo-target`. The binary goes to `zenoh/goat1/bin/goat` (git-ignored) and runs in `debian:bookworm-slim`.
 
 ```bash
 docker run --rm -v "$PWD/../usareur-af/goatcore:/src:ro" -v apex-goat1-cargo-target:/target -e CARGO_TARGET_DIR=/target -e CARGO_HOME=/target/cargo-home rust:1.95.0-bookworm cargo build --release --locked -j 2 --manifest-path /src/crates/Cargo.toml -p goat-cli < /dev/null
@@ -1277,7 +1295,7 @@ docker run --rm -v "$PWD/zenoh/goat1/bin/goat:/usr/local/bin/goat:ro" debian:boo
 ```
 
 ```text
-    Finished `release` profile [optimized] target(s) in 0.15s
+    Finished `release` profile [optimized] target(s) in 4m 35s
 goat 0.5.19
 ```
 
@@ -1308,7 +1326,7 @@ dg up -d zenohd-fabric
 
 ```text
 listening on `18214b1a34e3c722d1cac283b272a62c/**` via tls/router.fabric.h1:7447 — stopping after 1 event(s). Ctrl-C to stop.
-18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001 hex:0a0b08b19cd4d706...
+18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/f0000001-0000-4000-8000-000000000001 hex:0a0c08bab0d4d706...
 done after 0s — 1 event(s) on `18214b1a34e3c722d1cac283b272a62c/**` (the requested 1)
 exit 0
 listening on `18214b1a34e3c722d1cac283b272a62c/telemetry/sapient/p1/v2/detection_report/*` via tls/router.fabric.h1:7447 — stopping after 3 event(s). Ctrl-C to stop.
@@ -1322,9 +1340,9 @@ exit 0
 0
 ```
 
-The block is shortened: it leaves out the compose lines (`Recreate`, `Started` and the like) that the two `dg up` commands print, and the hex payload of the first sample is cut after its first bytes, marked `...`. The payload differs on each run.
+The hex payload of the first sample is cut after its first bytes, marked `...`. The payload differs on each run.
 
-Both runs exit 0, and every key starts with the pod's anchor `18214b1a34e3c722d1cac283b272a62c`. The three counts are measured: the router allowed two subscriber declarations, delivered four samples (the four that goat printed), and allowed no put, delete or liveliness token from slot 3. A count made afterwards on the saved router log of this run, not by a command of this step, found no put, delete, query, liveliness token or liveliness query from goat at all. The router's other lines for slot 3 come in one burst for each session, all on one key expression: read from the trace, they are the decisions it works out for all nine actions when it caches a client's key expression (see step 5), not requests from goat. The last command puts the fabric router back to `info`.
+Both runs exit 0, and every key starts with the pod's anchor `18214b1a34e3c722d1cac283b272a62c`. The three counts are measured: the router allowed two subscriber declarations, delivered four samples (the four that goat printed), and allowed no put, delete or liveliness token from slot 3. A count made afterwards on the saved router log of this run (`docs/evidence/goat1/task-12-g1-10-count.txt`), not by a command of this step, left no line from goat that is not a subscriber declaration, a delivery or a cache block, so it found no put, delete, query, liveliness token or liveliness query from goat at all. The router's other lines for slot 3 come in one burst for each session, all on one key expression: read from the trace, they are the decisions it works out for all nine actions when it caches a client's key expression (see step 5), not requests from goat. In the run above one subscriber declaration and one delivery also have an `unauthorized` line before their `authorized` line, from the first of the two subjects that slot 3 matches (see step 5). The last command puts the fabric router back to `info`.
 
 To stop the step, run `dg down`. The recordings stay in the `apex-goat1_pod-records` and `apex-goat1_host-records` volumes. Don't add `-v` unless you mean to delete them. `docs/acceptance-goat1.md` records what passed and where each check falls short.
 

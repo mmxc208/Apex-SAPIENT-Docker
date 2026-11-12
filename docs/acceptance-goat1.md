@@ -1,8 +1,38 @@
 # Goat step 1 (pod 1 to host): acceptance
 
-This checklist covers the plan in `docs/superpowers/plans/2026-11-11-goat-step1-pod-to-host.md`, on branch `goat`. Task 1 (G1-01), Task 9 (G1-02 to G1-05 and G1-11), Task 10 (G1-06 to G1-09) and Task 11 (G1-10) are recorded so far; each entry was recorded in the commit that adds it.
+This checklist covers the plan in `docs/superpowers/plans/2026-11-11-goat-step1-pod-to-host.md`, on branch `goat`. Task 1 (G1-01), Task 9 (G1-02 to G1-05 and G1-11), Task 10 (G1-06 to G1-09) and Task 11 (G1-10) recorded each check first; each of their entries was recorded in the commit that adds it. Task 12 ran every check once more from a clean state at commit `c6a2db1` (section "Final run"), and moved the evidence into `docs/evidence/goat1/`.
 
 A ticked box means a run recorded the evidence named on that line. It doesn't mean the whole requirement was met, so each line says what was measured and where it falls short. A check that could not run is recorded as unknown.
+
+## Runs and evidence
+
+The evidence files are in `docs/evidence/goat1/`; its `README.md` says what each file is. Paths below are relative to that directory.
+
+| Run | Date (UTC) | Code commit | What it covered | Evidence files |
+|---|---|---|---|---|
+| Task 1, pairing probe | 2026-11-11 | `8cb1bbe` | G1-01 | `task-1-run-1.9.0-fix1.txt`, `task-1-run-1.9.0-restart-fix1.txt` (`task-1-run-1.9.0.txt` and `task-1-run-1.9.0-restart.txt` are the one-session probe of `03adfca`, not evidence) |
+| Task 9, scripted checks and README run | 2026-11-11 | `08ef7c2` | G1-02 to G1-05, G1-11, host restart | `task-9-up.txt`, `task-9-g1-02.txt` to `task-9-g1-05.txt`, `task-9-g1-11.txt`, `task-9-host-restart.txt`, `task-9-readme-run.txt`, `task-9-radar2-mount.txt`, `task-9-quote-check.txt`; scripts `task-9-g1-05.sh`, `task-9-check-records.py`, `task-9-readme-blocks.zsh` |
+| Task 10, scripted checks and README run | 2026-11-12 | `8db9951` | G1-06 to G1-09 | `task-10-g1-06.txt` to `task-10-g1-09.txt` and their `-logs.txt`, `task-10-readme-run.txt`, `task-10-readme-logs-1-7.txt`, `task-10-readme-logs.txt`, `task-10-suite.txt`, `task-10-fix1-evidence.txt`, `task-10-quote-check.txt`, `task-10-fix1-quote-check.txt`; scripts `task-10-g1-0*.sh`, `task-10-readme-blocks.zsh`, `task-10-check-quotes.py` |
+| Task 11, goat client | 2026-11-12 | `4df6e2f` | G1-10 | `task-11-build.txt`, `task-11-build-full.txt`, `task-11-version.txt`, `task-11-sub-help.txt`, `task-11-run.txt`, `task-11-run-shortened.txt`, `task-11-run-times.txt`, `task-11-router-trace-plain.txt`, `task-11-fabric-log-plain.txt`, `task-11-readme-run.txt`, `task-11-readme-fabric-log-plain.txt`, `task-11-fix1-n1-count.txt`, the two quote checks; scripts `task-11-readme-blocks.zsh`, `task-11-fix1-n1-count.py`, `task-11-check-quotes.py`, `task-11-fix1-check-quotes.py` |
+| Task 12, final run | 2026-11-12 | `c6a2db1` | G1-01 to G1-11, from a clean state | `task-12-suite.txt`, `task-12-readme-run.txt`, `task-12-logs-1-4-plain.txt`, `task-12-logs-5-plain.txt`, `task-12-logs-6-7-plain.txt`, `task-12-logs-8-10-plain.txt`, `task-12-fabric-trace-10-plain.txt`, `task-12-g1-10-count.txt`, `task-12-g1-01-08-11.txt`, `task-12-nan-check.txt`; scripts `task-12-make-blocks.py`, `task-12-readme-blocks.zsh`, `task-12-g1-01-08-11.sh`, `task-12-nan-check.py`, `check-quotes.py` |
+
+## Summary
+
+| Check | Result | Runs that show it | Final run (Task 12) |
+|---|---|---|---|
+| G1-01 version pairing | pass | Task 1 | pass |
+| G1-02 tracks and alerts up | pass | Task 9 | pass |
+| G1-03 registration | pass | Task 9 | pass |
+| G1-04 task down | pass | Task 9 | pass |
+| G1-05 access | pass | Task 9 | pass |
+| G1-06 short outage | pass | Task 10 | pass |
+| G1-07 long outage | pass | Task 10 | pass |
+| G1-08 old task | pass (unit test, as the design allows) | Task 10 | pass (unit test) |
+| G1-09 join with no restart | pass | Task 10 | pass |
+| G1-10 `goat` client | pass | Task 11 | pass |
+| G1-11 no regression | pass | Task 9 | pass |
+
+Each pass has the limits written in its entry below and in "Known limits and open items for step 4".
 
 ## G1-01: version pairing
 
@@ -53,7 +83,7 @@ Run on 2026-11-12 UTC with `docker-compose.goat1.yml` (project `apex-goat1`), on
   - after: `pod-bridge-1  | 00:12:57 pod-bridge: forwarded {'up': 112, 'down': 7}; dropped {'other_side_down': 25}`
 
   `stale_task` stayed at 0: the host's `look_at` task `8G7344`, sent at 00:12:16 during the outage, never reached the bridge, so nothing was held back and the pod fusion node never got it. The README run gave the same results: 0, 6, 2 and 0, and `other_side_down` 18 during and 26 after.
-  - Falls short: two 30 s outages, each made by taking the bridge off the `mesh` network; a loss of the pod network, a router restart during the outage, and packet loss short of a cut were not tried. The host's hold of the pod fusion node is not logged. The check's commands did not search for a removal; the saved host log of the run (`task-10-g1-06-logs.txt`) has 0 lines with `removed` and 0 with `request "Registration"`. Between the counter line at 00:11:57 and the loss, the bridge's `up` counter rose by 11 (68 to 79, with the disconnect in that window); whether those messages arrived was not checked. The one task sent during the outage (`8G7344`, at 00:12:16, 10 s after the bridge saw the loss) was lost, not delivered late. A task sent before the loss is noticed was not tried.
+  - Falls short: two 30 s outages, each made by taking the bridge off the `mesh` network; a loss of the pod network, a router restart during the outage, and packet loss short of a cut were not tried. The host's hold of the pod fusion node is not logged. The check's commands did not search for a removal; the saved host log of the run (`docs/evidence/goat1/task-10-g1-06-logs.txt`) has 0 lines with `removed` and 0 with `request "Registration"`. Between the counter line at 00:11:57 and the loss, the bridge's `up` counter rose by 11 (68 to 79, with the disconnect in that window); whether those messages arrived was not checked. The one task sent during the outage (`8G7344`, at 00:12:16, 10 s after the bridge saw the loss) was lost, not delivered late. A task sent before the loss is noticed was not tried.
 - [x] **G1-07, long outage.** `dg down`, `HOST_HOLD_SECONDS=20 dg up -d` (`dg exec -T host-fusion printenv NODE_HOLD_SECONDS` printed `20`), then 60 s. The disconnect ran at 00:15:26 to 00:15:27 and the connect at 00:16:07; the bridge logged `fabric router lost` at 00:15:36 and `fabric router back` at 00:16:07. The host fusion node, with the times of `dg logs --timestamps`:
   - 00:15:56.494: `host-fusion-1  | 00:15:56 fusion: node f0000001 gone for 20 s; removed`
   - 00:16:11.376: `host-fusion-1  | 00:16:11 fusion: -> task f0000002 -> f0000001 Z9CGFR request "Registration"`
@@ -98,3 +128,71 @@ Run on 2026-11-12 UTC with `docker-compose.goat1.yml` (project `apex-goat1`), on
   - Falls short: only sessions with a random ID were tried; no goat command with a pinned session ID ran. Our side sets no Zenoh session ID either: the pod bridge, the fusion nodes, the sensors and the recorders all open their sessions through `ZenohSession.open` in `emulators/zenoh_io.py`, which sets no `id`, and neither generated router file has an `id` at the top level. So step 1 does not follow ADR 1041: every session ID, of clients and routers, is random.
   - Falls short: the pass shows no limit on reading. The scoped read rule lets every mutual-TLS peer subscribe and query on `*/**`, so the check shows that slot 3 can read below the pod's anchor. It does not show that slot 3 is kept from any other anchor, and by the rule it is not.
   - Falls short: the README's build command, in its direct `cargo` form, ran only against the filled cache. The first build ran the same `cargo` command inside `sh -c`. A build of the README command on an empty volume was not run.
+
+## Final run
+
+Run on 2026-11-12 UTC at commit `c6a2db1`, the last commit that changed code or a compose file being `e64193e`, on the same arm64 host and images as G1-02. It started from a clean state: the earlier generated files below `zenoh/goat1/` were moved out of the repository, and the volume `apex-goat1-cargo-target` was removed. First the unit suite ran, then README section "Goat step 1: pod 1 to host", steps 1 to 10, pasted in order into one `zsh -f -i -s` (`task-12-readme-blocks.zsh`, made from the README by `task-12-make-blocks.py`; output `task-12-readme-run.txt`, zsh exit 0). The harness lines between the blocks only print markers and times and save the logs before each router recreation, `dg down` and the end. Then G1-08, G1-11 and G1-01 ran from `task-12-g1-01-08-11.sh` (output `task-12-g1-01-08-11.txt`). A first attempt at this run stopped in step 8, because the shell that ran it ended; nothing from it is quoted here, and the run below started again from a clean state. File names in this section are in `docs/evidence/goat1/`.
+
+- [x] **Clean start.** The generator made `zenoh/goat1/` from nothing, with a new CA and new certificates. Both router files came out the same as before: SHA-256 `c3a5e2b99a4a843d0322ddddd5dde61cf5c9796a25bb1d962af9c9b519b84627  zenoh/goat1/router-pod1.json5` and `f7f5e342377767ddcf0e22d754d22236f1417967dcd2891927b6aea54a3bedf8  zenoh/goat1/router-fabric.json5`, printed by step 9. The 11 services were `running` 45 s after `dg up`, and the routers' logs had 0 lines with `error` or `panic`.
+  - Falls short: the hash check covers the two router files only; the new certificates were not compared with the old ones, which differ by design (a new CA).
+- [x] **G1-01.** `docker compose -f docker-compose.pairing.yml run --rm probe` printed `PAIRING OK put-sub liveliness`, and the restart run printed `PAIRING OK put-sub liveliness` and `PAIRING OK after router restart` and exited 0. The router image printed `zenohd v1.9.0 built with rustc 1.93.0 (254b59607 2026-01-19)`.
+  - Falls short: as the G1-01 entry above; the probe and the router are unchanged since Task 1.
+- [x] **G1-02.** The host fusion node logged 5 `<- detection_report` lines (every 10th is logged) and `host-fusion-1  | 01:23:47 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track Z6EWXY"`. The host recorder held 4656 records (with the earlier runs of the same UTC day): 0 with an anchor other than the pod's or the host fusion node's, 0 with a sensor's node ID as `msg.node_id`, 0 that did not decode, and 0 that hold the node ID of the radar, the camera or the vehicle in any string field of the whole decoded record, key included.
+  - Falls short: the whole-record search finds a node ID in a string; a node ID held only as bytes would not be found. The other limits of the G1-02 entry above stand.
+- [x] **G1-03.** `fusion-node-1  | 01:23:47 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']`, 5 s after the pod fusion node accepted its three sensors, and the host logged `host-fusion-1  | 01:23:47 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]`.
+  - Falls short: the limits written in the G1-03 entry above stand; this run measured the same things once more.
+- [x] **G1-04.** The whole chain of the host's first `look_at` is in the saved log (`task-12-logs-1-4-plain.txt`): the host sent `01:24:22 fusion: -> task f0000002 -> f0000001 C6A1J0 look_at`, the pod fusion node passed it on as `01:24:22 fusion: -> task f0000001 -> 1aef1b86 CGEN0T look_at` and `01:24:22 fusion: -> task f0000001 -> 86ca6000 ETGGDQ look_at`, both sensors acknowledged `TASK_STATUS_ACCEPTED ['Pointing at (51.17384, -1.81901)']`, and the host logged `host-fusion-1  | 01:24:22 fusion: <- task_ack f0000001 -> f0000002 C6A1J0 TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']`.
+  - Falls short: the limits written in the G1-04 entry above stand; this run measured the same things once more.
+- [x] **G1-05.** With both routers at the access-control trace, and each count now reading only the router's log since the second before its probe (`dg logs --since "$T"`): (1) the pod's slot certificate on the host fusion node's task key: 0 probe samples (1 sample, the host's own task), 2 `unauthorized`, 0 `authorized`; (2) the host fusion certificate on the pod's alert key: 0 samples, 2 and 0; (3) the host recorder on `**`: `samples: 0 on ** in 15 s; from this probe: 0` and 2 `unauthorized` subscriber declarations, while `samples: 33 on */telemetry/sapient/*/v2/*/* in 15 s; from this probe: 0`; (4) the radar on the camera's up key in the pod: 0 probe samples (3, the camera's own), 1 and 0. The pod bridge was back on both routers 1 s after their restart.
+  - Falls short: the window starts at a whole second before the probe and ends when the count runs, so it can hold lines of the live service that shares the probe's common name in that time; the counts filter by the exact key, which that service does not put on. No allowed control put was made in this run. The other limits of the G1-05 entry stand.
+- [x] **G1-06.** The step started at 01:27:17 with the disconnect; the bridge logged `pod-bridge-1  | 01:27:27 pod-bridge: fabric router lost` and `pod-bridge-1  | 01:27:50 pod-bridge: fabric router back`. The counts were 0 lines with `lost` or `cannot reach` in the pod, 6 `<- detection_report` lines at the pod fusion node during the cut, 2 at the host in 25 s after the connect, and 0 new registrations; `other_side_down` was 17 during the cut and 25 after. The host's `request "Status"` task `4BXK8S`, sent at 01:27:37 during the outage, never reached the pod fusion node (`task-12-logs-6-7-plain.txt` has it only in the host's line), so it was lost, not delivered late. This is the second such case.
+  - Falls short: the limits written in the G1-06 entry above stand; this run measured the same things once more.
+- [x] **G1-07.** With `HOST_HOLD_SECONDS=20`: `host-fusion-1  | 01:30:18 fusion: node f0000001 gone for 20 s; removed`, then `host-fusion-1  | 01:30:33 fusion: -> task f0000002 -> f0000001 R5NRPQ request "Registration"` and `host-fusion-1  | 01:30:33 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]`, and the pod fusion node got a new `registration_ack` with `acceptance=True` at 01:30:33. The bridge logged the loss at 01:29:59 and the link back at 01:30:30, and removed its own token at 01:30:29 (`no traffic from f0000001-0000-4000-8000-000000000001 for 30 s; token removed`). The host again made a track from the pod's traffic before the node registered: `01:30:30 fusion: new track DHV7EM from f0000001`, 3 s before the registration.
+  - Falls short: the time of the disconnect was not logged in this run; the other limits of the G1-07 entry stand.
+- [x] **G1-08.** `test_down_drops_and_counts[stale_task] PASSED`, with the three other tests of the G1-08 entry: `4 passed, 32 deselected`.
+  - Falls short: the limits written in the G1-08 entry above stand; this run measured the same things once more.
+- [x] **G1-09.** The generator with `--frozen-routers` printed `router files unchanged` and exited 0, and both router files kept their SHA-256. `radar2` registered: `fusion-node-1  | 01:31:10 fusion: -> registration_ack f0000001 -> 83ff6077 acceptance=True ['Accepted by fake fusion node']`, with 3 logged detection lines; the step printed `router not restarted` (the pod router's `StartedAt` was the same before and after) and 0 `error` or `panic` lines in the pod router's log. The restore step printed `router files unchanged` and exit 0, and `git status` showed the registry as committed.
+  - Falls short: the limits written in the G1-09 entry above stand; this run measured the same things once more.
+- [x] **G1-10.** goat's tool was built on an empty volume by the README's own command; cargo printed `profile [optimized] target(s) in 4m 35s` (276 s for the whole block), and the binary printed `goat 0.5.19`. Both `goat sub` runs exited 0, every key started with `18214b1a34e3c722d1cac283b272a62c`, and the counts were 2 allowed subscriber declarations below the pod's anchor, 4 deliveries and 0 allowed writes. The count made afterwards on the saved trace (`task-12-g1-10-count.txt`, by `task-11-fix1-n1-count.py`) left 0 lines of goat that are not a subscriber declaration, a delivery or a cache block. In this run one subscriber declaration and one delivery each also had an `unauthorized` line before the `authorized` one, from the first of the two subjects slot 3 matches, and the first session's cache block had 36 lines for both subjects; read from the trace as in G1-05.
+  - Falls short: the limits written in the G1-10 entry above stand; this run measured the same things once more.
+- [x] **G1-11.** `427 passed in 15.26s`, with `-W error` (`task-12-suite.txt`). The stage 4 rig, README stage 4 steps 1 and 2: router error count 0, the radar's `registration_ack` count 1, the fusion node's `<- registration ` count 3, and `vehicle-1  | 01:37:51 vehicle: <- registration_ack f0000001 -> a0000003 acceptance=True ['Accepted by fake fusion node']` through `bridge-node`. Brought down after.
+  - Falls short: stage 4 steps 3 to 9 and stages 1 to 3 were not run again.
+- [x] **Host restart.** `fusion-node-1  | 01:26:37 fusion: <- task f0000002 -> f0000001 Q39T3Z request "Registration"` and a new `registration_ack` with `acceptance=True` at 01:26:37, 11 s after the restart. In this run the registration came before the host's first new track (`01:26:37 fusion: new track MP2Y7N from fake fusion node`).
+  - Falls short: one restart of the host fusion node, as in the host restart entry above.
+
+## Not done
+
+These are the non-goals of the design (section 2 of `docs/superpowers/specs/2026-11-11-goat-step1-pod-to-host-design.md`). Step 1 has none of them, and no check above covers them:
+
+- Stone Soup and the Billie adapter.
+- A real goatnet: the fabric router here is a stand-in that follows goat's rules, on Docker networks.
+- Pod 2 and the external host.
+- Release lanes (`release/<set>/**`).
+- WireGuard and IPsec: the `mesh` Docker network stands in for the mesh.
+- Router storage and `get`.
+- Schema declarations at `attest/schema/`.
+- Quality of service by key prefix.
+- Certificate renewal and the removal of a node.
+- goat's signed bundle format: the goat profile was written by hand.
+
+## Known limits and open items for step 4
+
+The reviews of Tasks 1 to 11 found these points. Each was checked again in this task against the code at `c6a2db1` or the evidence named.
+
+- **A lost link is noticed late.** The pod bridge notices the loss of the fabric router only when its session times out: 9 to 10 s after the disconnect in Task 10, and 10 s in the final run (`task-12-readme-run.txt`). What the pod sends in that time counts as forwarded, and whether it arrived was not checked, so it may be lost with no count. Each task the host sent during an outage was lost, not delivered late: `8G7344` in Task 10 and `4BXK8S` in the final run, two cases, both sent after the bridge had noticed the loss.
+- **A fusion node takes a detection from a node that has not registered.** `_on_detection` in `emulators/fake_fusion_node.py` (line 579) checks no registration. `_on_status` (line 562) also makes an entry for a node that has not registered. The host made a track from the pod fusion node's traffic before the node registered three times: after the host restart of Task 9 (`new track GDDKMQ from f0000001` at 23:42:16, registration at 23:42:19), after the long outage of Task 10 (`new track 7HEGEK` at 00:16:08), and after the long outage of the final run (`new track DHV7EM from f0000001` at 01:30:30, registration at 01:30:33).
+- **A location that is not a number passes.** Apex's validator, with the fusion node's options, returns no error for a detection at `x = nan` or `x = inf` (`task-12-nan-check.txt`). The fusion node then keeps a track at that location: it makes a new one, or it moves the nearest track there, because a comparison with NaN is false (`emulators/fake_fusion_node.py` line 587).
+- **Nothing revokes a slot.** A slot certificate stays valid for as long as its CA is trusted. Zenoh has no revocation list (`docs/goat-context.md` 2.7), and taking an alias out of the registry removes neither its certificate nor its access (G1-09).
+- **Reading is not limited by slot.** The fabric router's rule `peer-r-scoped` lets every mutual-TLS peer subscribe and query on `*/**` (`router-fabric.json5`). This is goat's scoped read, so any certified peer may read below any anchor (G1-10).
+- **No Zenoh session ID is set.** `ZenohSession.open` in `emulators/zenoh_io.py` sets no `id`, and neither router file has one, so every client and router has a random ID. goat's ADR 1041 (status "Proposed") asks for a fixed router ID for each host and for a publisher's ID to be its slot anchor (`docs/goat-context.md` 2.11). Open for step 4.
+- **The goat client was tried in one form.** goat's client does not verify the router's TLS name (from goat's source, G1-10). Only `goat sub` ran. A profile from a signed bundle, a portal and a key service do not exist in the rig, so `goat profile init`, `goat doctor` and `goat sub --decode` or `--open` were not tried.
+- **A task from the future passes.** The bridge's age check (`_age` in `emulators/pod_bridge.py`, line 169) subtracts the task's time from the clock, so a task with a time in the future has a negative age and is forwarded. No test covers it.
+- **The bridge's token cleanup can stop early.** When the pod router is lost, `on_transport` (`emulators/pod_bridge.py`, line 189) calls `undeclare_token` for each node in a loop with no guard; one call that raises stops the loop and leaves the list of nodes uncleared. While the fabric link is down the bridge drops the pod's messages before it notes them, so it removes its own token after 30 s (`expire_presence`, line 181), on a session that is away (seen in G1-07).
+- **Routes with more than one host.** The fabric link learns a node's route from the first key that names it, of any kind (`_accept` and `_learn` in `emulators/fabric_link.py`, lines 136 and 67). Downward kinds (`task`, the acknowledgements) name the node they go to, so with more than one host, another host's task to the pod fusion node could set that node's route to the wrong anchor. Only upward kinds should set a route. The rig has one host, so this was not seen.
+- **The host can task only the pod fusion node.** The bridge passes down only messages for node IDs that it has sent upward (`_known`, line 150), and publishes them on the fusion node's down key (line 157). Only the fusion node's traffic goes up, so a sensor in the pod can't be tasked from the host directly, and the sensors' own acknowledgements stay in the pod.
+- **The scale of the evidence.** One pod, one host, one arm64 machine under Colima, Docker networks in place of a mesh, a test CA made by the generator, and runs of minutes.
+- **Step 4 itself.** No procedure is known that gives a system other than the founder a slot identity on a goatlite (`docs/goat-context.md` 5.2). A goatlite is a LAN goatnet. Its fabric router is Zenoh 1.9.0, the version that check G1-01 covers for our binding.
+
+## T-11
+
+Item T-11 of `docs/acceptance.md` (open remainder: "A host fusion node acknowledges the pod and sees only fused tracks. Needs the host tier.") is closed by this record: G1-03 shows the host fusion node acknowledging the pod fusion node's registration with `acceptance=True`, and G1-02 shows that the host recorder holds only the pod's and the host fusion node's messages, with no sensor's node ID anywhere in them. `docs/acceptance.md` itself is not edited.
