@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 745" role="img" aria-label="Recommended Zenoh-native SAPIENT layout with pods, host and external host">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:6 4}
+.p{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.c{fill:none;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:15px;font-weight:600;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13px}
+.n{fill:#e6edf6;font-size:14px;font-weight:600}
+.m{fill:#cfe3ff;font-size:13px;font-family:"SF Mono",Menlo,monospace}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.2;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.ah{fill:#93a4bf}.ahw{fill:#f59e0b}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahw" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="c" x="20" y="18" width="960" height="70" rx="10"/>
+<text class="n" x="34" y="40" style="fill:#f59e0b">Control plane, not Zenoh traffic, applied to every router</text>
+<rect class="b" x="34" y="50" width="215" height="30" rx="6"/><text class="s" x="141" y="70">Identity: mTLS CA, one cert per node</text>
+<rect class="b" x="262" y="50" width="225" height="30" rx="6"/><text class="s" x="374" y="70">Policy: ACL rules by cert name and key</text>
+<rect class="b" x="500" y="50" width="160" height="30" rx="6"/><text class="s" x="580" y="70">Time: NTP on all nodes</text>
+<rect class="b" x="673" y="50" width="293" height="30" rx="6"/><text class="s" x="819" y="70">Management: adminspace, config, monitoring</text>
+<rect class="p" x="20" y="110" width="360" height="250" rx="12"/><text class="n" x="36" y="133">Pod 1</text>
+<rect class="g" x="200" y="125" width="160" height="48" rx="8"/><text class="t" x="280" y="145">Pod fusion / COP</text><text class="s" x="280" y="163">client, publishes pod tracks</text>
+<rect class="h" x="200" y="200" width="100" height="60" rx="10"/><text class="t" x="250" y="225">Pod router</text><text class="s" x="250" y="245">zenohd</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M262 173L252 200"/>
+<rect class="b" x="40" y="190" width="120" height="44" rx="8"/><text class="t" x="100" y="217">Sensor</text>
+<rect class="b" x="40" y="245" width="120" height="44" rx="8"/><text class="t" x="100" y="272">Effector</text>
+<rect class="b" x="40" y="300" width="120" height="44" rx="8"/><text class="t" x="100" y="318">Legacy sensor</text><text class="s" x="100" y="334">plain TCP</text>
+<rect class="d" x="170" y="300" width="60" height="44" rx="8"/><text class="t" x="200" y="327">Bridge</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M160 212L200 226"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M160 267L200 246"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M160 322L170 322"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M230 316L244 260"/>
+<text class="s" x="300" y="290">all nodes attach to</text><text class="s" x="300" y="306">the pod router only</text>
+<rect class="p" x="20" y="385" width="360" height="200" rx="12"/><text class="n" x="36" y="408">Pod 2, redundant routers</text>
+<rect class="h" x="200" y="420" width="85" height="56" rx="10"/><text class="t" x="242" y="444">Router A</text><text class="s" x="242" y="462">zenohd</text>
+<rect class="h" x="295" y="420" width="75" height="56" rx="10"/><text class="t" x="332" y="444">Router B</text><text class="s" x="332" y="462">zenohd</text>
+<path class="a" d="M285 448L295 448"/>
+<rect class="b" x="40" y="430" width="120" height="44" rx="8"/><text class="t" x="100" y="457">Sensor</text>
+<rect class="b" x="40" y="485" width="120" height="44" rx="8"/><text class="t" x="100" y="512">Effector</text>
+<rect class="g" x="170" y="515" width="160" height="50" rx="8"/><text class="t" x="250" y="536">Pod fusion / COP</text><text class="s" x="250" y="554">client</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M160 452L200 448"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M160 507L200 465"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M245 515L242 476"/>
+<path class="f" d="M300 515L330 476"/><text class="s" x="345" y="500">failover</text>
+<rect class="p" x="410" y="110" width="300" height="475" rx="12"/><text class="n" x="426" y="133">Host</text>
+<rect class="g" x="505" y="150" width="150" height="60" rx="8"/><text class="t" x="580" y="173">Host fusion / COP</text><text class="s" x="580" y="191">consumes pod tracks</text><text class="s" x="580" y="204">publishes host tracks</text>
+<rect class="h" x="510" y="300" width="140" height="64" rx="10"/><text class="t" x="580" y="326">Host router</text><text class="s" x="580" y="346">zenohd, downsampling</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M580 210L580 300"/>
+<rect class="b" x="505" y="430" width="150" height="56" rx="8"/><text class="t" x="580" y="453">Recorder / analytics</text><text class="s" x="580" y="471">client, subscribes **</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M580 364L580 430"/>
+<rect class="b" x="505" y="515" width="150" height="46" rx="8"/><text class="t" x="580" y="543">S3 archive</text>
+<path class="l" marker-end="url(#e)" d="M580 486L580 515"/>
+<path class="a" d="M300 230L510 322"/>
+<path class="a" d="M370 448L520 340"/>
+<text class="s" x="440" y="372">router to router</text><text class="s" x="440" y="388">each pod a subregion</text>
+<rect class="p" x="740" y="110" width="240" height="260" rx="12"/><text class="n" x="756" y="133">External host</text>
+<rect class="h" x="790" y="150" width="140" height="60" rx="10"/><text class="t" x="860" y="175">External router</text><text class="s" x="860" y="195">zenohd</text>
+<rect class="g" x="790" y="260" width="140" height="56" rx="8"/><text class="t" x="860" y="283">External COP</text><text class="s" x="860" y="301">client</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M860 210L860 260"/>
+<path class="a" d="M650 318L790 190"/>
+<text class="s" x="860" y="400">Uplink: QUIC or TLS over WAN, intermittent.</text>
+<text class="s" x="860" y="418">Carries host tracks and alerts only.</text>
+<text class="s" x="860" y="436">Host caches tracks so the external</text>
+<text class="s" x="860" y="454">COP recovers history after an outage.</text>
+<rect class="b" x="20" y="605" width="960" height="128" rx="10"/>
+<text class="n" x="38" y="630">Keys</text><text class="m" x="110" y="630">h1/p1/sapient/v2/&lt;node_id&gt;/up/{status,detection,alert}   h1/p1/sapient/v2/&lt;node_id&gt;/down/task</text>
+<text class="m" x="110" y="650">h1/p1/fusion/{tracks,alerts}   h1/fusion/{tracks,alerts}</text>
+<text class="n" x="38" y="680">Flow</text><text class="q" x="110" y="680">Pod fusion reads h1/p1/**/up/**. Host fusion reads h1/*/fusion/**. External COP reads h1/fusion/** only.</text>
+<text class="n" x="38" y="706">Rules</text><text class="q" x="110" y="706">down/task uses Block, and only fusion/COP certs may publish it. Detections may use Drop.</text>
+<text class="q" x="110" y="724">Blue lines are the only links between levels. Liveliness tokens replace status-report socket closing.</text>
+</svg>

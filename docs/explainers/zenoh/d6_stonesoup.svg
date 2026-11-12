@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" role="img" aria-label="Stone Soup as a SAPIENT fusion node with an adapter">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}.g{fill:#17352a;stroke:#34d399;stroke-width:2}.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:6 4}
+.p{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:15px;font-weight:600;text-anchor:middle}.s{fill:#93a4bf;font-size:12.5px;text-anchor:middle}.q{fill:#93a4bf;font-size:13px}.n{fill:#e6edf6;font-size:14px;font-weight:600}
+.m{fill:#cfe3ff;font-size:12px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}.a{fill:none;stroke:#38bdf8;stroke-width:3}.ah{fill:#93a4bf}
+</style>
+<defs><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="h" x="30" y="150" width="120" height="70" rx="10"/><text class="t" x="90" y="180">Pod router</text><text class="s" x="90" y="200">zenohd</text>
+<rect class="p" x="190" y="30" width="790" height="330" rx="12"/><text class="n" x="206" y="54">Fusion node process, Python</text>
+<rect class="d" x="210" y="80" width="250" height="250" rx="10"/><text class="n" x="335" y="104" text-anchor="middle" style="fill:#f59e0b">SAPIENT adapter, to build</text>
+<rect class="b" x="225" y="120" width="220" height="56" rx="8"/><text class="t" x="335" y="142">Zenoh subscriber</text><text class="s" x="335" y="160">callback, thread-safe queue</text>
+<rect class="b" x="225" y="190" width="220" height="56" rx="8"/><text class="t" x="335" y="212">SapientDetectionReader</text><text class="s" x="335" y="230">DetectionReport to Detection</text>
+<rect class="b" x="225" y="260" width="220" height="56" rx="8"/><text class="t" x="335" y="282">Registry and publisher</text><text class="s" x="335" y="300">registrations, acks, tracks, tasks</text>
+<rect class="g" x="500" y="80" width="460" height="250" rx="10"/><text class="n" x="730" y="104" text-anchor="middle" style="fill:#34d399">Stone Soup, exists today</text>
+<rect class="b" x="520" y="120" width="130" height="56" rx="8"/><text class="t" x="585" y="142">Measurement</text><text class="s" x="585" y="160">models per sensor</text>
+<rect class="b" x="665" y="120" width="130" height="56" rx="8"/><text class="t" x="730" y="142">Predictor</text><text class="s" x="730" y="160">and updater</text>
+<rect class="b" x="810" y="120" width="130" height="56" rx="8"/><text class="t" x="875" y="142">Data associator</text><text class="s" x="875" y="160">hypothesiser</text>
+<rect class="b" x="520" y="190" width="130" height="56" rx="8"/><text class="t" x="585" y="212">Initiator</text><text class="s" x="585" y="230">and deleter</text>
+<rect class="b" x="665" y="190" width="130" height="56" rx="8"/><text class="t" x="730" y="212">MultiTargetTracker</text><text class="s" x="730" y="230">tracker/simple.py</text>
+<rect class="b" x="810" y="190" width="130" height="56" rx="8"/><text class="t" x="875" y="212">Tracks</text><text class="s" x="875" y="230">state plus covariance</text>
+<rect class="b" x="520" y="260" width="420" height="56" rx="8"/><text class="s" x="730" y="282" style="fill:#e6edf6;font-weight:600">Readers today: Kafka, CBOR, YAML, HDF5, AIS, OpenSky. Writers: Kafka, CBOR, YAML.</text><text class="s" x="730" y="302">None for SAPIENT, TCP or Zenoh. Copy the KafkaDetectionReader pattern: thread plus Queue.</text>
+<path class="a" d="M150 175L225 148"/><path class="a" d="M225 288L150 200"/>
+<path class="l" marker-end="url(#e)" d="M335 176L335 190"/><path class="l" marker-end="url(#e)" d="M445 218L665 218"/>
+
+
+<path class="l" marker-end="url(#e)" d="M875 120V72H215V288H223"/><text class="s" x="600" y="66">fused tracks back to the publisher</text>
+<text class="m" x="90" y="120">h1/p1/**/up/**</text><text class="m" x="90" y="250">h1/p1/fusion/up/**</text><text class="m" x="90" y="268">.../down/task</text>
+<text class="q" x="30" y="392">Tracks leave as DetectionReports from the fusion node's own node_id, listing source detections in associated_detection, so a parent treats this node as a sensor.</text>
+<text class="q" x="30" y="412">Offline: sapient_apex_replay can feed a recorded trial into the same reader for repeatable tests.</text>
+</svg>

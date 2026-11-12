@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 545" role="img" aria-label="Three Zenoh routers linking three sites">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:6 4}
+.p{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.c{fill:none;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:15px;font-weight:600;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13px}
+.n{fill:#e6edf6;font-size:14px;font-weight:600}
+.m{fill:#cfe3ff;font-size:13px;font-family:"SF Mono",Menlo,monospace}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.2;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.ah{fill:#93a4bf}.ahw{fill:#f59e0b}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahw" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<path class="w" d="M180 110C180 30 820 30 820 110"/><text class="s" x="500" y="36">optional redundant link</text>
+<rect class="h" x="115" y="110" width="130" height="58" rx="10"/><text class="t" x="180" y="134">Router A</text><text class="s" x="180" y="154">zenohd :7447</text>
+<rect class="h" x="435" y="110" width="130" height="58" rx="10"/><text class="t" x="500" y="134">Router HQ</text><text class="s" x="500" y="154">zenohd :7447</text>
+<rect class="h" x="755" y="110" width="130" height="58" rx="10"/><text class="t" x="820" y="134">Router B</text><text class="s" x="820" y="154">zenohd :7447</text>
+<path class="a" d="M245 139L435 139"/><path class="a" d="M565 139L755 139"/>
+<text class="s" x="340" y="128">TLS, QUIC or TCP</text><text class="s" x="340" y="160">link-state routing</text>
+<text class="s" x="660" y="128">TLS, QUIC or TCP</text><text class="s" x="660" y="160">link-state routing</text>
+<rect class="p" x="30" y="225" width="300" height="245" rx="12"/><text class="n" x="180" y="462" text-anchor="middle">Site A: peers on a LAN</text>
+<rect class="p" x="350" y="225" width="300" height="245" rx="12"/><text class="n" x="500" y="462" text-anchor="middle">HQ: clients</text>
+<rect class="p" x="670" y="225" width="300" height="245" rx="12"/><text class="n" x="820" y="462" text-anchor="middle">Site B: clients</text>
+<path class="a" d="M150 168L110 280"/><path class="l" d="M210 168L250 280"/><path class="l" d="M165 305L195 305"/>
+<rect class="g" x="55" y="280" width="110" height="52" rx="8"/><text class="t" x="110" y="303">Peer</text><text class="s" x="110" y="322">publisher</text>
+<rect class="b" x="195" y="280" width="110" height="52" rx="8"/><text class="t" x="250" y="303">Peer</text><text class="s" x="250" y="322">subscriber</text>
+<text class="s" x="110" y="356">peers find each other</text><text class="s" x="110" y="373">by multicast scouting</text>
+<path class="l" d="M250 332L205 395"/><rect class="b" x="150" y="395" width="110" height="52" rx="8"/><text class="t" x="205" y="418">Client</text><text class="s" x="205" y="437">via a peer</text>
+<path class="l" d="M470 168L435 280"/><path class="l" d="M530 168L565 280"/>
+<rect class="b" x="375" y="280" width="120" height="52" rx="8"/><text class="t" x="435" y="303">Client</text><text class="s" x="435" y="322">queryable</text>
+<rect class="b" x="505" y="280" width="120" height="52" rx="8"/><text class="t" x="565" y="303">Client</text><text class="s" x="565" y="322">subscriber</text>
+<text class="s" x="500" y="382">Storage and REST run as</text><text class="s" x="500" y="400">plugins inside zenohd</text>
+<path class="a" d="M790 168L755 280"/><path class="l" d="M850 168L885 280"/>
+<rect class="g" x="695" y="280" width="120" height="52" rx="8"/><text class="t" x="755" y="303">Client</text><text class="s" x="755" y="322">subscriber</text>
+<rect class="b" x="825" y="280" width="120" height="52" rx="8"/><text class="t" x="885" y="303">Client</text><text class="s" x="885" y="322">publisher</text>
+<text class="s" x="820" y="382">Each client holds one</text><text class="s" x="820" y="400">session to its router</text>
+<text class="q" x="30" y="502">Blue path: a sample crosses each hop and goes only toward sites with a matching subscriber.</text>
+<text class="q" x="30" y="526">Routers form the north region. Peers and clients sit south of them under the default auto preset.</text>
+</svg>

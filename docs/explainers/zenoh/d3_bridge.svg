@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 612" role="img" aria-label="SAPIENT nodes bridged over Zenoh routers into Apex">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:6 4}
+.p{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.c{fill:none;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:15px;font-weight:600;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13px}
+.n{fill:#e6edf6;font-size:14px;font-weight:600}
+.m{fill:#cfe3ff;font-size:13px;font-family:"SF Mono",Menlo,monospace}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.2;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.ah{fill:#93a4bf}.ahw{fill:#f59e0b}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahw" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="p" x="20" y="25" width="400" height="195" rx="12"/><text class="n" x="36" y="50">Site A</text>
+<rect class="b" x="40" y="62" width="112" height="56" rx="8"/><text class="t" x="96" y="86">Radar</text><text class="s" x="96" y="105">unchanged</text>
+<rect class="b" x="40" y="146" width="112" height="56" rx="8"/><text class="t" x="96" y="170">Camera</text><text class="s" x="96" y="189">unchanged</text>
+<rect class="d" x="195" y="102" width="92" height="60" rx="8"/><text class="t" x="241" y="127">Bridge</text><text class="s" x="241" y="147">per node</text>
+<rect class="h" x="322" y="102" width="86" height="60" rx="10"/><text class="t" x="365" y="127">Router</text><text class="s" x="365" y="147">Site A</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M152 90L195 120"/><path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M152 174L195 144"/>
+<path class="a" d="M287 132L322 132"/><text class="s" x="190" y="60">local TCP</text>
+<rect class="p" x="20" y="240" width="400" height="195" rx="12"/><text class="n" x="36" y="265">Site B</text>
+<rect class="b" x="40" y="277" width="112" height="56" rx="8"/><text class="t" x="96" y="301">RF detector</text><text class="s" x="96" y="320">unchanged</text>
+<rect class="b" x="40" y="361" width="112" height="56" rx="8"/><text class="t" x="96" y="385">Vehicle</text><text class="s" x="96" y="404">unchanged</text>
+<rect class="d" x="195" y="317" width="92" height="60" rx="8"/><text class="t" x="241" y="342">Bridge</text><text class="s" x="241" y="362">per node</text>
+<rect class="h" x="322" y="317" width="86" height="60" rx="10"/><text class="t" x="365" y="342">Router</text><text class="s" x="365" y="362">Site B</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M152 305L195 335"/><path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M152 389L195 359"/>
+<path class="a" d="M287 347L322 347"/>
+<path class="a" d="M408 132L495 215"/><path class="a" d="M408 347L495 245"/>
+<text class="s" x="450" y="225">mTLS</text><text class="s" x="450" y="243">+ ACLs</text>
+<rect class="p" x="480" y="25" width="500" height="410" rx="12"/><text class="n" x="496" y="50">HQ</text>
+<rect class="h" x="495" y="200" width="86" height="60" rx="10"/><text class="t" x="538" y="225">Router</text><text class="s" x="538" y="245">HQ</text>
+<rect class="d" x="610" y="200" width="88" height="60" rx="8"/><text class="t" x="654" y="225">Bridge</text><text class="s" x="654" y="245">per node</text>
+<text class="s" x="654" y="170">one TCP socket</text><text class="s" x="654" y="188">per node, :5020</text>
+<rect class="h" x="728" y="165" width="100" height="130" rx="10"/><text class="t" x="778" y="214">Apex</text><text class="s" x="778" y="236">unchanged</text>
+<rect class="b" x="866" y="55" width="104" height="72" rx="8"/><text class="t" x="918" y="86">C2</text><text class="s" x="918" y="107">system</text>
+<rect class="b" x="866" y="190" width="104" height="82" rx="8"/><text class="t" x="918" y="216">Fusion</text><text class="s" x="918" y="236">Stone Soup</text><text class="s" x="918" y="254">+ bridge</text>
+<rect class="b" x="722" y="352" width="112" height="60" rx="8"/><text class="t" x="778" y="377">Archive</text><text class="s" x="778" y="397">SQLite, Elastic</text>
+<rect class="b" x="540" y="352" width="130" height="60" rx="8"/><text class="t" x="605" y="377">Direct sensor</text><text class="s" x="605" y="397">plain TCP, required</text>
+<path class="a" d="M581 230L610 230"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M698 230L728 230"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M828 230L866 230"/>
+<path class="l" marker-end="url(#e)" d="M805 165L880 127"/><text class="s" x="822" y="136">:5002</text><text class="s" x="847" y="218">:5001</text>
+<path class="w" marker-start="url(#f)" marker-end="url(#f)" d="M918 190L918 127"/>
+<path class="l" marker-end="url(#e)" d="M778 295L778 350"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M670 368L738 295"/>
+<rect class="b" x="20" y="455" width="960" height="150" rx="10"/>
+<text class="n" x="38" y="482">Keys</text><text class="m" x="120" y="482">sapient/v2/&lt;node_id&gt;/up/{status,detection,alert}</text>
+<text class="m" x="120" y="503">sapient/v2/&lt;node_id&gt;/down/task</text>
+<text class="n" x="38" y="532">Delivery</text><text class="q" x="120" y="532">Registration, tasks and alerts use Block. Detections may use Drop. Reliability is per hop.</text>
+<text class="n" x="38" y="558">Presence</text><text class="q" x="120" y="558">When a liveliness token disappears, the HQ bridge closes that node's Apex socket.</text>
+<text class="n" x="38" y="584">Later</text><text class="q" x="120" y="584">Native option: bridges move into Apex and the sensors. Routers and keys stay the same.</text>
+</svg>

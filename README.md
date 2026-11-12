@@ -3,6 +3,8 @@
 This repo runs Dstl's [Apex SAPIENT middleware](https://github.com/dstl/Apex-SAPIENT-Middleware) headless (no Qt GUI) in a Linux container on a Mac, through [Colima](https://github.com/abiosoft/colima).
 It also has a fake BSI Flex 335 v2.0 fusion node, radar, camera and vehicle, for testing the whole v2.0 message flow through Apex without real hardware.
 
+**New to SAPIENT or Zenoh?** Three background pages are in [`docs/explainers/`](docs/explainers/README.md): [SAPIENT, explained](docs/explainers/sapient/sapient_explainer.html), [SAPIENT over Zenoh in plain terms](docs/explainers/zenoh/overview.html), and [SAPIENT over Zenoh: the design note](docs/explainers/zenoh/architecture.html). Open them in a browser from your clone; a code hosting site shows only their source. They are studies from before the Zenoh stages were built. This file and `docs/acceptance.md` record what was built and measured.
+
 The Apex source is not part of this repo. The build takes it from a separate checkout, by default `../Apex-SAPIENT-Middleware`:
 
 ```

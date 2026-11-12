@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAPIENT, explained — standard, Apex middleware, Stone Soup</title>
+<style>
+  :root{--bg:#0b1220;--panel:#121b2e;--panel2:#0f1728;--line:#24324d;--fg:#e6edf6;--mute:#93a4bf;
+        --cyan:#38bdf8;--amber:#f59e0b;--green:#34d399;--pink:#f472b6;--violet:#a78bfa;--red:#f87171}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  a{color:var(--cyan)}
+  header{padding:56px 24px 24px;max-width:1080px;margin:0 auto}
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:700}
+  h1{font-size:46px;line-height:1.1;margin:10px 0 12px}
+  h2{font-size:30px;margin:0 0 6px}
+  h3{font-size:19px;margin:22px 0 8px}
+  main{max-width:1080px;margin:0 auto;padding:0 24px 80px}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+  nav.toc a{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px;
+    font-size:14px;color:var(--fg);text-decoration:none}
+  nav.toc a:hover{border-color:var(--cyan)}
+  .lede{color:var(--mute);font-size:19px;max-width:820px}
+  section{margin-top:56px;padding-top:8px;border-top:1px solid var(--line)}
+  .plain{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);
+    border-radius:12px;padding:16px 20px;margin:16px 0}
+  .plain b.lbl{display:block;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--green);margin-bottom:4px}
+  details{background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin:14px 0;padding:0 20px}
+  details[open]{padding-bottom:16px}
+  summary{cursor:pointer;padding:14px 0;font-weight:700;color:var(--cyan);list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--mute)}
+  details[open] summary::before{content:"▾ "}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15px}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top}
+  th{color:var(--mute);font-weight:600;background:var(--panel)}
+  code,.mono{font-family:"SF Mono",Menlo,monospace;font-size:.9em;background:#0b1424;border:1px solid var(--line);
+    border-radius:5px;padding:1px 5px;color:#cfe3ff}
+  pre{background:#0b1424;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:14px;line-height:1.5}
+  pre code{border:0;padding:0;background:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h4{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--mute);font-size:15px}
+  .warn{border-left:5px solid var(--amber)}
+  svg{width:100%;height:auto;display:block;margin:12px 0}
+  svg text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  .src{color:var(--mute);font-size:13px;margin-top:8px}
+  footer{max-width:1080px;margin:0 auto;padding:24px;color:var(--mute);font-size:14px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">Explainer · research/cuas</div>
+  <h1>SAPIENT, explained</h1>
+  <p class="lede">What the UK's open standard for networked sensors and effectors is, how its messages flow, what the
+  Apex middleware does with them, and where the Stone Soup tracker could fit. Each section starts with a plain-language
+  summary; open <b>Technical detail</b> for the engineering view.</p>
+  <p style="color:var(--mute);font-size:15px;margin:14px 0 0">Background study, last changed on 2026-10-25, before the work in this repository. The original has a narrated video. The video is not part of this copy.</p>
+  <nav class="toc">
+    <a href="#concept">1 · Concept</a><a href="#arch">2 · Architecture</a><a href="#platforms">2a · Platforms</a><a href="#hierarchy">2b · Hierarchies</a><a href="#history">3 · History</a>
+    <a href="#lifecycle">4 · Message lifecycle</a><a href="#wire">5 · Wire format</a><a href="#apex">6 · Apex</a>
+    <a href="#v2">7 · Apex vs BSI v2</a><a href="#fusion">8 · Stone Soup</a><a href="#sources">Sources</a>
+  </nav>
+</header>
+
+<main>
+
+<section id="concept">
+  <div class="kicker">1</div><h2>The concept</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    A protected site — an airbase, a summit venue — may use radars, cameras, radio-frequency detectors and microphones
+    from different companies. Normally each speaks its own language, so wiring them together is slow and expensive,
+    and no single sensor sees everything. SAPIENT is a common language. Each sensor does its own thinking and sends
+    short summaries ("drone, 300 m north-east, 80% sure"). A central <b>fusion node</b> combines them into one picture
+    and can tell sensors what to do next ("camera 2, look there") in fractions of a second.
+  </div>
+  <div class="grid">
+    <div class="card"><h4 style="color:var(--cyan)">1 · Edge autonomy</h4><p>Sensors process their own data locally (AI at the edge).</p></div>
+    <div class="card"><h4 style="color:var(--green)">2 · Information, not raw data</h4><p>Compact summary messages save bandwidth.</p></div>
+    <div class="card"><h4 style="color:var(--amber)">3 · Central fusion</h4><p>One coherent picture, resilient to single-sensor false alarms.</p></div>
+    <div class="card"><h4 style="color:var(--pink)">4 · Autonomous tasking</h4><p>The fusion node re-tasks sensors and effectors at machine speed.</p></div>
+  </div>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li>Full name: <i>Sensing for Asset Protection with Integrated Electronic Networked Technology</i>. Developed by the UK MOD / Dstl since 2013.</li>
+      <li>Adopted by the MOD as <b>the counter-UAS standard</b>; NATO is adopting it as the basis of a counter-UAS STANREC after the C-UAS Technical Interoperability Exercises. Used to protect leaders at the NATO summit in The Hague (July 2025).</li>
+      <li>Supports ISR sensors (cameras, radar, acoustic, magnetic anomaly…) and <b>soft-kill effectors only</b> (e.g. jammers). Hard-kill effectors are explicitly out of scope; any effector needs an approved safety case (BSI §6.5.8).</li>
+      <li>The standard defines <i>what</i> is exchanged, not how components work inside, protecting vendors' IP.</li>
+      <li>Dstl runs the SAPIENT Standardisation Sub-Committee (S3C) that prepares changes for BSI.</li>
+    </ul>
+  </details>
+</section>
+
+<section id="arch">
+  <div class="kicker">2</div><h2>Architecture</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    Sensors and effectors ("edge nodes") all connect to one fusion node. Optionally a <b>middleware</b> sits in between,
+    like a post room: it routes, checks and files the messages but should not change them. Bigger systems can be stacked —
+    a local fusion node can pretend to be a single sensor to a higher one.
+  </div>
+  <svg viewBox="0 0 1000 380" role="img" aria-label="Edge nodes connect via optional middleware to a fusion node">
+    <defs><marker id="a1" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#38bdf8"/></marker>
+          <marker id="a2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#f59e0b"/></marker></defs>
+    <g font-size="16" font-weight="700" text-anchor="middle">
+      <rect x="10" y="30" width="170" height="52" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="95" y="62" fill="#e6edf6">Radar</text>
+      <rect x="10" y="100" width="170" height="52" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="95" y="132" fill="#e6edf6">EO/IR camera</text>
+      <rect x="10" y="170" width="170" height="52" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="95" y="202" fill="#e6edf6">Passive RF</text>
+      <rect x="10" y="240" width="170" height="52" rx="10" fill="#121b2e" stroke="#f472b6" stroke-width="2"/><text x="95" y="272" fill="#e6edf6">RF jammer</text>
+    </g>
+    <text x="95" y="320" fill="#93a4bf" font-size="14" text-anchor="middle">Edge nodes (clients)</text>
+    <g stroke="#38bdf8" stroke-width="2" fill="none"><path d="M180,56 L380,150"/><path d="M180,126 L380,165"/><path d="M180,196 L380,180"/><path d="M180,266 L380,195"/></g>
+    <rect x="380" y="115" width="210" height="120" rx="12" fill="#0b1220" stroke="#a78bfa" stroke-width="2.5" stroke-dasharray="8 5"/>
+    <text x="485" y="160" fill="#a78bfa" font-size="19" font-weight="800" text-anchor="middle">Middleware</text>
+    <text x="485" y="185" fill="#e6edf6" font-size="14" text-anchor="middle">optional · e.g. Apex</text>
+    <text x="485" y="208" fill="#93a4bf" font-size="13" text-anchor="middle">route · validate · record</text>
+    <line x1="590" y1="175" x2="740" y2="175" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#a1)"/>
+    <rect x="745" y="115" width="230" height="120" rx="12" fill="#f59e0b"/>
+    <text x="860" y="168" fill="#0b1220" font-size="22" font-weight="800" text-anchor="middle">Fusion node</text>
+    <text x="860" y="195" fill="#0b1220" font-size="14" text-anchor="middle">server · fuses · tasks</text>
+    <path d="M800,235 C700,340 380,350 182,280" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="7 5" marker-end="url(#a2)"/>
+    <text x="520" y="345" fill="#f59e0b" font-size="14" text-anchor="middle">tasks back to a specific node</text>
+    <rect x="745" y="10" width="230" height="62" rx="10" fill="#121b2e" stroke="#34d399" stroke-width="2"/>
+    <text x="860" y="38" fill="#34d399" font-size="15" font-weight="800" text-anchor="middle">Parent fusion node</text>
+    <text x="860" y="58" fill="#93a4bf" font-size="12" text-anchor="middle">sees the child as one "sensor"</text>
+    <line x1="860" y1="115" x2="860" y2="76" stroke="#34d399" stroke-width="2" marker-end="url(#a1)"/>
+  </svg>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li><b>Client/server:</b> the fusion node is the server; edge nodes (and a middleware, if present) are clients (BSI §0.4).</li>
+      <li><b>Transparency (new in v2):</b> a middleware “has no effect on the content of the messages or the behaviour of the nodes”. Consequently the <i>fusion node</i> sends RegistrationAck and AlertAck, and must keep its own store of registered nodes in case of disconnection.</li>
+      <li><b>Middleware self-registration (Annex C.3.1):</b> a middleware registers with the fusion node as a node with no modes and no detection reports, and sends regular status reports to keep the channel open. If it has a node_id, it replaces destination_ids as messages pass through.</li>
+      <li><b>Platforms (§4.10):</b> a <code>MOBILE_NODE</code> (vehicle) or <code>POINTABLE_NODE</code> (gimbal/turret) registers like any node and lists its <code>dependent_nodes</code>; platforms can stack on platforms.</li>
+      <li><b>Hierarchy (§4.11):</b> a child fusion node registers upward as <code>FUSION_NODE</code> with the aggregated detection and tasking capabilities of its nodes, and reports coverage areas in status messages. Mid-level fusion nodes are client upward and server downward. Hierarchies prevent loops that would distort fusion weightings.</li>
+    </ul>
+  </details>
+</section>
+
+<section id="platforms">
+  <div class="kicker">2a · new in v2</div><h2>Platforms: sensors on things that point or move</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    Sensors are often bolted onto something else: a <b>gimbal</b> that swivels, or a <b>vehicle</b> or drone that moves.
+    Turning the gimbal turns every camera on it; driving the vehicle moves everything aboard. So in v2 the gimbal or
+    vehicle joins the network as a node of its own and says “these sensors ride on me”. The fusion node then knows to
+    steer the gimbal (not the camera) to look somewhere, and to ask the camera (not the gimbal) to be more sensitive.
+  </div>
+  <svg viewBox="0 0 1000 330" role="img" aria-label="A vehicle carries a gimbal and an acoustic sensor; the gimbal carries a camera and radar; the fusion node tasks each level">
+    <defs><marker id="pp" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#f59e0b"/></marker></defs>
+    <g stroke="#93a4bf" stroke-width="2" fill="none"><path d="M330,72 L190,125"/><path d="M330,72 L470,125"/><path d="M190,177 L100,230"/><path d="M190,177 L280,230"/></g>
+    <g fill="#93a4bf" font-size="12" font-style="italic" text-anchor="middle"><text x="235" y="94">dependent_nodes</text><text x="430" y="94">dependent_nodes</text><text x="115" y="204">dependent_nodes</text><text x="270" y="204">dependent_nodes</text></g>
+    <g text-anchor="middle" font-weight="800">
+      <rect x="230" y="18" width="200" height="54" rx="10" fill="#121b2e" stroke="#34d399" stroke-width="2.5"/><text x="330" y="42" fill="#e6edf6" font-size="17">Vehicle</text><text x="330" y="62" fill="#34d399" font-size="12">MOBILE_NODE</text>
+      <rect x="100" y="125" width="180" height="52" rx="10" fill="#121b2e" stroke="#34d399" stroke-width="2.5"/><text x="190" y="148" fill="#e6edf6" font-size="17">Gimbal</text><text x="190" y="167" fill="#34d399" font-size="12">POINTABLE_NODE</text>
+      <rect x="380" y="125" width="180" height="52" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="470" y="148" fill="#e6edf6" font-size="16">Acoustic sensor</text><text x="470" y="167" fill="#93a4bf" font-size="12" font-weight="400">edge node 3</text>
+      <rect x="20" y="230" width="160" height="52" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="100" y="253" fill="#e6edf6" font-size="16">EO/IR camera</text><text x="100" y="272" fill="#93a4bf" font-size="12" font-weight="400">edge node 1</text>
+      <rect x="200" y="230" width="160" height="52" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="280" y="253" fill="#e6edf6" font-size="16">Radar</text><text x="280" y="272" fill="#93a4bf" font-size="12" font-weight="400">edge node 2</text>
+      <rect x="800" y="120" width="190" height="80" rx="12" fill="#f59e0b"/><text x="895" y="156" fill="#0b1220" font-size="18">Fusion node</text><text x="895" y="178" fill="#0b1220" font-size="12" font-weight="400">off the platform</text>
+    </g>
+    <g stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="7 5" marker-end="url(#pp)">
+      <path d="M800,135 C680,60 560,45 434,45"/><path d="M800,165 C650,200 450,200 284,155"/><path d="M810,200 C700,300 400,310 184,262"/></g>
+    <g fill="#f59e0b" font-size="13" font-weight="700"><text x="560" y="38">Move_To · Patrol · Follow</text><text x="560" y="214">Look_At · Follow</text><text x="520" y="312">Detection_Threshold · Mode_Change</text></g>
+  </svg>
+  <div class="grid">
+    <div class="card"><h4 style="color:var(--green)">Register the platform</h4><p>The platform registers like any node with <code>node_type</code> <code>POINTABLE_NODE</code> (gimbal, turret) or <code>MOBILE_NODE</code> (ground, air or sea vehicle), and lists the UUIDs of nodes it carries in <code>dependent_nodes</code>.</p></div>
+    <div class="card"><h4 style="color:var(--amber)">Split the commands</h4><p>Platforms declare movement commands (<code>LOOK_AT</code>, <code>MOVE_TO</code>, <code>PATROL</code>, <code>FOLLOW</code>); dependents declare intrinsic ones (<code>DETECTION_THRESHOLD</code>, <code>MODE_CHANGE</code>…).</p></div>
+    <div class="card"><h4 style="color:var(--pink)">Follow an object</h4><p>A dependent sensor reports a detection with an <code>object_id</code>; the fusion node sends <code>FOLLOW</code> with <code>follow_object_id</code> = that ULID; the platform decides how to follow.</p></div>
+    <div class="card"><h4 style="color:var(--cyan)">Report movement</h4><p>Platform status values: Stationary, Transiting, Slewing, Following, Stuck, Drifting. Sensors can report Node_Moving / Node_Stopped / Node_Paused.</p></div>
+  </div>
+  <details><summary>Technical detail — rules (BSI Flex 335 v2.0 §4.10)</summary>
+    <ul>
+      <li><b>Scope:</b> the fusion node is <i>not</i> on the platform; only edge nodes are. If a fusion node rides on a platform, the hierarchy rules of §4.11 apply instead (see 2b).</li>
+      <li><b>Stacking:</b> complex dependencies are platforms on platforms (BSI Fig. 4): the mobile node declares the pointable node and edge node 3; the pointable node declares edge nodes 1 and 2.</li>
+      <li><b>Default:</b> a platform that declares neither mobile nor pointable is assumed static.</li>
+      <li><b>Commands</b> (Table 58): <code>MOVE_TO</code> takes a LocationList — one point is the destination, several are waypoints. <code>PATROL</code> repeats a LocationList route until a new command. <code>LOOK_AT</code> takes a LocationList or RangeBearingCone. <code>FOLLOW</code> takes a <code>FollowObject</code> (Table 59: <code>follow_object_id</code>, mandatory); only one target is supported in v2. A platform without Follow support simply doesn't declare it — the fusion node can approximate it with repeated Move_To / Look_At.</li>
+      <li><b>Regions</b> (Table 51): <code>MOBILE_NODE_GO_AREA</code> (stay within) and <code>MOBILE_NODE_NO_GO_AREA</code> (do not enter), alongside AREA_OF_INTEREST, IGNORE and BOUNDARY.</li>
+      <li><b>Platform ↔ dependents interface is implementation-specific:</b> dependents may need the platform's location, velocity, roll, pitch and yaw to correct their observations; a platform supporting Follow may need detection locations from its dependents. BSI doesn't standardise this link.</li>
+      <li><b>Bearings:</b> <code>RangeBearingDatum.PLATFORM</code> (north = platform heading) exists, but BSI notes its definition is deferred to the next edition.</li>
+      <li><b>Proto fields:</b> <code>Registration.dependent_nodes</code> (repeated string, field 8); node types 18–20 in <code>registration.proto</code>; <code>follow.proto</code> is new in v2.</li>
+    </ul>
+  </details>
+</section>
+
+<section id="hierarchy">
+  <div class="kicker">2b · new in v2</div><h2>Hierarchies: a fusion node can be someone else's sensor</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    One fusion node can only handle so many sensors and so much area. v2 lets you build a tree: each local fusion node
+    looks after its own patch (or its own vehicle), and a higher fusion node combines the patches. The neat part is that
+    the higher node doesn't need anything new — each local fusion node introduces itself <i>as if it were one big
+    sensor</i> with all the abilities of the sensors beneath it.
+  </div>
+  <svg viewBox="0 0 1000 330" role="img" aria-label="A parent fusion node above two child fusion nodes, each with its own edge nodes and coverage area">
+    <defs><marker id="hh" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#34d399"/></marker>
+          <marker id="hh2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#f59e0b"/></marker></defs>
+    <rect x="30" y="125" width="410" height="195" rx="18" fill="#38bdf8" fill-opacity=".06" stroke="#38bdf8" stroke-dasharray="7 5"/>
+    <rect x="560" y="125" width="410" height="195" rx="18" fill="#38bdf8" fill-opacity=".06" stroke="#38bdf8" stroke-dasharray="7 5"/>
+    <text x="45" y="312" fill="#38bdf8" font-size="12">coverage · Area North</text><text x="575" y="312" fill="#38bdf8" font-size="12">coverage · Vehicle</text>
+    <g text-anchor="middle" font-weight="800">
+      <rect x="380" y="10" width="240" height="60" rx="12" fill="#34d399"/><text x="500" y="38" fill="#0b1220" font-size="17">Parent fusion node</text><text x="500" y="58" fill="#0b1220" font-size="12" font-weight="400">server</text>
+      <rect x="115" y="140" width="240" height="60" rx="12" fill="#f59e0b"/><text x="235" y="166" fill="#0b1220" font-size="16">Child fusion node A</text><text x="235" y="186" fill="#0b1220" font-size="11">FUSION_NODE · client ↑ server ↓</text>
+      <rect x="645" y="140" width="240" height="60" rx="12" fill="#f59e0b"/><text x="765" y="166" fill="#0b1220" font-size="16">Child fusion node B</text><text x="765" y="186" fill="#0b1220" font-size="11">FUSION_NODE + MOBILE_NODE</text>
+      <rect x="60" y="240" width="150" height="44" rx="9" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="135" y="267" fill="#e6edf6" font-size="14">Radar</text>
+      <rect x="260" y="240" width="150" height="44" rx="9" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="335" y="267" fill="#e6edf6" font-size="14">Camera</text>
+      <rect x="590" y="240" width="150" height="44" rx="9" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="665" y="267" fill="#e6edf6" font-size="14">Passive RF</text>
+      <rect x="790" y="240" width="150" height="44" rx="9" fill="#121b2e" stroke="#f472b6" stroke-width="2"/><text x="865" y="267" fill="#e6edf6" font-size="14">Jammer</text>
+    </g>
+    <g stroke="#38bdf8" stroke-width="2"><line x1="135" y1="240" x2="200" y2="202"/><line x1="335" y1="240" x2="270" y2="202"/><line x1="665" y1="240" x2="730" y2="202"/><line x1="865" y1="240" x2="800" y2="202"/></g>
+    <g stroke="#34d399" stroke-width="2" marker-end="url(#hh)"><line x1="235" y1="140" x2="420" y2="74"/><line x1="765" y1="140" x2="580" y2="74"/></g>
+    <path d="M620,40 C700,50 760,90 770,136" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="7 5" marker-end="url(#hh2)"/>
+    <g font-size="12" font-weight="700"><text x="130" y="100" fill="#34d399">Registration: aggregated capabilities</text><text x="700" y="64" fill="#f59e0b">Task → child decides how</text><text x="790" y="112" fill="#34d399">Status: coverage list</text></g>
+  </svg>
+  <table>
+    <tr><th>Child capability level</th><th>What the child fusion node must do</th></tr>
+    <tr><td>No hierarchical capability</td><td>Sends no registration; no communication upward</td></tr>
+    <tr><td>Supports detection</td><td>Registers with the parent, declaring the <b>combined detection capabilities</b> of all its edge nodes, and sends detection reports upward</td></tr>
+    <tr><td>Supports tasking</td><td>Also declares the <b>combined tasks and modes</b> of its edge nodes, and accepts tasks from the parent</td></tr>
+  </table>
+  <details><summary>Technical detail — rules (BSI Flex 335 v2.0 §4.11)</summary>
+    <ul>
+      <li><b>Level-agnostic:</b> to its parent, a child fusion node “registers, sends detection reports and is taskable as if it were an edge node”, so the tree can have any number of levels.</li>
+      <li><b>Node type:</b> the child registers with <code>NODE_TYPE_FUSION_NODE</code> (value 20). A child fusion node that physically rides on a platform reports <i>both</i> <code>FUSION_NODE</code> and <code>MOBILE_NODE</code> / <code>POINTABLE_NODE</code>, and declares which taskings it supports.</li>
+      <li><b>Coverage:</b> <code>Registration.reporting_region</code> (field 9) tells the parent the region the child reports from. <code>StatusReport.coverage</code> became repeated (field 12) so a child can report the total coverage of its edge nodes, and must update it as edge nodes (or lower fusion nodes) go on- and off-line.</li>
+      <li><b>Tasking:</b> the parent sends commands to the child; the child “autonomously determines how best to satisfy the request(s)”, e.g. by commanding its platform or edge nodes.</li>
+      <li><b>Connections:</b> the top fusion node is a server; a mid-level node opens two channels — client to its parent, server to its children; edge nodes are clients.</li>
+      <li><b>Registration order:</b> bottom-up (edge nodes first) is preferred, not mandatory; it avoids repeated coverage updates.</li>
+      <li><b>Why a tree:</b> GOV.UK notes that the hierarchy prevents loops in the information architecture that would distort weightings in fusion (the same detection counted twice).</li>
+    </ul>
+  </details>
+</section>
+
+<section id="history">
+  <div class="kicker">3</div><h2>History of the standard</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    SAPIENT started as a Dstl document using XML. In 2023 it switched to a compact binary format (Google Protocol
+    Buffers) and was then published by the British Standards Institution as <b>BSI Flex 335</b>. Version 2.0 (March 2024)
+    is current.
+  </div>
+  <table>
+    <tr><th>Date</th><th>Version</th><th>Key change</th></tr>
+    <tr><td>2014–2020</td><td>ICD v1–v5</td><td>XML messages; v5 rewrite moved the taxonomy to an appendix</td></tr>
+    <tr><td>Dec 2021</td><td>ICD v6</td><td>MOD C-sUAS changes; <b>effectors</b> introduced (still XML)</td></tr>
+    <tr><td>Jan 2023</td><td>ICD v7</td><td><b>Protobuf</b> (~60% smaller); UUID v4 node IDs, ULID object/report IDs; <code>sensorID</code>→<code>node_id</code>; velocity fields</td></tr>
+    <tr><td>Jul 2023</td><td>BSI Flex 335 v1.0</td><td>ICD v7 published by BSI with new terminology</td></tr>
+    <tr><td>Mar 2024</td><td><b>BSI Flex 335 v2.0</b></td><td>Platforms, hierarchies, extensible taxonomy, Move_To/Patrol/Follow, transparent middleware, mandatory <code>config_data</code>, ENU-only velocity</td></tr>
+  </table>
+  <details><summary>Technical detail — terminology map</summary>
+    <table>
+      <tr><th>ICD v6/v7 term</th><th>BSI Flex 335 term</th><th>Apex 4.1+ port type</th></tr>
+      <tr><td>ASM (Autonomous Sensor Module)</td><td>Edge node (sensor / effector)</td><td>Child</td></tr>
+      <tr><td>HLDMM / DMM (Decision Making Module)</td><td>Fusion node</td><td>Peer</td></tr>
+      <tr><td>SAPIENT Middleware / data agent</td><td>Message handling application</td><td>—</td></tr>
+      <tr><td>Higher-level system</td><td>Parent fusion node</td><td>Parent</td></tr>
+    </table>
+    <p>v2 also deprecated the “Unknown” top-level class in favour of “Other”, removed one-off status messages (use Alerts), and made several fields repeated (error_message, ack reasons). Full list: BSI Annex A.</p>
+  </details>
+</section>
+
+<section id="lifecycle">
+  <div class="kicker">4</div><h2>Message lifecycle</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    A sensor introduces itself (<b>Registration</b>), gets a “welcome” (<b>RegistrationAck</b>), then keeps saying
+    “I'm alive” (<b>StatusReport</b>) and reports what it sees (<b>DetectionReport</b>). The fusion node can give it
+    jobs (<b>Task</b>), which it confirms (<b>TaskAck</b>). When it shuts down it says goodbye.
+  </div>
+  <svg viewBox="0 0 1000 400" role="img" aria-label="Sequence of SAPIENT messages between an edge node and a fusion node">
+    <defs><marker id="a5" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#e6edf6"/></marker></defs>
+    <rect x="40" y="6" width="190" height="40" rx="8" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="135" y="32" fill="#e6edf6" font-size="16" font-weight="800" text-anchor="middle">Edge node</text>
+    <rect x="770" y="6" width="190" height="40" rx="8" fill="#f59e0b"/><text x="865" y="32" fill="#0b1220" font-size="16" font-weight="800" text-anchor="middle">Fusion node</text>
+    <line x1="135" y1="46" x2="135" y2="395" stroke="#24324d" stroke-width="3"/><line x1="865" y1="46" x2="865" y2="395" stroke="#24324d" stroke-width="3"/>
+    <g font-size="14" font-weight="700">
+      <line x1="137" y1="80" x2="858" y2="80" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#a5)"/><text x="150" y="72" fill="#38bdf8">Registration — capabilities, coordinate system, modes, tasks</text>
+      <line x1="863" y1="120" x2="142" y2="120" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#a5)"/><text x="850" y="112" fill="#f59e0b" text-anchor="end">RegistrationAck (≤ 30 s, else reconnect &amp; resend)</text>
+      <line x1="137" y1="165" x2="858" y2="165" stroke="#34d399" stroke-width="2.5" marker-end="url(#a5)"/><text x="150" y="157" fill="#34d399">StatusReport — initial, then every 1–60 s</text>
+      <line x1="137" y1="215" x2="858" y2="215" stroke="#f472b6" stroke-width="2.5" marker-end="url(#a5)"/><text x="150" y="207" fill="#f472b6">DetectionReport — location, confidence, class, object_id (ULID)</text>
+      <line x1="863" y1="265" x2="142" y2="265" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#a5)"/><text x="850" y="257" fill="#f59e0b" text-anchor="end">Task — Look_At, region filter, mode change…</text>
+      <line x1="137" y1="310" x2="858" y2="310" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#a5)"/><text x="150" y="302" fill="#a78bfa">TaskAck — accepted / rejected / completed / failed</text>
+      <line x1="137" y1="365" x2="858" y2="365" stroke="#93a4bf" stroke-width="2.5" marker-end="url(#a5)"/><text x="150" y="357" fill="#93a4bf">StatusReport system = GOODBYE</text>
+    </g>
+  </svg>
+  <details><summary>Technical detail — timing and rules (BSI Flex 335 v2.0)</summary>
+    <table>
+      <tr><th>Rule</th><th>Value</th><th>Clause</th></tr>
+      <tr><td>Transport</td><td>TCP/IP mandatory; others optional</td><td>§4.1</td></tr>
+      <tr><td>Clock</td><td>All nodes sync to a central NTP server</td><td>§4.1</td></tr>
+      <tr><td>Registration ack timeout</td><td>30 s → close, reconnect, resend</td><td>§6.2.2</td></tr>
+      <tr><td>Status interval</td><td>Declared at registration; typically ≥1 s and ≤60 s</td><td>§6.3.2</td></tr>
+      <tr><td>Liveness</td><td>No status for 3 intervals → fusion node closes the socket</td><td>§6.3.2</td></tr>
+      <tr><td>Reconnect</td><td>Retry every 10 s; re-register if down &gt; 2 min</td><td>§4.9</td></tr>
+      <tr><td>Task override</td><td>Any task overrides the default task; command tasks revert to the previous region task</td><td>§4.5, §4.7</td></tr>
+      <tr><td>Object identity</td><td><code>object_id</code> ULID constant across a track; unique per detection if the node can't associate</td><td>§6.4.2.2</td></tr>
+      <tr><td>Classification</td><td>Lowest taxonomy level possible; spread probability across candidate classes (sum = 1) rather than “Other”</td><td>§7.1–7.2</td></tr>
+      <tr><td>Locations</td><td>Lat/long or UTM, or range/bearing relative to the node; declared once at registration and used consistently. Range/bearing nodes must report their own location in status</td><td>§5.2, §6.3.1</td></tr>
+    </table>
+  </details>
+</section>
+
+<section id="wire">
+  <div class="kicker">5</div><h2>Wire format</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    Every message is an “envelope” with a timestamp, the sender's ID, optionally the recipient's ID, and exactly one
+    kind of content. Because the binary format doesn't mark where one message ends, each is preceded by a 4-byte length.
+  </div>
+  <pre><code>TCP stream:  [len: uint32 LE][SapientMessage bytes][len][SapientMessage bytes]...
+
+message SapientMessage {
+  google.protobuf.Timestamp timestamp = 1;  // M — time of the CONTENT (e.g. when detected)
+  string node_id        = 2;                // M — sender UUID v4
+  string destination_id = 3;                // C — recipient UUID (set on acks, tasks, errors)
+  oneof content {                           // M — exactly one:
+    Registration registration = 4;  RegistrationAck registration_ack = 5;
+    StatusReport status_report = 6; DetectionReport detection_report = 7;
+    Task task = 8;                  TaskAck task_ack = 9;
+    Alert alert = 10;               AlertAck alert_ack = 11;
+    Error error = 12;
+  }
+  string additional_information = 13;       // D — new in v2
+}</code></pre>
+  <details><summary>Technical detail — gotchas</summary>
+    <ul>
+      <li>The length prefix is <b>little-endian</b> and excludes itself; this differs from Google's usual varint-delimited convention (BSI §4.2 Note 2).</li>
+      <li>Enum value 0 is <code>UNSPECIFIED</code>: a mandatory enum left at 0 is an error; a discretionary one is just “not set”.</li>
+      <li>Protobuf drops zero-valued scalars, so a real 0 (e.g. azimuth 0) in a mandatory field needs care.</li>
+      <li>Omitting <code>z</code> in a Location or <code>elevation</code> in a RangeBearing means “ambiguous”, not zero.</li>
+      <li>The <code>.proto</code> files are normative in practice: BSI advises all components use the same files. They are in <code>SAPIENT-Proto-Files/</code> and vendored in Apex as <code>sapient_msg/</code>, annotated with validation options (<code>is_mandatory</code>, <code>is_uuid</code>, <code>is_ulid</code>…).</li>
+    </ul>
+  </details>
+</section>
+
+<section id="apex">
+  <div class="kicker">6</div><h2>Apex middleware</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    Apex is Dstl's free middleware (written in Python by Roke, Apache 2.0). It's the post room: it knows which socket
+    belongs to which sensor, so a task goes only to the right sensor instead of being shouted to all of them. It checks
+    messages against the standard, translates between old and new versions, keeps a full recording you can replay
+    later, and remembers each sensor's introduction so a fusion node that starts late still finds out about everyone.
+  </div>
+  <table>
+    <tr><th>Port type</th><th>Connects</th><th>Behaviour</th></tr>
+    <tr><td><b style="color:var(--cyan)">Child</b></td><td>Sensors / effectors</td><td>First message must be a Registration; afterwards everything is forwarded to all Peers. Wrong node_id → Error back; node_id taken over by another socket → dropped.</td></tr>
+    <tr><td><b style="color:var(--amber)">Peer</b></td><td>Fusion node</td><td>Messages with <code>destination_id</code> go only to that Child; messages without one are “high-level” and go to Parents.</td></tr>
+    <tr><td><b style="color:var(--green)">Parent</b></td><td>Higher C2 / another Apex</td><td>Receives high-level messages; with <code>forwardAll</code>, everything (plus the cache on connect).</td></tr>
+    <tr><td><b>Recorder</b></td><td>Any feed</td><td>Stored only, not routed.</td></tr>
+  </table>
+  <svg viewBox="0 0 1000 120" role="img" aria-label="Apex message pipeline">
+    <defs><marker id="a8" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#93a4bf"/></marker></defs>
+    <g font-size="16" font-weight="800" text-anchor="middle">
+      <rect x="0" y="20" width="140" height="74" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="70" y="52" fill="#38bdf8">Read</text><text x="70" y="76" fill="#93a4bf" font-size="12" font-weight="400">framing</text>
+      <rect x="172" y="20" width="140" height="74" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="242" y="52" fill="#38bdf8">Parse</text><text x="242" y="76" fill="#93a4bf" font-size="12" font-weight="400">worker thread</text>
+      <rect x="344" y="20" width="140" height="74" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="414" y="52" fill="#38bdf8">Validate</text><text x="414" y="76" fill="#93a4bf" font-size="12" font-weight="400">proto annotations</text>
+      <rect x="516" y="20" width="140" height="74" rx="10" fill="#121b2e" stroke="#a78bfa" stroke-width="2"/><text x="586" y="52" fill="#a78bfa">Translate</text><text x="586" y="76" fill="#93a4bf" font-size="12" font-weight="400">v6 ↔ v1 ↔ v2</text>
+      <rect x="688" y="20" width="140" height="74" rx="10" fill="#121b2e" stroke="#f59e0b" stroke-width="2"/><text x="758" y="52" fill="#f59e0b">Route</text><text x="758" y="76" fill="#93a4bf" font-size="12" font-weight="400">port roles</text>
+      <rect x="860" y="20" width="140" height="74" rx="10" fill="#121b2e" stroke="#34d399" stroke-width="2"/><text x="930" y="52" fill="#34d399">Archive</text><text x="930" y="76" fill="#93a4bf" font-size="12" font-weight="400">SQLite (+Elastic)</text>
+    </g>
+    <g stroke="#93a4bf" stroke-width="2" marker-end="url(#a8)"><line x1="141" y1="57" x2="170" y2="57"/><line x1="313" y1="57" x2="342" y2="57"/><line x1="485" y1="57" x2="514" y2="57"/><line x1="657" y1="57" x2="686" y2="57"/><line x1="829" y1="57" x2="858" y2="57"/></g>
+  </svg>
+  <details><summary>Technical detail — components and code map</summary>
+    <table>
+      <tr><th>Component</th><th>Where</th><th>Notes</th></tr>
+      <tr><td>Server core</td><td><code>sapient_apex_server/apex_server.py</code></td><td>trio; one task per port; per-connection read → channel → parse on a 1-token thread limiter → <code>connection.handle_message</code> → SQLite callback</td></tr>
+      <tr><td>Routing logic</td><td><code>connection.py</code></td><td><code>ChildConnection</code>, <code>PeerConnection</code>, <code>ParentConnection</code>, <code>RecorderConnection</code>; shared <code>registered_sensors</code> map and late-joiner cache (latest Registration, New + Unchanged status)</td></tr>
+      <tr><td>Validation</td><td><code>validate_proto.py</code></td><td>mandatory fields/oneofs/repeated, unknown fields &amp; enums, UUID/ULID format, message &amp; detection timestamps, supported ICD version</td></tr>
+      <tr><td>Translation</td><td><code>translator/</code>, <code>message_io.py</code></td><td>v1↔v2 via dict rewriting (one version step at a time); v1↔XML v6 with ULID→integer ID mapping (<code>id_generator.py</code>)</td></tr>
+      <tr><td>Storage</td><td><code>sqlite_thread.py</code>, <code>sqlite_schema.py</code></td><td><code>data/data-&lt;time&gt;.sqlite</code>, daily rollover; raw bytes, XML, JSON, parsed fields, errors, forwarded count</td></tr>
+      <tr><td>REST API</td><td><code>sapient_apex_api/</code></td><td>FastAPI on 127.0.0.1:8080 (<code>/docs</code>); needs Elasticsearch; node IDs, locations, FoV, detections, node definitions</td></tr>
+      <tr><td>GUI / replay</td><td><code>sapient_apex_gui/</code>, <code>sapient_apex_replay/</code></td><td>PySide6 viewer of the SQLite file; replay a time window into a fusion node at N× speed</td></tr>
+    </table>
+    <h3>Error severities</h3>
+    <table>
+      <tr><th>Severity</th><th>Effect</th></tr>
+      <tr><td>UNSTORED</td><td>Dropped, not even stored (e.g. confidence filter with storage off)</td></tr>
+      <tr><td>SILENT</td><td>Stored; sender not told</td></tr>
+      <tr><td>NOISY</td><td>Stored; SAPIENT <code>Error</code> message (with the offending packet) sent back to the sender</td></tr>
+      <tr><td>FATAL</td><td>Stored; connection closed</td></tr>
+    </table>
+  </details>
+</section>
+
+<section id="v2">
+  <div class="kicker">7</div><h2>Apex vs BSI Flex 335 v2.0</h2>
+  <div class="plain warn"><b class="lbl" style="color:var(--amber)">In plain terms</b>
+    Apex's defaults follow the older ICD v7 idea of a central, active middleware. BSI v2 wants the middleware to be
+    invisible. Two config changes get you most of the way.
+  </div>
+  <table>
+    <tr><th>Topic</th><th>Apex default</th><th>BSI v2 expects</th><th>Do</th></tr>
+    <tr><td>RegistrationAck</td><td><code>"sendRegistrationAck": true</code> — Apex acks</td><td>Fusion node acks (§0.4a)</td><td>Set <code>false</code></td></tr>
+    <tr><td>Timestamp validation</td><td><code>messageTimestampRange [-0.9, 0.1]</code> s from now</td><td>Timestamp = time of content, so late arrival is legitimate (Table 1 Note 3)</td><td>Widen for slow / lossy links</td></tr>
+    <tr><td>Middleware self-registration</td><td>Not implemented (Apex only accepts a Peer's registration)</td><td>Middleware registers with no modes and sends status (Annex C.3.1)</td><td>Gap — needs code if required</td></tr>
+    <tr><td>Error replies, framing</td><td>Error with packet; 4-byte LE prefix</td><td>Same (§6.7, §4.2)</td><td>OK</td></tr>
+  </table>
+  <h3>Platforms and hierarchies through Apex</h3>
+  <table>
+    <tr><th>Case</th><th>What Apex does</th><th>Evidence</th></tr>
+    <tr><td>Platform node (gimbal, vehicle)</td><td>Treated as an ordinary Child; <code>MOVE_TO</code> / <code>FOLLOW</code> tasks reach it by <code>destination_id</code> like any task. Apex doesn't interpret <code>dependent_nodes</code> (it doesn't need to).</td><td><code>connection.py</code>; no server code references <code>dependent_nodes</code></td></tr>
+    <tr><td>Hierarchy, upward</td><td>An outbound <b>Parent</b> port carries the local fusion node's messages that have no <code>destination_id</code> (its registration, status, fused tracks) to the parent.</td><td><code>PeerConnection._handle_message_inner</code> → <code>send_to_parent</code></td></tr>
+    <tr><td>Hierarchy, downward</td><td>Messages arriving from the Parent port go to the local fusion node(s) — matching v2, where the child fusion node decides how to execute a parent's task.</td><td><code>ParentConnection.handle_message</code></td></tr>
+    <tr><td>Registration ack in a hierarchy</td><td>Apex always acks a Peer's registration itself, so the child fusion node may get Apex's ack <i>and</i> the parent's. <b>Read from code, not tested.</b></td><td><code>PeerConnection._handle_registration</code></td></tr>
+    <tr><td>Mixed v1/v2</td><td>v2→v1 downgrade removes <code>dependent_nodes</code> and <code>reporting_region</code>. v1 has no <code>MOBILE_NODE</code> / <code>POINTABLE_NODE</code> / <code>FUSION_NODE</code> types, so <code>ParseDict</code> fails part-way: <b>tested</b> — a pointable-platform registration came out with an empty <code>node_definition</code> and no name or ICD version.</td><td><code>translate_v2_to_v1</code>; local run with protobuf 4.x, 2026-10-25</td></tr>
+  </table>
+  <p>Practical rule: keep every node that uses platforms or hierarchies, and the fusion nodes that consume them, on BSI v2 end to end.</p>
+  <details><summary>Technical detail — other observations from the source</summary>
+    <ul>
+      <li>SAPIENT ports have no authentication or TLS, and <code>trio.serve_tcp(handler, port)</code> listens on all interfaces.</li>
+      <li>v1↔v2 translators catch exceptions and return an empty message; v1→v2 fills <code>config_data</code> with placeholder <code>manufacturer</code>/<code>model</code>.</li>
+      <li>With several Peer ports configured, the last one's <code>format</code> is used for all.</li>
+    </ul>
+  </details>
+</section>
+
+<section id="fusion">
+  <div class="kicker">8</div><h2>Where Stone Soup fits</h2>
+  <div class="plain"><b class="lbl">In plain terms</b>
+    Stone Soup is Dstl's open-source toolkit for tracking moving objects (filters that turn noisy detections into smooth
+    tracks). It is exactly the kind of engine a fusion node needs, but it doesn't speak SAPIENT yet — someone has to
+    write a small “bridge” between Apex and Stone Soup.
+  </div>
+  <svg viewBox="0 0 1000 170" role="img" aria-label="Sensors to Apex to bridge to Stone Soup and back">
+    <defs><marker id="b1" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#38bdf8"/></marker>
+          <marker id="b2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 z" fill="#f59e0b"/></marker></defs>
+    <g font-size="16" font-weight="800" text-anchor="middle">
+      <rect x="0" y="40" width="160" height="84" rx="10" fill="#121b2e" stroke="#38bdf8" stroke-width="2"/><text x="80" y="78" fill="#e6edf6">Sensors</text><text x="80" y="102" fill="#93a4bf" font-size="12" font-weight="400">Child ports</text>
+      <rect x="230" y="40" width="160" height="84" rx="10" fill="#121b2e" stroke="#a78bfa" stroke-width="2"/><text x="310" y="78" fill="#a78bfa">Apex</text><text x="310" y="102" fill="#93a4bf" font-size="12" font-weight="400">Peer port</text>
+      <rect x="460" y="30" width="250" height="104" rx="10" fill="#0b1220" stroke="#f472b6" stroke-width="2.5" stroke-dasharray="8 5"/><text x="585" y="68" fill="#f472b6">Bridge (to build)</text>
+      <text x="585" y="92" fill="#93a4bf" font-size="12" font-weight="400">DetectionReport → Detection</text><text x="585" y="112" fill="#93a4bf" font-size="12" font-weight="400">Track → DetectionReport</text>
+      <rect x="780" y="40" width="220" height="84" rx="10" fill="#f59e0b"/><text x="890" y="78" fill="#0b1220">Stone Soup</text><text x="890" y="102" fill="#0b1220" font-size="12" font-weight="400">filters · association · metrics</text>
+    </g>
+    <g stroke="#38bdf8" stroke-width="2" marker-end="url(#b1)"><line x1="161" y1="72" x2="228" y2="72"/><line x1="391" y1="72" x2="458" y2="72"/><line x1="711" y1="72" x2="778" y2="72"/></g>
+    <g stroke="#f59e0b" stroke-width="2" marker-end="url(#b2)"><line x1="779" y1="100" x2="713" y2="100"/><line x1="459" y1="100" x2="393" y2="100"/></g>
+    <text x="500" y="162" fill="#93a4bf" font-size="13" text-anchor="middle">Offline: sapient_apex_replay feeds recorded SQLite trials into the Peer port</text>
+  </svg>
+  <details><summary>Technical detail — bridge design notes</summary>
+    <ol>
+      <li><b>Connect</b> to Apex as a Peer: TCP client, read 4-byte LE length-prefixed <code>SapientMessage</code>s (optionally register first; Apex's <code>allowPeerRegistration</code> defaults to true).</li>
+      <li><b>Ingest</b> with a custom Stone Soup <code>DetectionReader</code>: DetectionReport → <code>Detection</code>. Use the message timestamp as measurement time; build each sensor's measurement model from its Registration (coordinate system, geometric error) and its StatusReport node location. Range/bearing sensors need a polar (bearing–range) model.</li>
+      <li><b>Track</b> with standard Stone Soup components (predictor, updater, data associator, initiator, deleter).</li>
+      <li><b>Publish</b> fused tracks as DetectionReports from the fusion node's own node_id, <i>without</i> destination_id (so Apex forwards them to Parents), listing source detections in <code>associated_detection</code>. Only the ENU velocity frame exists in v2.</li>
+      <li><b>Task</b> (optional): send Task messages with a destination_id; Apex delivers them to that one sensor.</li>
+    </ol>
+    <p>Stone Soup today has readers for Kafka, CBOR, YAML, HDF5, AIS and OpenSky, and writers for Kafka, CBOR, YAML — nothing for SAPIENT or raw TCP. No repo in this folder references the other.</p>
+  </details>
+</section>
+
+<section id="sources">
+  <div class="kicker">Sources</div><h2>What this is based on</h2>
+  <table>
+    <tr><th>Source</th><th>Path</th></tr>
+    <tr><td>BSI Flex 335 v2.0:2024-03 (116 pp)</td><td><code>doc/bsi-flex-335.pdf</code></td></tr>
+    <tr><td>SAPIENT ICD v7.0, Dstl, Jan 2023 (73 pp)</td><td><code>doc/SAPIENT_Interface_Control_Document_v7_FINAL__fixed2_.pdf</code></td></tr>
+    <tr><td>GOV.UK “SAPIENT networked autonomous sensing” and “SAPIENT: how it works” (Oct 2026)</td><td><code>doc/*.html</code></td></tr>
+    <tr><td>Apex SAPIENT Middleware 4.2.0 source</td><td><code>Apex-SAPIENT-Middleware/</code></td></tr>
+    <tr><td>SAPIENT proto files</td><td><code>SAPIENT-Proto-Files/</code></td></tr>
+    <tr><td>BSI Flex 335 v2 Test Harness</td><td><code>BSI-Flex-335-v2-Test-Harness/</code></td></tr>
+    <tr><td>Stone Soup</td><td><code>Stone-Soup/</code></td></tr>
+  </table>
+  <p class="src">Apex observations come from reading the source, not from running it.</p>
+</section>
+
+</main>
+<footer>Generated in research/cuas/explainer. This copy holds the page only.</footer>
+</body>
+</html>

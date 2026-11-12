@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 548" role="img" aria-label="What runs at a site">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.r{fill:#3a1c22;stroke:#f87171;stroke-width:2}
+.fr{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:16px;font-weight:650;text-anchor:middle}
+.T{fill:#e6edf6;font-size:19px;font-weight:700;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13.5px}
+.n{fill:#e6edf6;font-size:15px;font-weight:650}
+.k{fill:#38bdf8;font-size:13px;font-weight:700;letter-spacing:.12em}
+.m{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace}
+.mc{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.ok{fill:#34d399;font-size:13px;font-weight:700}
+.wa{fill:#f59e0b;font-size:13px;font-weight:700}
+.wac{fill:#f59e0b;font-size:13.5px;font-weight:700;text-anchor:middle}
+.okc{fill:#34d399;font-size:13.5px;font-weight:700;text-anchor:middle}
+.rdc{fill:#f87171;font-size:13.5px;font-weight:700;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.3;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.gl{fill:none;stroke:#34d399;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.8;stroke-dasharray:6 4}
+.x{fill:none;stroke:#f87171;stroke-width:4}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#93a4bf" d="M0 0L10 5L0 10z"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#38bdf8" d="M0 0L10 5L0 10z"/></marker>
+<marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#f59e0b" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="fr" x="20" y="20" width="580" height="510" rx="16"/><text class="k" x="40" y="48">SITE ALPHA · FOUR-NODE BASELINE (ADR 1141)</text><rect class="h" x="40" y="66" width="262" height="204" rx="10"/><text class="T" x="171.0" y="123.0">core-A · active</text><text class="s" x="171.0" y="144.0">NetBird management + signal</text><text class="s" x="171.0" y="163.0">PostgreSQL 16 + Spock 5</text><text class="s" x="171.0" y="182.0">Ory Kratos + Hydra</text><text class="s" x="171.0" y="201.0">Traefik · SPIRE server</text><text class="s" x="171.0" y="220.0">Zenoh router (zenohd)</text><rect class="d" x="318" y="66" width="262" height="204" rx="10"/><text class="T" x="449.0" y="123.0">core-B · warm standby</text><text class="s" x="449.0" y="144.0">NetBird management + signal</text><text class="s" x="449.0" y="163.0">PostgreSQL 16 + Spock 5</text><text class="s" x="449.0" y="182.0">Ory Kratos + Hydra</text><text class="s" x="449.0" y="201.0">Traefik · SPIRE server</text><text class="wac" x="449.0" y="220.0">promotion is operator-fired</text><rect class="b" x="40" y="296" width="262" height="214" rx="10"/><text class="T" x="171.0" y="358.0">obs-A · active</text><text class="s" x="171.0" y="379.0">Prometheus · Grafana</text><text class="s" x="171.0" y="398.0">Alertmanager · exporters</text><text class="s" x="171.0" y="417.0">Vector log shipper</text><text class="s" x="171.0" y="436.0">MinIO Object-Lock audit store</text><text class="s" x="171.0" y="455.0">OpenTelemetry collector</text><rect class="d" x="318" y="296" width="262" height="214" rx="10"/><text class="T" x="449.0" y="368.0">obs-B · warm standby</text><text class="s" x="449.0" y="389.0">same stack, cutover-gated</text><text class="s" x="449.0" y="408.0">MinIO runs as the</text><text class="s" x="449.0" y="427.0">replication target</text><text class="wac" x="449.0" y="446.0">second audit copy</text><rect class="fr" x="770" y="110" width="210" height="330" rx="16"/><text class="k" x="875" y="140" text-anchor="middle">SITE BRAVO</text><rect class="h" x="790" y="160" width="170" height="110" rx="10"/><text class="t" x="875.0" y="200.0">core pair</text><text class="s" x="875.0" y="221.0">full copy of</text><text class="s" x="875.0" y="240.0">management state</text><rect class="b" x="790" y="296" width="170" height="110" rx="10"/><text class="t" x="875.0" y="336.0">obs pair</text><text class="s" x="875.0" y="357.0">its own metrics</text><text class="s" x="875.0" y="376.0">and audit</text><path class="a" d="M600 180L790 180"/><text class="s" x="695" y="172">Spock multi-master</text><path class="gl" d="M600 215L790 215"/><text class="s" x="695" y="207">Zenoh router to router</text><path class="l" d="M600 250L790 250"/><text class="s" x="695" y="242">signal federation</text><text class="s" x="800" y="470">replicated: NetBird (20 tables) and Ory (10 tables)</text><text class="s" x="800" y="491">conflicts: last write wins; admin writes pinned to one site</text><text class="wac" x="800" y="520">island-mode writes: designed, not built (ADR 1165)</text>
+</svg>

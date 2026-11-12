@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-label="Connected devices stay connected when the management service is down">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.r{fill:#3a1c22;stroke:#f87171;stroke-width:2}
+.fr{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:16px;font-weight:650;text-anchor:middle}
+.T{fill:#e6edf6;font-size:19px;font-weight:700;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13.5px}
+.n{fill:#e6edf6;font-size:15px;font-weight:650}
+.k{fill:#38bdf8;font-size:13px;font-weight:700;letter-spacing:.12em}
+.m{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace}
+.mc{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.ok{fill:#34d399;font-size:13px;font-weight:700}
+.wa{fill:#f59e0b;font-size:13px;font-weight:700}
+.wac{fill:#f59e0b;font-size:13.5px;font-weight:700;text-anchor:middle}
+.okc{fill:#34d399;font-size:13.5px;font-weight:700;text-anchor:middle}
+.rdc{fill:#f87171;font-size:13.5px;font-weight:700;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.3;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.gl{fill:none;stroke:#34d399;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.8;stroke-dasharray:6 4}
+.x{fill:none;stroke:#f87171;stroke-width:4}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#93a4bf" d="M0 0L10 5L0 10z"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#38bdf8" d="M0 0L10 5L0 10z"/></marker>
+<marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#f59e0b" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="r" x="380" y="24" width="240" height="92" rx="10"/><text class="T" x="500.0" y="55.0">Management service</text><text class="s" x="500.0" y="76.0">lets new devices join</text><text class="rdc" x="500.0" y="95.0">down</text><path class="x" stroke-opacity=".35" d="M392 34L608 106"/><path class="x" stroke-opacity=".35" d="M608 34L392 106"/><rect class="g" x="60" y="190" width="230" height="110" rx="10"/><text class="T" x="175.0" y="240.0">Headquarters</text><text class="s" x="175.0" y="261.0">people, servers, screens</text><rect class="g" x="710" y="190" width="230" height="110" rx="10"/><text class="T" x="825.0" y="240.0">Field site</text><text class="s" x="825.0" y="261.0">sensors and operators</text><rect class="g" x="385" y="400" width="230" height="110" rx="10"/><text class="T" x="500.0" y="450.0">Vehicle</text><text class="s" x="500.0" y="471.0">unreliable radio link</text><path class="gl" d="M290 245L710 245"/><path class="gl" d="M230 300L420 400"/><path class="gl" d="M770 300L580 400"/><text class="okc" x="500" y="232" style="font-size:17px">private encrypted tunnel</text><text class="s" x="500" y="270" style="font-size:15px">directly from device to device</text><path class="f" d="M175 190L380 90"/><path class="f" d="M825 190L620 90"/><text class="s" x="200" y="128" style="font-size:15px">necessary to join,</text><text class="s" x="200" y="148" style="font-size:15px">not to stay connected</text><text class="s" x="500" y="545" style="font-size:16px">Connected devices keep their tunnels. New devices must wait for the management service.</text>
+</svg>

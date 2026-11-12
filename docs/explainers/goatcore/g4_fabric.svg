@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 545" role="img" aria-label="The Zenoh data fabric in a goatnet">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.r{fill:#3a1c22;stroke:#f87171;stroke-width:2}
+.fr{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:16px;font-weight:650;text-anchor:middle}
+.T{fill:#e6edf6;font-size:19px;font-weight:700;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13.5px}
+.n{fill:#e6edf6;font-size:15px;font-weight:650}
+.k{fill:#38bdf8;font-size:13px;font-weight:700;letter-spacing:.12em}
+.m{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace}
+.mc{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.ok{fill:#34d399;font-size:13px;font-weight:700}
+.wa{fill:#f59e0b;font-size:13px;font-weight:700}
+.wac{fill:#f59e0b;font-size:13.5px;font-weight:700;text-anchor:middle}
+.okc{fill:#34d399;font-size:13.5px;font-weight:700;text-anchor:middle}
+.rdc{fill:#f87171;font-size:13.5px;font-weight:700;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.3;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.gl{fill:none;stroke:#34d399;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.8;stroke-dasharray:6 4}
+.x{fill:none;stroke:#f87171;stroke-width:4}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#93a4bf" d="M0 0L10 5L0 10z"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#38bdf8" d="M0 0L10 5L0 10z"/></marker>
+<marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#f59e0b" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="g" x="25" y="40" width="200" height="96" rx="10"/><text class="T" x="125.0" y="73.0">Publisher</text><text class="s" x="125.0" y="94.0">Zenoh mode: client</text><text class="s" x="125.0" y="113.0">cert CN = its slot uuid</text><rect class="h" x="285" y="28" width="200" height="120" rx="10"/><text class="T" x="385.0" y="63.0">Site router alpha</text><text class="s" x="385.0" y="84.0">zenohd, mode: router</text><text class="s" x="385.0" y="103.0">TLS 1.3 mutual auth</text><text class="s" x="385.0" y="122.0">TCP 7447</text><rect class="h" x="545" y="28" width="200" height="120" rx="10"/><text class="T" x="645.0" y="63.0">Site router bravo</text><text class="s" x="645.0" y="84.0">zenohd, mode: router</text><text class="s" x="645.0" y="103.0">router-peer ACL subject</text><text class="s" x="645.0" y="122.0">QUIC 7448 off by default</text><rect class="g" x="805" y="40" width="175" height="96" rx="10"/><text class="T" x="892.5" y="73.0">Subscriber</text><text class="s" x="892.5" y="94.0">Zenoh mode: client</text><text class="s" x="892.5" y="113.0">reads: mostly open</text><path class="a" d="M225 88L285 88" marker-end="url(#c)"/><path class="a" d="M485 88L545 88" marker-end="url(#c)"/><path class="a" d="M745 88L805 88" marker-end="url(#c)"/><path class="l" d="M385 148L385 178"/><path class="l" d="M165 178L835 178"/><path class="l" d="M165 178L165 204"/><path class="l" d="M500 178L500 204"/><path class="l" d="M835 178L835 204"/><rect class="b" x="25" y="204" width="280" height="118" rx="10"/><text class="t" x="165.0" y="228.0">Access control</text><text class="s" x="165.0" y="249.0">static ACL, default-deny</text><text class="s" x="165.0" y="268.0">subject = certificate CN</text><text class="s" x="165.0" y="287.0">256 pre-cut write slots: onboarding</text><text class="s" x="165.0" y="306.0">needs no router restart</text><rect class="b" x="360" y="204" width="280" height="118" rx="10"/><text class="t" x="500.0" y="228.0">Storage on the router</text><text class="s" x="500.0" y="249.0">rocksdb store per write slot</text><text class="s" x="500.0" y="268.0">7-day retention</text><text class="s" x="500.0" y="287.0">durable ceiling about 32k msg/s</text><text class="s" x="500.0" y="306.0">per publisher (measured)</text><rect class="b" x="695" y="204" width="280" height="118" rx="10"/><text class="t" x="835.0" y="238.0">Audit tap</text><text class="s" x="835.0" y="259.0">an external subscriber copies</text><text class="s" x="835.0" y="278.0">traffic to MinIO Object-Lock</text><text class="s" x="835.0" y="297.0">30-day immutable retention</text><rect class="b" x="25" y="348" width="950" height="150" rx="10"/><text class="k" x="45" y="376">KEY EXPRESSION</text><text class="m" x="45" y="412" style="font-size:22px"><tspan fill="#f59e0b">&lt;slot-uuid&gt;</tspan>/<tspan fill="#34d399">data</tspan>/entity/track/<tspan fill="#38bdf8">zagros</tspan>/T-4401</text><text class="wa" x="45" y="440">anchor: who may write</text><text class="ok" x="250" y="440">reserved prefix</text><text class="q" x="400" y="440">class</text><text x="530" y="440" fill="#38bdf8" font-size="13" font-weight="700">site</text><text class="q" x="640" y="440">stable id</text><text class="q" x="45" y="476">13 reserved prefixes: data/ services/ health/ config/ cmd/ attest/ ops/ agents/ release/ task/ ack/ telemetry/ volatile/</text><text class="s" x="500" y="528">Routers listen on the WireGuard mesh, so the fabric exists only where the mesh does. Denied writes are dropped silently.</text>
+</svg>

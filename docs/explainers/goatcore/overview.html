@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>goat in plain language</title>
+<style>
+  :root{--bg:#0b1220;--panel:#121b2e;--panel2:#0f1728;--line:#24324d;--fg:#e6edf6;--mute:#93a4bf;
+        --cyan:#38bdf8;--amber:#f59e0b;--green:#34d399;--red:#f87171}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  a{color:var(--cyan)}
+  header,main{max-width:980px;margin:0 auto;padding:0 22px}
+  header{padding-top:52px}
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:700}
+  h1{font-size:44px;line-height:1.1;margin:10px 0 12px}
+  h2{font-size:28px;line-height:1.2;margin:0 0 8px}
+  .lede{color:var(--mute);font-size:19px;max-width:820px}
+  section{margin-top:50px;padding-top:12px;border-top:1px solid var(--line)}
+  figure{margin:18px 0;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+  figure img{width:100%;display:block}
+  figcaption{color:var(--mute);font-size:14.5px;margin-top:10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:18px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .card h3{margin:0 0 6px;font-size:19px}
+  .card p{margin:0;color:var(--mute);font-size:15.5px}
+  .card .tag{display:block;margin-top:8px;font-size:13px;color:var(--cyan)}
+  .box{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:14px 18px;margin:16px 0}
+  .box.amber{border-left-color:var(--amber)}
+  .box b.lbl{display:block;font-size:12px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px;color:var(--green)}
+  .box.amber b.lbl{color:var(--amber)}
+  .tw{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15.5px;min-width:560px}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top}
+  th{color:var(--mute);font-weight:600;background:var(--panel)}
+  .ok{color:var(--green);font-weight:700} .warn{color:var(--amber);font-weight:700}
+  dl{margin:10px 0} dt{font-weight:700;margin-top:12px} dd{margin:2px 0 0;color:var(--mute)}
+  footer{max-width:980px;margin:56px auto 40px;padding:0 22px;color:var(--mute);font-size:14px}
+  @media(max-width:600px){h1{font-size:34px}h2{font-size:23px}body{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Short briefing</div>
+  <h1>goat: a data network that continues to work when the links around it fail</h1>
+  <p class="lede">goat is open-source software from U.S. Army Europe and Africa. It connects people, machines and services at many sites into one private network. Access to data depends on identity. This page gives the idea in simple words. The <a href="architecture.html">developer page</a> gives the design.</p>
+  <p style="color:var(--mute);font-size:15px;margin:14px 0 0">Study of goat's source, last changed on 2026-11-11, before step 1. <code>README-goat.md</code> and <code>docs/goat-context.md</code> record what this repository uses from goat. The original has a narrated video. The video is not part of this copy.</p>
+</header>
+<main>
+
+<section>
+  <div class="kicker">1</div><h2>The problem</h2>
+  <p>Most data systems need a reliable link to a central service. goat is for places where that link is not reliable.</p>
+  <div class="grid">
+    <div class="card"><h3>Links fail</h3><p>Field sites, vehicles and partner units have unreliable links. If you cannot connect to a cloud service, you cannot use it.</p></div>
+    <div class="card"><h3>The center is a target</h3><p>One central server is one point of failure. It is also one target on the internet.</p></div>
+    <div class="card"><h3>Location is not trust</h3><p>You cannot trust a device only because it is inside the building. People, machines and partners are at many sites.</p></div>
+  </div>
+  <p>The goat answer has two parts. Each site can operate alone. Access depends on <b>your identity</b>, not on your location.</p>
+</section>
+
+<section>
+  <div class="kicker">2</div><h2>The primary promise</h2>
+  <figure><a href="n1_survive.svg"><img src="n1_survive.svg" alt="Three sites connected by direct encrypted tunnels while the central management service is down"></a>
+  <figcaption>Devices connect directly to each other. A device needs the central service to join, not to stay connected. Select the figure to see it at full size.</figcaption></figure>
+  <ul>
+    <li>Devices connect through private encrypted tunnels. The traffic goes directly from device to device.</li>
+    <li>A central management service lets new devices join.</li>
+    <li>If the management service stops, the tunnels of connected devices stay up.</li>
+  </ul>
+  <div class="box amber"><b class="lbl">The limit</b>If a tunnel fails while the management service is down, the two devices cannot make a new tunnel. New devices also cannot join. They must wait for the service to come back.</div>
+</section>
+
+<section>
+  <div class="kicker">3</div><h2>The parts</h2>
+  <p>goat is not one new invention. It connects four known open-source projects and operates them as one system.</p>
+  <div class="grid">
+    <div class="card"><h3>Tunnels</h3><p>Encrypted tunnels between devices. Relays help devices that cannot connect directly.</p><span class="tag">WireGuard, with NetBird as the manager</span></div>
+    <div class="card"><h3>Data service with no central broker</h3><p>A sender gives each message a subject. A receiver asks for a subject and gets those messages.</p><span class="tag">Eclipse Zenoh</span></div>
+    <div class="card"><h3>Identity</h3><p>Different credentials for people, software and machines. An offline certificate authority signs the certificates.</p><span class="tag">Ory, SPIFFE, an offline certificate authority</span></div>
+    <div class="card"><h3>Site records</h3><p>Each site has a full copy of the enrolment data and the login data. The sites keep their copies the same.</p><span class="tag">PostgreSQL with Spock replication</span></div>
+  </div>
+  <p>goat adds two tools of its own. <b>goatbuilder</b> builds a network. <b>goat</b> operates a network.</p>
+</section>
+
+<section>
+  <div class="kicker">4</div><h2>Data sharing</h2>
+  <figure><a href="n2_publish.svg"><img src="n2_publish.svg" alt="A radar team publishes tracks to a site router. The router sends them to permitted subscribers and refuses an unknown device"></a>
+  <figcaption>The sender gives the subject. The site router examines the identity before it accepts a write. An audit store keeps a copy.</figcaption></figure>
+  <ul>
+    <li><b>Publish and subscribe.</b> A radar team publishes "tracks". The team does not need a list of receivers.</li>
+    <li><b>The router examines the certificate.</b> Each site has a data router. A sender can write only below its own name. The router refuses all other writes.</li>
+    <li><b>Partners get less.</b> A partner gets only the data that the owner released to it.</li>
+    <li><b>There is an audit copy.</b> An audit store keeps a copy of the messages. No person can change that copy for 30 days.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="kicker">5</div><h2>How to build a network</h2>
+  <figure><a href="n3_build.svg"><img src="n3_build.svg" alt="Four steps: describe, rehearse, build, check the reports"></a>
+  <figcaption>The same tool does the rehearsal on a laptop and the build on real machines.</figcaption></figure>
+  <ol>
+    <li>Write the description of the network.</li>
+    <li>Do a rehearsal on a laptop. The rehearsal uses simulated machines, uses no network, and takes seconds.</li>
+    <li>Build the real network with the same tool. The build has 14 steps.</li>
+    <li>Read the reports. A build is complete only when the report from each machine agrees with the plan. If a machine gives no report, its status is "unknown", not "OK".</li>
+  </ol>
+  <p>The smallest version is goatlite. It uses one machine and one file with four values. Its automatic steps took approximately 24 minutes on a new machine. The project says that goatlite is "never for production". It is for learning.</p>
+</section>
+
+<section>
+  <div class="kicker">6</div><h2>Federation: two nations connect their networks</h2>
+  <figure><a href="g6_federation.svg"><img src="g6_federation.svg" alt="Two environments, each with a core router, a republisher and an edge router, connected by one tunnel"></a>
+  <figcaption>Each side has the same parts. The only connection between the two sides is one tunnel between the edge routers.</figcaption></figure>
+  <ul>
+    <li><b>Each nation keeps its own network.</b> Each side has its own certificate authority. One side does not join the network of the other side.</li>
+    <li><b>One edge router for each partner.</b> The edge router trusts only the certificate authority of that partner.</li>
+    <li><b>Only released data crosses.</b> The owner puts data in a release set. A small program copies that data to a name with the prefix <code>from/&lt;owner&gt;/</code>. The prefix shows the origin.</li>
+    <li><b>One side can stop the connection alone.</b> It does not need the other side.</li>
+  </ul>
+  <div class="box amber"><b class="lbl">Status on 11 November 2026</b>The repository says that the first federation between two separately administered environments was on 9 November 2026. The operator set 19 values manually and copied files between machines. The parts for a one-command procedure (<code>goatbuilder federate</code>) are now in the code. The full procedure is not complete.</div>
+</section>
+
+<section>
+  <div class="kicker">7</div><h2>Maturity</h2>
+  <p>The project gives each part a status word: built, measured, designed or not built. This table uses those words.</p>
+  <div class="tw"><table>
+    <tr><th>Part</th><th>Status</th><th>What the repository says</th></tr>
+    <tr><td>Direct tunnels, relays, one data router for each site</td><td class="ok">Built, measured</td><td>In operation on the example network of the project</td></tr>
+    <tr><td>Network on one machine</td><td class="ok">Built</td><td>Works from start to end on new machines; "never for production"</td></tr>
+    <tr><td>Build tool and rehearsal</td><td class="ok">Built</td><td>A full build in one hour is "a target, not a claim"</td></tr>
+    <tr><td>Machines get their own updates</td><td class="warn">Designed</td><td>Today an operator pushes the changes</td></tr>
+    <tr><td>Federation with a different environment</td><td class="warn">Built in part</td><td>Run one time between two administrations, with many manual steps. The one-command procedure is not complete.</td></tr>
+    <tr><td>Administration changes at a site with no connection</td><td class="warn">Designed</td><td>Today one site makes these changes</td></tr>
+    <tr><td>Size</td><td class="warn">Approximately 100 devices tested</td><td>The target is 600 to 6,000</td></tr>
+  </table></div>
+  <div class="box amber"><b class="lbl">Important</b>The first page of the project says that machines "pull their configuration". The design documents say that this function is not built. The first page gives the target, not the current condition.</div>
+</section>
+
+<section>
+  <div class="kicker">8</div><h2>The repository family</h2>
+  <figure><a href="g8_family.svg"><img src="g8_family.svg" alt="Twelve boxes that show the goat repositories and the function of each"></a>
+  <figcaption>The USAREUR-AF organization had 26 public repositories on 11 November 2026.</figcaption></figure>
+  <div class="tw"><table>
+    <tr><th>Repository</th><th>Function</th></tr>
+    <tr><td><code>goatcore</code></td><td>Builds and operates a network. This page is about goatcore.</td></tr>
+    <tr><td><code>goatstuff</code></td><td>Optional inspection tools, health publishers and demonstrations. You do not need it to operate a network.</td></tr>
+    <tr><td><code>goatenv</code>, <code>goatdocs</code>, <code>goat-client</code>, <code>netbird</code></td><td>An example environment, the documents, the client for the mesh, and the NetBird fork with the goat patches.</td></tr>
+    <tr><td><code>open-billie</code></td><td>A sensor node platform. It publishes tracks to the Zenoh data service.</td></tr>
+    <tr><td><code>octo-pod</code></td><td>An edge appliance for equipment that cannot join a network.</td></tr>
+    <tr><td><code>zagros-moon-pod</code></td><td>A partner starts one data router and connects to a sandbox network. The project says that it is a learning tool for exercises. It is not the operational path between nations. That path is federation.</td></tr>
+    <tr><td><code>saltlick</code>, <code>goatrodeo</code>, <code>hello-galaxy-*</code></td><td>A peering directory for federation, games that use the data service, and 14 tutorials.</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <div class="kicker">9</div><h2>The project, and what you supply</h2>
+  <div class="grid">
+    <div class="card"><h3>Free to use</h3><p>Written by U.S. federal employees. Public domain in the United States. Apache 2.0 license in other countries.</p></div>
+    <div class="card"><h3>On your own machines</h3><p>You supply the computers, a secret store and your configuration. You do not need a vendor cloud. To connect sites through the internet, you need cloud relays.</p></div>
+    <div class="card"><h3>Strict checks</h3><p>138 check scripts examine the changes. Each public repository has a contributor check on each pull request. No person can bypass the checks on the main branch.</p></div>
+  </div>
+  <p>goat is <b>before version 1.0</b>. Interfaces can change between releases.</p>
+</section>
+
+<section>
+  <div class="kicker">10</div><h2>What to remember</h2>
+  <div class="box"><b class="lbl">The idea</b>Private tunnels between devices, data by subject, access by identity, and a full copy of the important records at each site.</div>
+  <div class="box"><b class="lbl">The strength</b>No single server is necessary for all functions. Connected devices stay connected. Each site continues its local data sharing.</div>
+  <div class="box amber"><b class="lbl">The caution</b>New software. Automatic updates, one-command federation and full site independence are not complete.</div>
+  <div class="box"><b class="lbl">A good next step</b>Do a test with the network on one machine, or with the rehearsal on a laptop.</div>
+</section>
+
+<section>
+  <div class="kicker">Words</div><h2>Glossary</h2>
+  <dl>
+    <dt>goatnet</dt><dd>One network that you build with goat: its sites, machines and members.</dd>
+    <dt>Site</dt><dd>A location with its own core machines and its own full copy of the important records.</dd>
+    <dt>Relay</dt><dd>A server on the internet that passes traffic between two devices that cannot connect directly. It cannot read the traffic.</dd>
+    <dt>Publish and subscribe</dt><dd>A sender gives data a subject. A receiver asks for a subject. They do not need the address of each other.</dd>
+    <dt>Data router</dt><dd>The program at each site that examines identity, passes data, and keeps a short history.</dd>
+    <dt>Certificate</dt><dd>A digital identity document. goat examines it before it accepts a write.</dd>
+    <dt>Federation</dt><dd>A controlled connection between two independent goat environments.</dd>
+    <dt>Release set</dt><dd>A named group of data that an owner agrees to share with a partner.</dd>
+  </dl>
+</section>
+
+</main>
+<footer>
+  Source: <code>usareur-af/goatcore</code> at commit cbf2cb7f (11 November 2026), from a local clone. Other repositories: read on the same date. No software was built or run for this page. The maturity statements use the status words in the design documents and decision records of the repository.
+</footer>
+</body>
+</html>

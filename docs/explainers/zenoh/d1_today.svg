@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 545" role="img" aria-label="Sensors connect to Apex, which connects to a Stone Soup fusion node and a C2 system">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:6 4}
+.p{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.c{fill:none;stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:15px;font-weight:600;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13px}
+.n{fill:#e6edf6;font-size:14px;font-weight:600}
+.m{fill:#cfe3ff;font-size:13px;font-family:"SF Mono",Menlo,monospace}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.2;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.ah{fill:#93a4bf}.ahw{fill:#f59e0b}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahw" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="p" x="20" y="30" width="210" height="400" rx="12"/>
+<text class="n" x="125" y="56" text-anchor="middle">Edge nodes (Child)</text>
+<rect class="b" x="45" y="72" width="160" height="60" rx="8"/><text class="t" x="125" y="98">Radar</text><text class="s" x="125" y="118">edge node</text>
+<rect class="b" x="45" y="152" width="160" height="60" rx="8"/><text class="t" x="125" y="178">Camera</text><text class="s" x="125" y="198">edge node</text>
+<rect class="b" x="45" y="232" width="160" height="60" rx="8"/><text class="t" x="125" y="258">RF detector</text><text class="s" x="125" y="278">edge node</text>
+<rect class="b" x="45" y="312" width="160" height="60" rx="8"/><text class="t" x="125" y="338">Vehicle</text><text class="s" x="125" y="358">platform node</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M205 102L390 190"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M205 182L390 225"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M205 262L390 260"/>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M205 342L390 295"/>
+<text class="s" x="312" y="58">Up: registration, status,</text><text class="s" x="312" y="75">detections, alerts</text><text class="s" x="312" y="92">Down: tasks</text>
+<text class="s" x="305" y="372">TCP port 5020</text><text class="s" x="305" y="390">one connection per node</text>
+<rect class="h" x="390" y="130" width="220" height="240" rx="12"/>
+<text class="t" x="500" y="162" style="font-size:18px">Apex middleware</text>
+<text class="s" x="500" y="196">Checks registration</text>
+<text class="s" x="500" y="226">Validates every message</text>
+<text class="s" x="500" y="256">Translates v1 and v2</text>
+<text class="s" x="500" y="286">Routes by node ID</text>
+<text class="s" x="500" y="316">Records all traffic</text>
+<text class="s" x="500" y="350">BSI Flex 335 v2.0, TCP</text>
+<rect class="b" x="760" y="40" width="215" height="92" rx="10"/><text class="t" x="867" y="72">C2 system</text><text class="s" x="867" y="94">operator picture, decisions</text><text class="s" x="867" y="114">outside BSI Flex 335</text>
+<rect class="b" x="760" y="200" width="215" height="170" rx="10"/><text class="t" x="867" y="226">Fusion node (Peer)</text>
+<rect class="d" x="778" y="240" width="179" height="50" rx="7"/><text class="s" x="867" y="261">SAPIENT bridge</text><text class="s" x="867" y="279">still to build</text>
+<rect class="g" x="778" y="302" width="179" height="52" rx="7"/><text class="t" x="867" y="324">Stone Soup</text><text class="s" x="867" y="343">tracking and fusion</text>
+<path class="l" marker-start="url(#e)" marker-end="url(#e)" d="M610 270L760 270"/>
+<text class="s" x="685" y="234">TCP port 5001</text><text class="s" x="685" y="258">edge data</text><text class="s" x="685" y="290">tasks, tracks, alerts</text>
+<path class="l" marker-end="url(#e)" d="M610 175L760 100"/>
+<text class="s" x="655" y="82">TCP port 5002 (Parent)</text><text class="s" x="655" y="100">fused tracks, alerts</text>
+<path class="w" marker-start="url(#f)" marker-end="url(#f)" d="M867 200L867 132"/>
+<text class="q" x="877" y="162">site-specific</text><text class="q" x="877" y="180">commands</text>
+<path class="l" marker-end="url(#e)" d="M445 370L410 448"/><path class="l" marker-end="url(#e)" d="M555 370L595 448"/>
+<rect class="b" x="330" y="450" width="160" height="62" rx="8"/><text class="t" x="410" y="476">SQLite archive</text><text class="s" x="410" y="496">read by Apex GUI</text>
+<rect class="b" x="515" y="450" width="160" height="62" rx="8"/><text class="t" x="595" y="476">Elasticsearch</text><text class="s" x="595" y="496">optional, feeds REST API</text>
+<text class="q" x="20" y="536">Lines between nodes carry SAPIENT over TCP. Dashed amber is site-specific or still to build.</text>
+</svg>

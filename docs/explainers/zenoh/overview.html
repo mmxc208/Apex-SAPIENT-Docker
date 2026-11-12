@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAPIENT over Zenoh, in plain terms</title>
+<style>
+  :root{--bg:#0b1220;--panel:#121b2e;--panel2:#0f1728;--line:#24324d;--fg:#e6edf6;--mute:#93a4bf;
+        --cyan:#38bdf8;--amber:#f59e0b;--green:#34d399;--red:#f87171}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.65 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  a{color:var(--cyan)}
+  header,main{max-width:980px;margin:0 auto;padding:0 24px}
+  header{padding-top:56px}
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:700}
+  h1{font-size:44px;line-height:1.1;margin:10px 0 12px}
+  h2{font-size:30px;margin:0 0 10px}
+  .lede{color:var(--mute);font-size:20px;max-width:800px}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+  nav.toc a{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--fg);text-decoration:none}
+  nav.toc a:hover{border-color:var(--cyan)}
+  section{margin-top:56px;padding-top:10px;border-top:1px solid var(--line)}
+  figure{margin:20px 0;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+  figure img{width:100%;display:block}
+  figcaption{color:var(--mute);font-size:15px;margin-top:10px}
+  .box{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:16px 20px;margin:18px 0}
+  .box.amber{border-left-color:var(--amber)} .box.red{border-left-color:var(--red)} .box.cyan{border-left-color:var(--cyan)}
+  .box b.lbl{display:block;font-size:12px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px;color:var(--green)}
+  .box.amber b.lbl{color:var(--amber)} .box.red b.lbl{color:var(--red)} .box.cyan b.lbl{color:var(--cyan)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px} @media (max-width:760px){.two{grid-template-columns:1fr}}
+  ul{padding-left:22px} li{margin:6px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:16px}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top}
+  th{color:var(--mute);font-weight:600;background:var(--panel)}
+  footer{max-width:980px;margin:60px auto 40px;padding:0 24px;color:var(--mute);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Plain-language briefing</div>
+  <h1>SAPIENT over Zenoh, in plain terms</h1>
+  <p class="lede">Could the sensor network behind a counter-drone system run on Zenoh instead of plain TCP cables? What would change, what would not, and when is it worth it? A five-minute version with no code.</p>
+  <p style="color:var(--mute);font-size:15px;margin:14px 0 0">Design study, last changed on 2026-11-08, before stages 1 to 4 were built. <code>README.md</code> and <code>docs/acceptance.md</code> record what was built and measured later. The original has a narrated video. The video is not part of this copy.</p>
+  <nav class="toc">
+    <a href="#question">The question</a><a href="#today">Today</a><a href="#zenoh">What Zenoh is</a>
+    <a href="#optiona">Option A</a><a href="#optionb">Option B</a><a href="#worth">Worth it?</a>
+    <a href="#hierarchy">Two hierarchies</a><a href="#stonesoup">Stone Soup</a><a href="#decisions">Decisions</a>
+  </nav>
+</header>
+<main>
+
+<section id="question">
+  <div class="kicker">1</div><h2>The question in one sentence</h2>
+  <p>SAPIENT is the UK standard that lets radars, cameras, jammers and a central "fusion" brain from different vendors talk to each other. Today they talk over ordinary network connections, one cable-like link per sensor, all meeting at a piece of software called Apex. Zenoh is an open-source system that moves data between many machines and sites by topic rather than by cable. The question is whether swapping the cables for Zenoh buys us anything.</p>
+  <div class="box"><b class="lbl">Short answer</b>Yes when the system spans several sites, weak radio links or many nodes. No when it is one site with a handful of sensors. In every case SAPIENT's messages stay exactly the same; only the way they travel changes.</div>
+</section>
+
+<section id="today">
+  <div class="kicker">2</div><h2>What we have today</h2>
+  <p>Every sensor opens one connection to Apex. Apex checks that each message is well formed, records it, and passes it to the fusion node, which builds the overall picture and sends tasks back ("camera, look over there"). A command-and-control screen, C2, receives the fused result. Stone Soup, an open-source tracking toolkit, is a candidate to be that fusion brain, but it cannot speak SAPIENT yet.</p>
+  <figure><img src="d1_today.svg" alt="Sensors connect to Apex, Apex connects to the fusion node and the C2 system"><figcaption>Today. Each line is one TCP connection. Apex is the hub everything passes through.</figcaption></figure>
+  <div class="box cyan"><b class="lbl">Analogy</b>Apex is a switchboard operator. Every call goes through the operator, who writes it in a log book and connects it to the right desk. It works well for one building. It gets awkward when there are several buildings joined by poor phone lines.</div>
+</section>
+
+<section id="zenoh">
+  <div class="kicker">3</div><h2>What Zenoh is</h2>
+  <p>Zenoh is more like a postal network than a switchboard. Each site has a router. A sensor hands its message to the local router with an address such as <i>site A / radar 1 / detections</i>. Routers pass it along only to places where someone has asked for that address. Nobody needs to know which machine the fusion node is on, and if a link between sites fails and another exists, the mail finds the other way.</p>
+  <figure><img src="d2_zenoh.svg" alt="Three Zenoh routers linking three sites"><figcaption>A Zenoh network. Routers link the sites; sensors and applications attach to their nearest router.</figcaption></figure>
+  <p>Zenoh also brings things TCP alone does not: a message can be marked urgent and jump the queue, routers can thin out a flood of detections before a slow radio link, each node proves who it is with a certificate, and a router can refuse messages a node is not allowed to send.</p>
+  <div class="box amber"><b class="lbl">One honest caveat</b>Zenoh's idea of "reliable" is weaker than a TCP connection. Under heavy load it drops messages unless told to wait, and it does not resend end to end. Important messages, such as tasks to effectors, must be configured to wait rather than drop.</div>
+</section>
+
+<section id="optiona">
+  <div class="kicker">4</div><h2>Option A: keep Apex, add Zenoh between sites</h2>
+  <p>Nothing changes for the sensors or for Apex. A small "bridge" program sits next to each sensor and another next to Apex. The bridges carry the SAPIENT messages across the Zenoh network and hand them back as ordinary connections at the far end. It is the safe first step: it can be tested without touching existing equipment, and the standard's requirement that TCP is always supported is met automatically.</p>
+  <figure><img src="d3_bridge.svg" alt="SAPIENT nodes bridged over Zenoh routers into an unchanged Apex"><figcaption>Option A. Only the blue links are new. Sensors, Apex and the fusion node are untouched.</figcaption></figure>
+</section>
+
+<section id="optionb">
+  <div class="kicker">5</div><h2>Option B: build on Zenoh from the start</h2>
+  <p>This is the design discussed in the recent meeting: groups of sensors and effectors form <b>pods</b>, pods report to a <b>host</b>, and the host reports to an <b>external host</b>. Each level has its own router and its own fusion/COP application. There is no Apex in the message path. Its jobs are shared out: routers deliver, each fusion node checks messages, a recorder writes everything to storage, and a bridge translates for old sensors.</p>
+  <figure><img src="d4_native.svg" alt="Recommended Zenoh-native layout with pods, host and external host"><figcaption>Option B, as recommended. Every node attaches only to its own pod router. Only the blue links cross between levels.</figcaption></figure>
+  <div class="two">
+    <div class="box"><b class="lbl">What improves</b>One network across all sites. Less traffic over weak links. Urgent commands go first. Every node is identified and every message is checked against a permission list.</div>
+    <div class="box red"><b class="lbl">What it costs</b>Routers, certificates and permission files to operate. A TCP bridge for life, because the standard requires TCP. Apex's single log book becomes several components. Zenoh is a young project with open router-stability bugs.</div>
+  </div>
+</section>
+
+<section id="worth">
+  <div class="kicker">6</div><h2>Is it worth it?</h2>
+  <table>
+    <tr><th>Your deployment looks like</th><th>Recommendation</th></tr>
+    <tr><td>One site, one network, a handful of sensors, one Apex</td><td>Keep TCP. Add encryption with TLS or a VPN. Zenoh would add work without a gain.</td></tr>
+    <tr><td>Several sites or vehicles, radio or satellite links, sensors behind firewalls</td><td>Start with Option A. It gives the cross-site fabric and security without touching sensors or Apex.</td></tr>
+    <tr><td>Pods, hosts and an external host, effectors that must be commanded safely, fusion at each level</td><td>Option B is the simpler way to get hierarchy, filtering and permissions than wiring Apex instances together.</td></tr>
+  </table>
+  <p>Speed is not the reason to do this. Apex processes messages one at a time, and Zenoh changes nothing about that unless Apex leaves the message path.</p>
+</section>
+
+<section id="hierarchy">
+  <div class="kicker">7</div><h2>Two things called "hierarchy"</h2>
+  <p>The SAPIENT standard has a hierarchy: a junior fusion node can report to a senior one, behaving toward it exactly like a sensor. That is an <b>organisation chart</b>, about who reports to whom. The pod / host / external-host layout is a set of <b>buildings and the roads between them</b>, about where the messages travel. They line up naturally, pod fusion reporting to host fusion reporting to the external host, but the roads do not create the org chart by themselves. Each fusion node still has to register with the one above it, and only its summarised tracks should travel up, not every raw detection.</p>
+  <figure><img src="d5_hierarchy.svg" alt="Registration sequence from edge node to pod fusion to host fusion"><figcaption>How a sensor registers with pod fusion, and pod fusion in turn registers with host fusion, over Zenoh.</figcaption></figure>
+</section>
+
+<section id="stonesoup">
+  <div class="kicker">8</div><h2>Where Stone Soup fits</h2>
+  <p>Stone Soup is Dstl's open-source toolkit for turning noisy detections into smooth tracks of moving objects. It is exactly the engine a fusion node needs, and it already contains the filters, trackers and association logic. What it lacks is a way to receive SAPIENT messages and send SAPIENT tracks back out. That adapter has to be written whichever option is chosen. Over TCP it would connect to Apex; over Zenoh it would subscribe to its pod's detections. The tracking core is the same in both cases.</p>
+  <figure><img src="d6_stonesoup.svg" alt="Stone Soup inside a fusion node with a SAPIENT adapter"><figcaption>The adapter (amber, to build) wraps the existing Stone Soup components (green).</figcaption></figure>
+</section>
+
+<section id="decisions">
+  <div class="kicker">9</div><h2>Decisions for the team</h2>
+  <ul>
+    <li><b>Which deployment are we designing for?</b> One site, or pods and hosts? This single answer picks between "keep TCP", Option A and Option B.</li>
+    <li><b>Who may command an effector?</b> Pod fusion, host fusion, or only a human at the COP. The answer becomes a permission rule in the routers, not a convention.</li>
+    <li><b>How much of Apex do we keep?</b> Its archive and GUI can stay as a consumer behind a bridge even if it leaves the message path.</li>
+    <li><b>Who builds the Stone Soup adapter?</b> It is needed in every option and is the natural first piece of engineering.</li>
+  </ul>
+  <div class="box amber"><b class="lbl">What is verified and what is not</b>The descriptions of Apex, the standard and Zenoh come from reading their source code and the published standard. No Zenoh network was built or measured for this briefing, so statements about performance, bandwidth saved and behaviour under failure are expectations, not test results.</div>
+</section>
+
+</main>
+<footer>Sources: BSI Flex 335 v2.0 (March 2024); Apex SAPIENT Middleware 4.2.0 source and user manual; Eclipse Zenoh source at commit 9c47e3d8 (1.10.2 plus six commits, Nov 2026); Stone Soup source at v1.9.1 plus 103 commits (Oct 2026). Companion technical document: <a href="architecture.html">architecture.html</a>.</footer>
+</body>
+</html>

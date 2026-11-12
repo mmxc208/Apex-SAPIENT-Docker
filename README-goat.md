@@ -2,9 +2,11 @@
 
 This file is the entry page for the goat work in this repository. [`README.md`](README.md) covers the base rig (Apex in Docker and the fake nodes) and the four Zenoh stages that this work builds on.
 
-**New to this work?** Start with the explainer page, [`docs/goat-step1-explainer.html`](docs/goat-step1-explainer.html). It explains SAPIENT, Zenoh and the goat network in plain words, then the end goal and step 1, and you can click through the rig and the message flows. Open the file in a browser from your clone, for example with `open docs/goat-step1-explainer.html` on a Mac. A code hosting site shows only the source of an HTML file. The page is one file, loads nothing else and needs no network.
+**New to this work?** Start with the explainer page, [`docs/explainers/goat-step1/index.html`](docs/explainers/goat-step1/index.html). It explains SAPIENT, Zenoh and the goat network in plain words, then the end goal and step 1, and you can click through the rig and the message flows. Open the file in a browser from your clone, for example with `open docs/explainers/goat-step1/index.html` on a Mac. A code hosting site shows only the source of an HTML file. The page is one file, loads nothing else and needs no network.
 
-[![The explainer page of step 1](docs/goat-step1-explainer.png)](docs/goat-step1-explainer.html)
+[![The explainer page of step 1](docs/explainers/goat-step1/preview.png)](docs/explainers/goat-step1/index.html)
+
+For more on goat itself, two background pages are in the same folder: [goat in plain language](docs/explainers/goatcore/overview.html) and [goatcore: the technical note](docs/explainers/goatcore/architecture.html). They are studies of goat's source from before step 1. [`docs/explainers/README.md`](docs/explainers/README.md) lists all the explainer pages.
 
 goat is the open source network of United States Army Europe and Africa: a mesh, a Zenoh data fabric, identities and a CA. The goal of this work is a real goatnet with three parts: pod 1 at the edge, a host in a cloud or a data centre, and an external host that belongs to a different sovereign. The work has six steps.
 
@@ -21,7 +23,8 @@ goat is the open source network of United States Army Europe and Africa: a mesh,
 
 | File | Content |
 |---|---|
-| `docs/goat-step1-explainer.html` | An interactive page for a new team member: the background, the end goal, the rig of step 1 and its message flows |
+| `docs/explainers/goat-step1/index.html` | An interactive page for a new team member: the background, the end goal, the rig of step 1 and its message flows |
+| `docs/explainers/goatcore/` | Two background pages on goat: one in plain language, one technical |
 | `docs/goat-roadmap.md` | The six steps: what is decided, what is open, and how a step is started |
 | `docs/goat-context.md` | The goat rules that this work follows, with a source for each rule |
 | `docs/superpowers/specs/2026-11-11-goat-step1-pod-to-host-design.md` | The design of step 1 |

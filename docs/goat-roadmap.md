@@ -10,7 +10,7 @@ Related files:
 | `docs/superpowers/specs/2026-11-11-goat-step1-pod-to-host-design.md` | The design of step 1 |
 | `docs/superpowers/plans/2026-11-11-goat-step1-pod-to-host.md` | The plan of step 1: 12 tasks, checks G1-01 to G1-11 |
 | `README-goat.md` | The entry page of the goat work: the drawings and the run steps of each step |
-| `docs/goat-step1-explainer.html` | An interactive page that explains step 1 to a new team member. Open it in a browser. |
+| `docs/explainers/` | The explainer pages: SAPIENT, SAPIENT over Zenoh, goat, and an interactive page on step 1 for a new team member. Open them in a browser. |
 | `docs/acceptance-goat1.md` | The acceptance record of step 1: checks G1-01 to G1-11, the known limits, the open items |
 | `docs/evidence/goat1/` | The saved outputs and logs that the record of step 1 quotes, with an index and a quote checker |
 | `docs/acceptance.md` | The evidence of the earlier work, stages 1 to 4 |

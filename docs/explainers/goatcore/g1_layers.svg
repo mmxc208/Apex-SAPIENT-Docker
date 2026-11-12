@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 548" role="img" aria-label="The layers of a goatnet">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.r{fill:#3a1c22;stroke:#f87171;stroke-width:2}
+.fr{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:16px;font-weight:650;text-anchor:middle}
+.T{fill:#e6edf6;font-size:19px;font-weight:700;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13.5px}
+.n{fill:#e6edf6;font-size:15px;font-weight:650}
+.k{fill:#38bdf8;font-size:13px;font-weight:700;letter-spacing:.12em}
+.m{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace}
+.mc{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.ok{fill:#34d399;font-size:13px;font-weight:700}
+.wa{fill:#f59e0b;font-size:13px;font-weight:700}
+.wac{fill:#f59e0b;font-size:13.5px;font-weight:700;text-anchor:middle}
+.okc{fill:#34d399;font-size:13.5px;font-weight:700;text-anchor:middle}
+.rdc{fill:#f87171;font-size:13.5px;font-weight:700;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.3;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.gl{fill:none;stroke:#34d399;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.8;stroke-dasharray:6 4}
+.x{fill:none;stroke:#f87171;stroke-width:4}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#93a4bf" d="M0 0L10 5L0 10z"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#38bdf8" d="M0 0L10 5L0 10z"/></marker>
+<marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#f59e0b" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="h" x="30" y="20" width="650" height="92" rx="10"/><text class="T" x="355.0" y="51.0">Tools: goat and goatbuilder</text><text class="s" x="355.0" y="72.0">Two Rust command-line tools. goatbuilder builds, releases and deploys;</text><text class="s" x="355.0" y="91.0">goat operates a running goatnet.</text><rect class="g" x="30" y="124" width="650" height="92" rx="10"/><text class="T" x="355.0" y="155.0">Data: Eclipse Zenoh 1.9.0</text><text class="s" x="355.0" y="176.0">Publish/subscribe with no central broker. One router per site,</text><text class="s" x="355.0" y="195.0">applications attach as clients, mutual TLS on TCP 7447.</text><rect class="b" x="30" y="228" width="650" height="92" rx="10"/><text class="T" x="355.0" y="259.0">Network: WireGuard mesh managed by NetBird</text><text class="s" x="355.0" y="280.0">Direct peer-to-peer tunnels. goat-relay passes traffic for pairs that</text><text class="s" x="355.0" y="299.0">cannot connect directly. signal-server passes the connection offers.</text><rect class="b" x="30" y="332" width="650" height="92" rx="10"/><text class="T" x="355.0" y="363.0">Site state: PostgreSQL 16 + Spock 5</text><text class="s" x="355.0" y="384.0">Multi-master logical replication between sites.</text><text class="s" x="355.0" y="403.0">Holds NetBird and Ory state; every site has a full copy.</text><rect class="b" x="30" y="436" width="650" height="92" rx="10"/><text class="T" x="355.0" y="467.0">Hosts: Ubuntu 24.04, containers, Ansible, Terraform</text><text class="s" x="355.0" y="488.0">128 Ansible roles; 7 Terraform modules (AWS, Cloudflare).</text><text class="s" x="355.0" y="507.0">A deployment's own values live in a separate overlay repository.</text><rect class="fr" x="710" y="20" width="262" height="508" rx="14"/><text class="k" x="841" y="50" text-anchor="middle">IDENTITY · USED BY EVERY LAYER</text><rect class="b" x="728" y="70" width="226" height="128" rx="10"/><text class="t" x="841.0" y="109.0">People</text><text class="s" x="841.0" y="130.0">Ory Kratos (accounts)</text><text class="s" x="841.0" y="149.0">Ory Hydra (OIDC issuer)</text><text class="s" x="841.0" y="168.0">groups claim in the token</text><rect class="b" x="728" y="216" width="226" height="128" rx="10"/><text class="t" x="841.0" y="255.0">Workloads</text><text class="s" x="841.0" y="276.0">SPIFFE identities from an</text><text class="s" x="841.0" y="295.0">on-goatnet SPIRE server</text><text class="s" x="841.0" y="314.0">certificate lifetime 1 hour</text><rect class="b" x="728" y="362" width="226" height="148" rx="10"/><text class="t" x="841.0" y="401.0">Machines and services</text><text class="s" x="841.0" y="422.0">Offline certificate authority</text><text class="s" x="841.0" y="441.0">Ed25519 root on a YubiKey</text><text class="s" x="841.0" y="460.0">signs TLS leaves and</text><text class="s" x="841.0" y="479.0">enrolment bundles</text>
+</svg>

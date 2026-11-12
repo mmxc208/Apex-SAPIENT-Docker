@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>goatcore: architecture and high-level design</title>
+<style>
+  :root{--bg:#0b1220;--panel:#121b2e;--panel2:#0f1728;--line:#24324d;--fg:#e6edf6;--mute:#93a4bf;
+        --cyan:#38bdf8;--amber:#f59e0b;--green:#34d399;--red:#f87171}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  a{color:var(--cyan)}
+  header,main{max-width:1100px;margin:0 auto;padding:0 24px}
+  header{padding-top:56px}
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:700}
+  h1{font-size:42px;line-height:1.1;margin:10px 0 12px}
+  h2{font-size:28px;margin:0 0 8px}
+  h3{font-size:19px;margin:24px 0 8px}
+  .lede{color:var(--mute);font-size:18px;max-width:880px}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+  nav.toc a{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--fg);text-decoration:none}
+  nav.toc a:hover{border-color:var(--cyan)}
+  section{margin-top:52px;padding-top:10px;border-top:1px solid var(--line)}
+  figure{margin:18px 0;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+  figure img{width:100%;display:block}
+  figcaption{color:var(--mute);font-size:14px;margin-top:10px}
+  .box{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:14px 18px;margin:16px 0}
+  .box.amber{border-left-color:var(--amber)} .box.red{border-left-color:var(--red)}
+  .box b.lbl{display:block;font-size:12px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px;color:var(--green)}
+  .box.amber b.lbl{color:var(--amber)} .box.red b.lbl{color:var(--red)}
+  details{background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin:14px 0;padding:0 18px}
+  details[open]{padding-bottom:14px}
+  summary{cursor:pointer;padding:12px 0;font-weight:700;color:var(--cyan);list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--mute)} details[open] summary::before{content:"▾ "}
+  .tw{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14.5px;min-width:620px}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top}
+  th{color:var(--mute);font-weight:600;background:var(--panel)}
+  code,.mono{font-family:"SF Mono",Menlo,monospace;font-size:.9em;background:#0b1424;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:#cfe3ff}
+  pre{background:#0b1424;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13.5px;line-height:1.5}
+  pre code{border:0;padding:0;background:none}
+  ul,ol{padding-left:22px} li{margin:5px 0}
+  .ok{color:var(--green);font-weight:700} .warn{color:var(--amber);font-weight:700} .bad{color:var(--red);font-weight:700}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat b{display:block;font-size:30px;line-height:1.1}
+  .stat span{color:var(--mute);font-size:14px}
+  footer{max-width:1100px;margin:60px auto 40px;padding:0 24px;color:var(--mute);font-size:14px}
+  @media(max-width:600px){h1{font-size:32px}h2{font-size:23px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Technical design note</div>
+  <h1>goatcore: architecture and high-level design</h1>
+  <p class="lede">This note is for developers who will evaluate, deploy or change goatcore. goatcore builds and operates a goatnet: a NetBird/WireGuard mesh, a Zenoh data fabric, Ory and SPIFFE identity, Postgres with Spock replication, and two Rust command-line tools. Each part has the status word of the repository (built, measured, designed, not built). Section 12 lists where the documents and the code disagree. The <a href="overview.html">short briefing</a> gives the same subject in simple words.</p>
+  <p style="color:var(--mute);font-size:15px;margin:14px 0 0">Study of goat's source, last changed on 2026-11-11, before step 1. <code>README-goat.md</code> and <code>docs/goat-context.md</code> record what this repository uses from goat. The original has a narrated video. The video is not part of this copy.</p>
+  <nav class="toc">
+    <a href="#scope">0 · Scope</a><a href="#layers">1 · Layers</a><a href="#network">2 · Network</a><a href="#relay">3 · Relay and signal</a>
+    <a href="#site">4 · Site and state</a><a href="#fabric">5 · Data fabric</a><a href="#regions">6 · Zenoh regions</a><a href="#brokerless">7 · No broker</a>
+    <a href="#identity">8 · Identity</a><a href="#deploy">9 · Deployment</a><a href="#federation">10 · Federation</a><a href="#family">11 · Related repositories</a>
+    <a href="#reality">12 · Built and designed</a><a href="#repo">13 · Repository</a><a href="#sources">Sources</a>
+  </nav>
+</header>
+<main>
+
+<section id="scope">
+  <div class="kicker">0</div><h2>Scope and evidence</h2>
+  <div class="tw"><table>
+    <tr><th>Type of statement</th><th>Basis</th></tr>
+    <tr><td>Structure, versions, pins, defaults, file contents</td><td class="ok">Read from the source. First read at commit 706cdde (2026-11-09). Updated for the 24 commits to cbf2cb7f (2026-11-11).</td></tr>
+    <tr><td>Throughput, latency and memory numbers</td><td class="warn">From the measurement references of the repository (M-nnn). Not measured again for this note.</td></tr>
+    <tr><td>Maturity of each part</td><td class="warn">The status words in <code>docs/design/</code> headers and in <code>docs/adr/</code>. Compared with the code where they looked incorrect.</td></tr>
+    <tr><td>Operation of the software</td><td class="bad">No software was built, deployed or run for this note.</td></tr>
+  </table></div>
+  <p>The repository has 204 files in <code>docs/design/</code> and 355 decision records. Most secondary documents were read at the header and the important sections only. For section 11, <code>goatstuff</code> and <code>zagros-moon-pod</code> were read from the source by assistant agents, and selected statements were checked again. <code>goatdocs</code>, <code>goatenv</code> and <code>goat-client</code> were not read in full.</p>
+  <div class="box"><b class="lbl">What changed from 9 to 11 November</b>Federation: a library crate, the <code>goatbuilder federate</code> verbs, declared peerings, a stricter acceptance test, and corrections for two peerings on one host (goat 0.5.19). Release: a new <code>runtime-health</code> gate. Supply chain: a manifest allowlist and no front-end build step. Governance: no bypass of required checks on <code>main</code>.</div>
+</section>
+
+<section id="layers">
+  <div class="kicker">1</div><h2>Layers, and what this repository contains</h2>
+  <figure><a href="g1_layers.svg"><img src="g1_layers.svg" alt="Layer stack of a goatnet with identity as a column that all layers use"></a>
+  <figcaption>goat integrates four upstream projects. All layers use identity. Select a figure to see it at full size.</figcaption></figure>
+  <div class="tw"><table>
+    <tr><th>Area</th><th>Upstream, exact version</th><th>Written in this repository</th></tr>
+    <tr><td>Network</td><td>WireGuard; NetBird management 0.68.3 with 7 patches (<code>ops/netbird/patches/</code>)</td><td><code>goat-relay</code> + <code>goat-relay-protocol</code> (Rust), <code>signal-server</code> (Go)</td></tr>
+    <tr><td>Data</td><td>Eclipse Zenoh <code>=1.9.0</code>; the PQ-hybrid image is the default</td><td>Portal (<code>ops/goat-zenoh-portal</code>, Go), ingress gateway, <code>grant-crypto</code>, <code>panoscope-core</code>, <code>goat-fed-republisher</code></td></tr>
+    <tr><td>Identity</td><td>Ory Kratos 1.3.1, Hydra 2.3.0; SPIRE 1.11.2</td><td>Offline CA and enrolment tools (<code>ops/enrollment</code>), ID console, consent UI</td></tr>
+    <tr><td>Site state</td><td>pgEdge PostgreSQL 16 + Spock 5; pgBackRest 2.58.0</td><td>Partition harness, revocation guard, consistency checks</td></tr>
+    <tr><td>Operate and deploy</td><td>Ansible, Terraform (AWS and Cloudflare providers only), Traefik v3</td><td><code>goat</code> 0.5.19, <code>goatbuilder</code> 0.4.3, <code>goat-federation</code> (Rust), 128 Ansible roles, 7 Terraform modules</td></tr>
+  </table></div>
+  <div class="box amber"><b class="lbl">Primary rule: one build for all deployments</b>No deployment value is compiled into a binary, put in an image, or used as a default. This includes names, domains, addresses, ACL tables and CAs. Values come from the goat context and its <code>goatnet.toml</code>, Ansible group_vars, an environment variable, or a mounted file. If a value is missing, the tool stops with an error from <code>ops/errors/catalog.yaml</code>. A real deployment is goatcore at a pinned commit and a separate overlay repository that contains configuration only (<code>AGENTS.md</code>).</div>
+</section>
+
+<section id="network">
+  <div class="kicker">2</div><h2>Network: join through a relay, then connect directly</h2>
+  <figure><a href="g2_connect.svg"><img src="g2_connect.svg" alt="Two devices enrol and signal through a public cloud relay, then make a direct WireGuard tunnel"></a>
+  <figcaption>Enrolment and signalling go through a public cloud relay. Data goes directly when that is possible.</figcaption></figure>
+  <ol>
+    <li><b>Enrol.</b> The device resolves the public name <code>netbird.&lt;zone&gt;</code> (one A record for each relay). It opens TLS on 443 at a cloud relay. The relay does not read the traffic. It passes the traffic through rathole to the NetBird management of the host site. A setup key with a short life, or PKCE SSO, admits the device. Host sites have no public address (ADR 1192).</li>
+    <li><b>Signal.</b> The peer keeps one stream to one signal server. Connection offers use the same 443 path.</li>
+    <li><b>Select a path.</b> ICE for each pair: host (LAN) candidates first, STUN candidates after 500 ms, relay after 2 s. The selected pair stays for the life of the connection. There is no second evaluation (ADR 0306).</li>
+    <li><b>Fallback.</b> One relay hop on 33073. The relay sees only ciphertext. Relays are sized for approximately 10% of the fleet traffic and add 10 to 100 ms.</li>
+  </ol>
+  <div class="tw"><table>
+    <tr><th>Public on each cloud relay</th><th>Purpose</th></tr>
+    <tr><td>TCP 443</td><td>haproxy in TCP mode, TLS passthrough to management. The relay has no keys.</td></tr>
+    <tr><td>TCP 2333</td><td>rathole control. The management host makes the outbound connection.</td></tr>
+    <tr><td>UDP 3478</td><td>STUN (Coturn)</td></tr>
+    <tr><td>33073</td><td>goat-relay: WebSocket over TLS at <code>/relay</code>, and QUIC datagrams</td></tr>
+  </table></div>
+  <p>In the mesh: WireGuard peer-to-peer on UDP 51820, mesh addresses in <code>100.127.x.x</code>, signal gRPC on 10000, CoreDNS on 5353. DNS has two tiers. Public Cloudflare DNS has the enrolment names. A mesh CoreDNS zone comes from the service registry, and NetBird pushes it as a nameserver group (ADR 0312). There are one or three CoreDNS replicas (built).</p>
+  <div class="box amber"><b class="lbl">Paused: the hidden control plane (wg-cp0)</b>ADR 0313 and 0314 put the management plane behind a second, outer WireGuard tunnel (UDP 51821, <code>198.18.0.0/24</code>) with no public DNS. Entry needed a bundle signed by the offline CA. ADR 1192 (Accepted, 2026-09-28) paused this design. No goatnet uses it, and its servers were removed. <code>docs/design/control-plane-hiding-explainer.md</code> says that it is in use. Read the README statement "nothing sensitive faces the internet" as follows: services listen only on the mesh, and relays pass ciphertext.</div>
+  <div class="box red"><b class="lbl">When the control plane is down</b>Tunnels that are up stay up. Without the signal server, a new session cannot start and a broken session cannot be repaired. This is true also for two peers on one LAN (ADR 0306, "Same-LAN scope"). By design, each site has a full management copy and local DNS (ADR 0206). A signed fallback for names is built (phase 1). A full list of what fails in a management outage was not found.</div>
+</section>
+
+<section id="relay">
+  <div class="kicker">3</div><h2>goat-relay and signal-server</h2>
+  <div class="stats">
+    <div class="stat"><b class="bad">76%</b><span>of the process time of the NetBird Go relay was in the Go runtime (futex 51.8%, nanosleep 24.3%); ADR 0709, M-005</span></div>
+    <div class="stat"><b class="ok">3.6×</b><span>faster than the tuned Go relay on a t3.micro; passes the ≥110 Mbps limit; ADR 0218, M-014</span></div>
+    <div class="stat"><b class="ok">~954 Mbps</b><span>one placement on c7i.2xlarge; ADR 0712 (Proposed), M-040</span></div>
+    <div class="stat"><b>−93%</b><span>signal messages processed with the negative cache on, in a storm test; the default is off</span></div>
+  </div>
+  <h3>goat-relay</h3>
+  <ul>
+    <li><b>Cause.</b> The Go relay had a limit of 25 to 32 Mbps for one flow, and 5 Mbps at 16 streams. Direct TCP between the same hosts reached 330 Mbps. The team wrote the new relay from a written wire specification, to prevent AGPL obligations.</li>
+    <li><b>Structure.</b> <code>goat-relay-protocol</code> only parses and serializes. <code>goat-relay</code> does the I/O.</li>
+    <li><b>Wire format.</b> 2-byte header. Message types include Transport <code>0x03</code> (36-byte peer ID + payload), HealthCheck <code>0x05</code> and Auth <code>0x06</code>. Maximum 8820 bytes.</li>
+    <li><b>Authentication.</b> Timed HMAC-SHA256 tokens, optionally bound to the peer ID. 60 s tolerance for clock difference. Current and previous secret. Without <code>GOAT_RELAY_AUTH_SECRET</code> the relay refuses all (<code>goat-relay/src/auth.rs</code>, ADR 1053).</li>
+    <li><b>Performance design (built).</b> One pinned thread and one single-threaded tokio runtime for each core, with no work stealing (<code>src/shard.rs</code>). <code>SO_REUSEPORT</code> shards. Optional CBPF steering by source IP. kTLS and io_uring on Linux.</li>
+    <li><b>Not built.</b> Tier 2 (AF_XDP, hardware crypto) is an experiment. The anycast relay tier is a design only (ADR 0221 Proposed).</li>
+  </ul>
+  <h3>signal-server</h3>
+  <ul>
+    <li>A new Go implementation of the NetBird <code>SignalExchange</code> gRPC. Thus standard clients work without a change. It adds <code>SignalFederation.Forward</code>: if a peer is not local, it sends the message to the signal servers of the other sites (ADR 0302).</li>
+    <li>Federation transport has two paths through a local <code>federation-proxy</code>: the mesh IP of the peer first, and a public hostname through the relay tunnel as backup. A partition test passed, with approximately 240 ms on the backup path and a 30 s breaker interval (ADR 1085, Amendment 1).</li>
+    <li>Protection against storms: a 20 s negative cache and a rate limit for each sender. Environment flags control them. The default for the two is off.</li>
+  </ul>
+</section>
+
+<section id="site">
+  <div class="kicker">4</div><h2>A site, and its state</h2>
+  <figure><a href="g3_site.svg"><img src="g3_site.svg" alt="Site baseline with four nodes: two core nodes and two observability nodes, connected to a second site"></a>
+  <figcaption>ADR 1141 baseline: two core nodes and two observability nodes. The README text "two core, one monitoring, one recovery" describes the zagros example, not this baseline.</figcaption></figure>
+  <div class="tw"><table>
+    <tr><th>Subject</th><th>Design</th><th>Status</th></tr>
+    <tr><td>Standby</td><td>core-B and obs-B are warm standby nodes. An operator starts the promotion. VRRP failover was removed.</td><td class="warn">Service classes with a cutover gate: built. Promotion runbook: planned.</td></tr>
+    <tr><td>Replication between sites</td><td>Spock 5 multi-master logical replication: NetBird (20 tables) and Kratos/Hydra (10 tables). SPIRE is not replicated, by design.</td><td class="ok">Built (ADR 0801 Accepted)</td></tr>
+    <tr><td>Conflicts</td><td>The last write wins, by commit timestamp. This is safe because one site makes all administration writes (ADR 1084 D3).</td><td class="ok">Built</td></tr>
+    <tr><td>Not replicated</td><td>Portal and console state is in SQLite. Invitations are in process memory.</td><td class="warn">Known gap</td></tr>
+    <tr><td>Island mode</td><td>No quorum is necessary (ADR 0206). Today a second site with no connection can enrol peers and accept logins. It cannot make administration changes.</td><td class="warn">Writes at all sites: designed, not built (ADR 1165). 126 write paths; 31 have no class.</td></tr>
+    <tr><td>Drift detection</td><td>Spock, an ACE diff each hour, a reconciler each day.</td><td class="warn">Daily reconciler: Proposed</td></tr>
+    <tr><td>Backup</td><td>pgBackRest, two independent local stanzas for each site, AES-256-CBC. Full each week, differential each day, incremental each 6 hours, 4 weeks of point-in-time recovery.</td><td class="warn">Recovery after total loss: 4 to 8 h expected, not measured</td></tr>
+    <tr><td>Memory</td><td>Full stack 12.7 GiB RAM. Core tier approximately 1.6 GiB (Zenoh router 885 MiB).</td><td class="ok">Measured</td></tr>
+  </table></div>
+  <p>Services have four criticality tiers (core, essential, utility, nicety). Continuous chaos tests and combined-failure scenarios are designs only. No measured chaos results were found.</p>
+</section>
+
+<section id="fabric">
+  <div class="kicker">5</div><h2>Data fabric: Zenoh through routers, by decision</h2>
+  <figure><a href="g4_fabric.svg"><img src="g4_fabric.svg" alt="Publisher to site router to site router to subscriber, with the ACL, storage and audit at the router"></a>
+  <figcaption>Only the WireGuard layer is peer-to-peer. Zenoh traffic goes through the site routers.</figcaption></figure>
+  <ul>
+    <li><b>Topology (built).</b> One <code>zenohd</code> for each site in <code>mode: router</code>. Applications are in <code>mode: client</code>. The path is pub → site router → site router → sub. The design document gives the reason: the router has the storage, the static ACL and the audit tap. Operation of peers without a router is designed, not built (ADR 1095).</li>
+    <li><b>Transport.</b> TLS 1.3 with mutual authentication on TCP 7447. The goatnet CA issues the certificates. QUIC on UDP 7448 is available and is off by default. The hybrid <code>X25519MLKEM768</code> key exchange is built: +180 µs for each handshake and approximately 1.2 KB more data.</li>
+    <li><b>Isolation.</b> A site with no connection keeps its local publish and subscribe.</li>
+  </ul>
+  <h3>Key expressions</h3>
+  <pre><code>&lt;anchor&gt;/&lt;reserved-prefix&gt;/&lt;class…&gt;/&lt;site&gt;/&lt;stable-id&gt;
+&lt;slot-uuid&gt;/data/entity/track/zagros/T-4401
+
+reserved: data/ services/ health/ config/ cmd/ attest/ ops/ agents/
+          release/ task/ ack/ telemetry/ volatile/</code></pre>
+  <p>A writer can write only below its anchor prefix (<code>&lt;uuid&gt;/**</code> or <code>&lt;vendor&gt;/**</code>). Put values that change with each message in the payload, not in the key. Only named certificates can subscribe to the literal <code>**</code>. The equivalent <code>*/**</code> is detected but not blocked.</p>
+  <h3>Access control</h3>
+  <ul>
+    <li><b>Enforcement.</b> The static <code>access_control</code> of the router. It denies by default. The subject is the certificate CN. <code>roles/goat-zenoh</code> renders it from group_vars. The router reads it only at start. The router gives no message for a denied write.</li>
+    <li><b>Slot pool</b> (ADR 1025, Proposed but in use). The role makes N write slots in advance (default 256). Onboarding makes a certificate with the uuid of a free slot as its CN. Thus no restart is necessary. This is optional for new goatnets. The role default is <code>zenoh_identity_model: "per-vendor"</code>.</li>
+    <li><b>Reads</b> are open to most members. Read partitions for partners and write grants for release lanes are built.</li>
+    <li><b>Encryption for machine reads.</b> One AES-256-GCM data key for each release set, wrapped to the member certificates (<code>grant-crypto</code>, ADR 1094, built).</li>
+    <li><b>warrant is not the fabric ACL.</b> warrant makes the NetBird mesh ACL. That ACL controls IP access to port 7447.</li>
+  </ul>
+  <h3>Storage and measurements</h3>
+  <div class="tw"><table>
+    <tr><th>Item</th><th>Value</th><th>Status</th></tr>
+    <tr><td>Router storage</td><td>rocksdb for each anchor or each active slot, 7-day TTL</td><td class="ok">Built</td></tr>
+    <tr><td>Audit</td><td>An external subscriber writes to MinIO Object-Lock, 30 days</td><td class="ok">Built</td></tr>
+    <tr><td>Routing throughput</td><td>approximately 1.2M msg/s</td><td class="ok">Measured (M-054)</td></tr>
+    <tr><td>Durable limit</td><td>approximately 32k msg/s for each publisher. Above this, the router drops messages and gives no message, because rocksdb runs on the routing thread.</td><td class="ok">Measured (M-054)</td></tr>
+    <tr><td>Latency</td><td>median 53 to 55 ms at 12 Hz on zagros</td><td class="ok">Measured</td></tr>
+    <tr><td>Volatile class</td><td>Blobs in chunks of ~1.5 MiB, 100 MiB limit; a 50 MiB round trip was verified</td><td class="warn">Code merged; long test not done</td></tr>
+    <tr><td>Replay system, skeleton for stateful consumers</td><td>ADR 0825</td><td class="bad">Not built</td></tr>
+  </table></div>
+</section>
+
+<section id="regions">
+  <div class="kicker">6</div><h2>Zenoh regions: goat uses the default</h2>
+  <figure><a href="g7_regions.svg"><img src="g7_regions.svg" alt="Left: the Auto preset with three site routers in one north region and clients below. Right: a custom south subregion behind a gateway in a test rig"></a>
+  <figcaption>Left: what each goatnet uses today. Right: the only custom-region evidence in the repository, a test rig of five routers.</figcaption></figure>
+  <p>Zenoh 1.9.0 puts each session in a <b>region</b>. The region decides how much routing state the session adds. The source is the section "Hierarchical routing — <code>gateway.south</code> and regions" in <code>docs/design/zenoh-data-fabric.md</code>.</p>
+  <div class="tw"><table>
+    <tr><th>Region</th><th>Shown as</th><th>Meaning</th></tr>
+    <tr><td>North</td><td><code>north</code></td><td>The main region. Its members share one link-state graph and one all-pairs route table.</td></tr>
+    <tr><td>South</td><td><code>south:&lt;id&gt;:&lt;mode&gt;</code></td><td>An indexed subregion below one router. Its members add no state to the north graph.</td></tr>
+    <tr><td>Local</td><td><code>local</code></td><td>Sessions in the same process.</td></tr>
+  </table></div>
+  <h3>The Auto preset (in use)</h3>
+  <p>The config key is <code>gateway.south</code>. Its default is <code>Auto</code>. No goat role sets this key. With <code>Auto</code>, the region depends only on the modes of the two sessions.</p>
+  <div class="tw"><table>
+    <tr><th>This node</th><th>Remote node</th><th>Region of the session</th></tr>
+    <tr><td>router</td><td>router</td><td><code>north</code></td></tr>
+    <tr><td>router</td><td>client</td><td><code>south:0:client</code></td></tr>
+    <tr><td>router</td><td>peer</td><td><code>south:0:peer</code></td></tr>
+    <tr><td>peer</td><td>peer</td><td><code>north</code></td></tr>
+    <tr><td>client</td><td>client</td><td>The session is refused</td></tr>
+  </table></div>
+  <p>Result: all site routers share one flat north region. Each application is a client, thus it adds no routing state. A router in a north region of V nodes has V(V−1) route entries. ADR 1160 says that each goatnet has one populated region with 3 nodes or fewer.</p>
+  <h3>Custom regions (not in use)</h3>
+  <ul>
+    <li><code>Custom([...])</code> is an ordered list of subregions. A peer goes into the first subregion whose filters match. The region id is the list index.</li>
+    <li>A filter has five fields: <code>modes</code>, <code>interfaces</code>, <code>zids</code>, <code>region_names</code>, <code>negated</code>. The peer asserts <code>zids</code> and <code>region_names</code> about itself.</li>
+    <li>Set <code>Custom</code> on the gateway only, and keep <code>Auto</code> on its members. This is the supported configuration.</li>
+    <li>If the two ends disagree about the region, Zenoh refuses the session. It does not operate with decreased routing.</li>
+    <li>Test rig (M-112): five routers, one gateway, one south subregion. North V changed from 5 to 3. The route table changed from 20 to 6 at a member, and from 20 to 12 at the gateway.</li>
+  </ul>
+  <div class="box red"><b class="lbl">Regions route. They do not authorize.</b>A region filter looks like an access rule, but two of its fields are values that the peer gives about itself. Access control stays with the TLS trust store and the Zenoh ACL on the certificate CN. The goat-topology tool reports a filter on <code>zids</code> or <code>region_names</code> as a critical hazard (T-001).</div>
+  <div class="box amber"><b class="lbl">Roadmap status</b>No committed plan to configure regions was found. ADR 0844 rejected a "tree for each region" as too early. It says to examine the topology again above 50 routers, or when partner federation joins the same logical mesh. The data-fabric document says that a router hierarchy is "a <code>zenohd</code> config change, not new code". It gives no sizing rule and makes no statement about queries across a region boundary. Gateway failure and two gateways for one subregion were not tested.</div>
+</section>
+
+<section id="brokerless">
+  <div class="kicker">7</div><h2>The effects of "no broker"</h2>
+  <p><code>docs/design/zenoh-brokerless-consequences.md</code> is on the "read first" list of the repository. No component gets all messages. Thus some usual corrections are not possible.</p>
+  <div class="tw"><table>
+    <tr><th>You cannot have</th><th>What goat does</th><th>Status</th></tr>
+    <tr><td>A central priority queue</td><td>The producer, the relay and the mesh reserve, show and apply priority. Four classes, C0 to C3, bound to the key prefix.</td><td class="warn">Designed, not built (ADR 1033)</td></tr>
+    <tr><td>Broker acknowledgements, retries, a dead-letter queue</td><td>The producer is responsible for delivery: acknowledged query and reply, AdvancedPublisher cache.</td><td class="ok">Cache tested; DLQ rejected</td></tr>
+    <tr><td>ACL changes at runtime, "revoke now"</td><td>Slot pool for grants. To stop a device immediately, delete its NetBird peer.</td><td class="ok">Built</td></tr>
+    <tr><td>CRL or OCSP for fabric certificates</td><td>None, by design. Leaf certificates are valid for 365 days. Thus removal from the mesh is the control.</td><td class="warn">Native revoke: Proposed (ADR 1031)</td></tr>
+    <tr><td>A refusal message for a denied write</td><td>Test before use with <code>goat acl test</code>. Monitor expected and actual traffic. A producer can test itself.</td><td class="ok">Built</td></tr>
+    <tr><td>Throughput limits at a broker</td><td>Limits are declared in the portal and shown in <code>goat top</code>.</td><td class="warn">Declare and show: built. Enforce: not built.</td></tr>
+  </table></div>
+</section>
+
+<section id="identity">
+  <div class="kicker">8</div><h2>Identity: six credential planes</h2>
+  <p>The README gives three identity technologies. The reference (<code>identity-access-and-onboarding-reference.md</code> §0) describes six credential planes. One plane does not authenticate a different plane.</p>
+  <div class="tw"><table>
+    <tr><th>Plane</th><th>Credential</th><th>Issuer</th><th>Use</th></tr>
+    <tr><td>People (web)</td><td>OIDC token with a <code>groups</code> claim</td><td>Ory Kratos (identity), Hydra (issuer), patched consent UI</td><td>Web consoles, panoscope</td></tr>
+    <tr><td>Fabric</td><td>X.509 client certificate, CN = slot uuid or vendor, 365 days</td><td>Portal <code>certmint</code></td><td>Zenoh mTLS on 7447. The ACL reads the CN, not the URI-SAN.</td></tr>
+    <tr><td>Mesh</td><td>WireGuard key</td><td>NetBird, by setup key or PKCE SSO through Hydra</td><td>Tunnel membership. A rosenpass PSK adds PQ protection.</td></tr>
+    <tr><td>Workloads</td><td>SPIFFE X.509-SVID. SVID 1 h, agent 360 h, CA 2160 h</td><td>SPIRE server on the goatnet</td><td>The router admits it by CN ("Phase A live on ZAGROS")</td></tr>
+    <tr><td>Service TLS and bundles</td><td>Leaf certificates (1 year); signed CBOR enrolment bundles</td><td>Offline CA: Ed25519 root (10 years), YubiKey PIV in production, one tier</td><td>Internal TLS; enrolment of devices and people</td></tr>
+    <tr><td>CLI</td><td>Portal bearer token</td><td>Portal</td><td>Operator power only if the token is in <code>PORTAL_OPERATOR_API_KEYS</code></td></tr>
+  </table></div>
+  <h3>Onboarding of a person (the one path in use, built)</h3>
+  <ol>
+    <li>The person sends an invite token. A sponsor confirms. An administrator approves.</li>
+    <li>The onboard-runner runs <code>goat admin onboard --native</code>. It makes a NetBird setup key, then a Zenoh slot, certificate and portal key, then a Kratos identity.</li>
+    <li>The result is a signed <code>.cbor</code> bundle (ECDSA P-256 on canonical CBOR) and a welcome email. <code>goat profile init</code> opens the bundle.</li>
+  </ol>
+  <p>Tiers: browse, developer, iam-admin, platform-admin. Operator power needs a separate procedure, and a different administrator must approve it.</p>
+  <details><summary>Offline device enrolment, post-quantum, external ICAM</summary>
+    <ul>
+      <li><b>Offline enrolment</b> (design complete, implementation partial). A signer with no network makes a CBOR bundle of 400 to 600 bytes. Activation in 14 days, expiry in 90 days. The bundle CRL refreshes each 60 s. An old CRL can be used for 24 h. At 72 h the system refuses all. With no connection to management, this needs a local management server, which is not in scope today.</li>
+      <li><b>Post-quantum.</b> Hybrid X25519MLKEM768 on Zenoh TLS and QUIC, rosenpass on NetBird. A switch (<code>goat client pqc on|off</code>, <code>goat admin pqc … --peer|--fleet</code>) changes the two layers at runtime (built 2026-07-17). The router has no runtime switch.</li>
+      <li><b>External ICAM.</b> A card or IdP subject maps to a native UUID. The registry is <code>ops/identity/sovereign-pkis.yaml</code>. Three ingress modes are built and are off by default. Enforcement of assurance levels is designed, not built.</li>
+    </ul>
+  </details>
+</section>
+
+<section id="deploy">
+  <div class="kicker">9</div><h2>Deployment: declare, converge, verify</h2>
+  <figure><a href="g5_deploy.svg"><img src="g5_deploy.svg" alt="goatcore and an overlay go into goatbuilder, which converges hosts through a converger and verifies with the ledger of each host"></a>
+  <figcaption>A verb does not touch a host directly. It uses a converger. Thus the mock rehearsal uses the real verb code.</figcaption></figure>
+  <h3>goatbuilder</h3>
+  <ul>
+    <li><b>Verbs</b> (<code>crates/goatbuilder/src/main.rs</code>): validate, doctor, status, deploy, preflight, release, rollback, fastlane, standup, teardown, join-node, federate, pins, promote, explain, tutor, secrets, verify, diff, history, plan/apply, adopt, assay, endstate, survey, update.</li>
+    <li><b>Converger trait</b> (<code>converger.rs</code>): <code>publish</code>, <code>observe</code>, <code>read_record</code>. Built: scripted fixtures (<code>--mock &lt;dir&gt;</code>) and Ansible push (<code>push.rs</code>). Not built: the pull-agent converger. It is only an enum value.</li>
+    <li><b>Deploy contract C1 to C10.</b> C7: a machine is converged only when its own record shows the declared digest and shows that the run is complete. Today the record is the ledger on the host, <code>/var/lib/goat/&lt;component&gt;/deploy-history.jsonl</code>.</li>
+    <li><b>Standup.</b> 14 idempotent phases. You can continue with <code>--from/--to</code>. The phases include gates, host baseline with LUKS, secrets and certificates, the management stack, relay and TLS, two operator stops, ACL, services, an acceptance gate. A parity gate compares it with the older shell script. One hour is "a target, not a claim".</li>
+    <li><b>End state.</b> A catalog of 58 services. Each service gets a grade: deployed, active, healthy, functional (built, measured).</li>
+    <li><b>Rollback.</b> 1 to 7 steps by artifact type. The tool refuses data changes, certificate changes and forward-only changes. Measured on a development goatnet.</li>
+  </ul>
+  <h3>Release ladder and the new runtime-health gate</h3>
+  <ul>
+    <li>A candidate goes up a ladder of rungs (for example dev, preprod, prod). Gates control each hop.</li>
+    <li>New on 10 November (commit 87a27353): the <code>runtime-health</code> gate. It examines how the component operated on the lower rung during the soak period.</li>
+    <li>Pass criteria: restarts = 0, OOM kills = 0, peak memory ≤ 80% of the container limit. A value that the tool cannot read is a failure. An override must give a person and a reason.</li>
+    <li><code>ops/release/ladder.yaml</code> in the repository has no rungs. Thus the repository does not show a use of this gate.</li>
+  </ul>
+  <div class="box amber"><b class="lbl">README and design disagree: pull configuration</b>The README says: "Machines pull their configuration. Each machine fetches what it is meant to run and reports what it is running." <code>docs/design/fleet-management.md</code> is Proposed and says "Nothing in §7 is built" and that actuation is "Push-only". ADR 1109 is Proposed. What is built is an Ansible push from the operator machine, and the ledger on the host that <code>verify</code>, <code>diff</code>, <code>history</code> and <code>survey</code> read. Convergence of a node with no connection: none.</div>
+  <h3>The goat CLI</h3>
+  <ul>
+    <li><b>Command groups.</b> Identity and context (profile, ca, context, init, who, access). Fabric (pub, sub, blob, topic, schema, acl, replay, flow). Health (doctor, health, status, top, presence, heal, names). Administration (admin, vendor, machine, warrant, audit, federate). Learning (tutor, hello, demo, explain, docs).</li>
+    <li><b>Errors.</b> 162 catalog entries (22 <code>E_*</code>, 97 <code>GB-NNN</code>, 43 <code>X-TOOL-NNN</code>), compiled into the binaries. Thus <code>explain</code> works with no network.</li>
+    <li>31 locale directories (Fluent). Machine output does not change with the locale. Self-update with a checksum.</li>
+    <li><code>goat federate</code> now prints a notice. The federation verbs will move to <code>goatbuilder federate</code> (ADR 1225).</li>
+  </ul>
+  <h3>Profiles</h3>
+  <div class="tw"><table>
+    <tr><th>Profile</th><th>Structure</th><th>Status</th></tr>
+    <tr><td>goatlite</td><td>One Ubuntu 24.04 host (4 cores, 16 GB), a <code>goatlite.yaml</code> with four values, no relays, no cloud, the same 14 phases in the LAN profile</td><td class="warn">Works from start to end on new VMs (approximately 24 min of phase time); "never for production"</td></tr>
+    <tr><td>Founder site</td><td>Two core nodes + two observability nodes (+ break-glass)</td><td class="ok">Built</td></tr>
+    <tr><td>Joiner site</td><td>Same goatnet, replication in two directions, signal federation (<code>join-node</code>)</td><td class="ok">Built</td></tr>
+    <tr><td>Boundary node for a partner</td><td>One edge router for each partner that denies by default, and a republisher on the core (<code>federate</code>)</td><td class="warn">ADR 1157 Proposed; see section 10</td></tr>
+  </table></div>
+  <h3>Supply-chain checks (new)</h3>
+  <ul>
+    <li><code>manifest-allowlist</code> (commit aae90492): CI refuses a build manifest or package manifest that is not in <code>ops/ci/manifest-allowlist.txt</code>. Each <code>package.json</code> dependency must have an exact version.</li>
+    <li>The smoketest dashboard is now plain JavaScript with no build step. Preact, TypeScript and Vite were removed.</li>
+    <li>ADR 1221: the contributor-trust check is required on <code>main</code> in all public repositories. Required approvals: 0. No bypass. A required check that fails or does not start blocks the merge.</li>
+  </ul>
+</section>
+
+<section id="federation">
+  <div class="kicker">10</div><h2>Federation between sovereign environments</h2>
+  <figure><a href="g6_federation.svg"><img src="g6_federation.svg" alt="Two environments, each with a core router, a republisher and an edge router, connected by one tunnel between the edge routers"></a>
+  <figcaption>ADR 1157 (Proposed). Each side has the same parts and does the same steps.</figcaption></figure>
+  <p>Federation connects two sovereign goat environments. Each nation operates its own environment, with its own CA and its own mesh. A nation does not join the mesh of a different nation. Data crosses only when its owner releases it.</p>
+  <h3>The four steps (the same on each side)</h3>
+  <div class="tw"><table>
+    <tr><th>Step</th><th>Function</th><th>Mechanism</th></tr>
+    <tr><td>1 · Reachability</td><td>One dedicated tunnel between the two edge hosts. It is not on a NetBird mesh.</td><td>WireGuard, or IPsec if the partner requires it</td></tr>
+    <tr><td>2 · Trust material</td><td>Each side gets the public CA bundle of the other side. No private key moves.</td><td>SPIRE federation, with automatic refresh</td></tr>
+    <tr><td>3 · Identity</td><td>The partner router shows a certificate with an agreed Subject CN.</td><td>SPIRE X.509 SVID</td></tr>
+    <tr><td>4 · Permission</td><td>One dedicated <code>zenohd</code> for each partner. It trusts only the CA of that partner.</td><td>Standard Zenoh, a second configuration profile</td></tr>
+  </table></div>
+  <h3>Components</h3>
+  <ul>
+    <li><b>Core router.</b> The usual router of the environment. It does not trust the partner CA.</li>
+    <li><b>Edge router.</b> One <code>zenohd</code> process for each partner, in <code>mode: "router"</code>. It listens with mTLS. Gossip and multicast scouting are off. Its ACL denies by default. It can apply a rate limit (<code>downsampling</code>) and a size limit (<code>low_pass_filter</code>) to partner ingress.</li>
+    <li><b>Republisher</b> (<code>goat-fed-republisher</code>, Rust, on the core host). It subscribes to <code>release/&lt;set&gt;/**</code> and publishes each sample again as <code>from/&lt;us&gt;/&lt;set&gt;/**</code>. It is the only writer of those keys for its peering. If you stop it, our data stops on that peering.</li>
+    <li><b>Peering forwarder</b> (ADR 1218, optional). A small host with a public address, for the condition where no edge can accept inbound connections. It has no keys and joins no network.</li>
+    <li><b>Peering directory</b> (<code>saltlick</code>). The two sides exchange signed packages and CA certificates through it. It is a cache only. It grants no access.</li>
+  </ul>
+  <div class="box"><b class="lbl">Why one router process for each partner</b>The Zenoh ACL reads the certificate CN. It cannot read which CA issued the certificate. If one trust store has two CAs, each CA can issue the same name. Thus each partner gets its own process with one CA.</div>
+  <div class="box"><b class="lbl">Why a republisher process</b>A Zenoh router cannot change a key expression in transit. The namespace function applies to local sessions only. Thus a process on our side changes the name from the staging name to the wire name.</div>
+  <h3>Data flow (outbound)</h3>
+  <ol>
+    <li>An application publishes to <code>release/weather/forecast</code>. This is the staging name.</li>
+    <li>The republisher publishes the sample as <code>from/zagros/weather/forecast</code>. This is the wire name. The rule: remove the first path segment and add <code>from/&lt;our sovereign id&gt;/</code>.</li>
+    <li>The core ACL lets the edge read only the wire keys of the offered sets.</li>
+    <li>Our edge sends the sample through the tunnel to their edge.</li>
+    <li>Their edge ACL permits <code>put</code> and <code>delete</code> from our CN only below <code>from/&lt;us&gt;/**</code>.</li>
+    <li>Their edge passes the sample to their core. The key does not change.</li>
+  </ol>
+  <p>The inbound flow is the same in the opposite direction. Partner data arrives below <code>from/&lt;them&gt;/**</code>.</p>
+  <h3>Rules</h3>
+  <ul>
+    <li><b>Origin.</b> The prefix <code>from/&lt;sovereign&gt;/</code> and the peering CN are the only origin proof that is enforced. The Zenoh source ID crosses the hop, but no component verifies it.</li>
+    <li><b>DATA grants and INTEREST grants are different.</b> DATA grants list each offered set. INTEREST grants keep the full <code>from/&lt;us&gt;/**</code>. If an interest grant is narrower, Zenoh refuses the subscriber declaration. Then all links are up but no data crosses (measured in the three-party test).</li>
+    <li><b>Transit</b> (ADR 1224, Proposed). Released data goes one hop. It goes farther only if the receiver releases it again, or if the owner marks it as a "general release".</li>
+    <li><b>Three access levels.</b> Recognised: we hold the partner bundle. Connected: tunnel and TLS are up, and no ACL rule matches the partner. Exchanging: an ACL block for the partner CN is active.</li>
+    <li><b>End of a peering.</b> One side removes the partner from the tunnel on its own edge host. It does not need the other side.</li>
+    <li><b>FIPS.</b> The Zenoh TLS session carries the FIPS claim, not the tunnel. The two edge routers must use the FIPS fabric image.</li>
+  </ul>
+  <h3>The procedure</h3>
+  <p>Each side makes a signed package that describes itself. The two packages compose into one agreement with one digest. Each side renders its configuration from that agreement. The six package verbs are <code>init</code>, <code>lint</code>, <code>compose</code>, <code>diff</code>, <code>verify</code>, <code>apply</code>. <code>apply</code> only writes files. The driver has 14 phases. Two phases stop for a person:</p>
+  <ul>
+    <li><b>Phase 5.</b> The packages go through the directory. The two operators read the key fingerprint and the CA fingerprint aloud on a call.</li>
+    <li><b>Phase 10.</b> An operator examines what <code>apply</code> rendered before the core router restarts.</li>
+  </ul>
+  <p>Other phases: 1 preflight, 3 package build on the core host, 6 compose, 8 certificates, 11 tunnel, 12 edge router and republisher, 13 SPIRE federation, 14 acceptance with a round trip for each offered set.</p>
+  <h3>What is on <code>main</code> now</h3>
+  <p>ADR 1225 says that the first federation between two separately administered environments was on 9 November 2026. The operator set 19 environment variables manually and copied files between hosts. Commit 28492160 (10 November, +16,196 lines) starts the change to one command.</p>
+  <div class="tw"><table>
+    <tr><th>Item</th><th>Content</th><th>Status</th></tr>
+    <tr><td>Library crate</td><td><code>crates/goat-federation</code>: package format, lint, compose, diff, verify, render. <code>goat</code> and <code>goatbuilder</code> use it.</td><td class="ok">On main</td></tr>
+    <tr><td><code>goatbuilder federate</code> verbs</td><td>The six package verbs, with the same flags and exit codes as <code>goat federate</code></td><td class="ok">On main. In-process use is optional (<code>FED_VERBS=goatbuilder</code>).</td></tr>
+    <tr><td>Declared peerings</td><td>A schema, an allocator (tunnel interface, ports, link subnet), rendered files, forwarder configuration from the declaration</td><td class="ok">On main</td></tr>
+    <tr><td>Certificates on the edge</td><td>The edge role installs the peering certificates</td><td class="warn">On main, optional</td></tr>
+    <tr><td>Host firewall</td><td>Role <code>goat-host-firewall</code> for the peering hosts</td><td class="warn">On main, optional</td></tr>
+    <tr><td>Acceptance test</td><td>Exit code 3 if a check is skipped. A versioned evidence bundle. Checks come from the agreement.</td><td class="ok">On main; the exit code is the default</td></tr>
+    <tr><td>Two peerings on one host</td><td>Eight changes. Before, the edge of partner B could read a set that was agreed with partner C only. Preflight now refuses a shared name, interface, port or address. The WireGuard key goes to <code>wg</code> through stdin.</td><td class="ok">goat 0.5.19; three-party test added</td></tr>
+  </table></div>
+  <h3>Roadmap (ADR 1225, decision 7; not on <code>main</code>)</h3>
+  <div class="tw"><table>
+    <tr><th>Stage</th><th>Content</th></tr>
+    <tr><td>6, 6.1</td><td><code>goatbuilder federate plan</code>: planner and preflight. Phase 8 finds the CA key automatically.</td></tr>
+    <tr><td>9</td><td>Phase 3 runs through SSH from the operator machine. No binary or key is copied to the edge.</td></tr>
+    <tr><td>11</td><td>Directory: one package for each counterparty.</td></tr>
+    <tr><td>12</td><td>The one-command surface: <code>deploy</code>, <code>test</code>, <code>status</code>, approval bound to the plan hash, journal, locks, resume.</td></tr>
+    <tr><td>13+</td><td>Changes of default, one for each pull request. The last change removes <code>goat federate</code>.</td></tr>
+    <tr><td>14</td><td>Runbook and tutorials.</td></tr>
+  </table></div>
+  <div class="box amber"><b class="lbl">Not built, or known problems</b>If two agreements offer the same set, each partner gets each sample two times. Automatic certificate issue is not planned for the first release. A federation controller service was rejected for the first version. The x86 IPsec boundary node is designed, not built. The ingress gateway (ADR 1020) is a v0 crate that is not deployed. Federation at scale (190 peerings for 20 parties) is not built.</div>
+</section>
+
+<section id="family">
+  <div class="kicker">11</div><h2>Related repositories</h2>
+  <figure><a href="g8_family.svg"><img src="g8_family.svg" alt="Twelve boxes that show the goat repositories and the function of each"></a>
+  <figcaption>26 public repositories in the USAREUR-AF organization on 11 November 2026.</figcaption></figure>
+  <h3>goatstuff (at 7dbda25): the optional layer</h3>
+  <p>goatstuff contains inspection tools, health publishers, synthetic data producers, teaching demonstrations, and their Ansible roles. Its README says that you do not need it to operate a goatnet. It uses the <code>panoscope-core</code> crate at tag <code>goatcore/v0.1.0</code>. Tag v0.2.0 is available, and the update is not merged.</p>
+  <div class="tw"><table>
+    <tr><th>Tool</th><th>Stack</th><th>Function</th></tr>
+    <tr><td>panoscope</td><td>Rust axum, plain JS, d3</td><td>Shows the full goatnet. Subscribes to <code>**</code> and polls the admin space each 5 s. The most complete tool.</td></tr>
+    <tr><td>stethoscope</td><td>Rust</td><td>Six passive health checks through the portal API and the S3 audit bucket. It opens no Zenoh session.</td></tr>
+    <tr><td>flashlight</td><td>Rust, wasm</td><td>Sends a live Zenoh tail to the browser through SSE.</td></tr>
+    <tr><td>netvis</td><td>Rust, plain JS</td><td>Shows the NetBird mesh ACL as a matrix.</td></tr>
+    <tr><td>microscope</td><td>Rust</td><td>A read-only view of one entity across NetBird, Kratos, Hydra and the audit systems.</td></tr>
+    <tr><td>goat-topology</td><td>Rust, protobuf</td><td>Reads the admin space of the local router and publishes the routing topology and regions (section 6).</td></tr>
+    <tr><td>Health publishers, audit-subscriber</td><td>Rust</td><td>Publish health to <code>ops/…/health/&lt;site&gt;</code>. The audit subscriber writes NDJSON to MinIO.</td></tr>
+    <tr><td>trashgoat, loadgen, synth-vendor</td><td>Rust</td><td>Chaos, load and synthetic data for tests.</td></tr>
+    <tr><td>trust-sandbox, zenoh-sandbox, gym</td><td>Mixed</td><td>Teaching material.</td></tr>
+  </table></div>
+  <p>Known gaps: the README descriptions of stethoscope, flashlight and microscope do not agree with the code. No test connects to a real Zenoh router or to NetBird.</p>
+  <h3>zagros-moon-pod (at c67d185): a pod for a partner</h3>
+  <ul>
+    <li>It is a deployment scaffold: one compose file, bring-up scripts, a router configuration template, and client examples. It builds no binaries.</li>
+    <li>The partner starts a standard <code>eclipse/zenoh:1.9.0</code> router and an audit subscriber on the partner hardware. The router dials out through NetBird to the sandbox goatnet "zagros".</li>
+    <li>goatcore ADR 0223 says that a moon pod is a learning tool for an exercise environment. The operational path between nations is federation (section 10).</li>
+    <li>On <code>main</code>, the pod ACL has one subject: any mTLS peer. It does not use the CN.</li>
+    <li>On <code>main</code>, a wildcard subscriber on the fabric does not get the data that goes out through the pod router. The correction is in the branch <code>fix/2586-router-forwarding</code>, which is not merged.</li>
+    <li>The audit subscriber stores no data. Thus the pod does not supply the 90 days of audit that its contract document requires.</li>
+  </ul>
+  <h3>Other repositories</h3>
+  <p><code>open-billie</code> is a sensor node platform that publishes tracks (CoT, ASTERIX CAT062, SAPIENT) to Zenoh. <code>octo-pod</code> is an edge appliance for equipment that cannot join a fabric. The folders <code>explainer-billie</code> and <code>explainer-octopod</code> contain their pages. <code>saltlick</code> is the peering directory. <code>goatenv</code> is an example environment. The <code>hello-galaxy-*</code> repositories are 14 tutorials.</p>
+  <div class="box"><b class="lbl">One policy in all repositories: no front-end build step</b>Front ends are hand-written ES modules with no bundler, transpiler or framework. A third-party library is one vendored file. npm stays for Playwright tests only. The source is <code>goatdocs</code>, <code>docs/design/engineering-baseline.md</code>, section 12.4. The reason is npm supply-chain risk.</div>
+</section>
+
+<section id="reality">
+  <div class="kicker">12</div><h2>Built, designed, and where documents and code disagree</h2>
+  <div class="box"><b class="lbl">Built and measured</b>Mesh, goat-relay, signal federation · site router, slot ACL, storage, audit tap · Spock replication · PQ-hybrid TLS and its switch · goatbuilder verbs, mock rehearsal, rollback, end state · goatlite · the error catalog · the federation parts of section 10.</div>
+  <div class="box amber"><b class="lbl">Designed or partial</b>Pull convergence · writes at all sites in island mode · QoS classes and enforcement of limits · replay · one-command federation · custom Zenoh regions · anycast relay tier · chaos tests · standby promotion runbook. Scale: the target is 600 / 3,000 / 6,000 peers; the validated data "caps near 100 peers".</div>
+  <div class="tw"><table>
+    <tr><th>The document says</th><th>The code or a later decision says</th></tr>
+    <tr><td>README: machines pull their configuration</td><td><code>fleet-management.md</code>: push only, nothing in §7 is built; the pull agent is an enum value</td></tr>
+    <tr><td><code>control-plane-hiding-explainer.md</code>: the hidden control plane is in use</td><td>ADR 1192: paused, <code>wg_cp0_enabled = false</code></td></tr>
+    <tr><td><code>signal-server/README.md</code>: scaffold, handlers not implemented</td><td><code>internal/server/</code> implements exchange, federation, negative cache and rate limit</td></tr>
+    <tr><td>Presence sync "designed-not-built"</td><td><code>presence.go</code> and a <code>--presence-sync</code> flag are in the code (default false)</td></tr>
+    <tr><td>Portal README: SIGHUP reloads the router ACL</td><td>Its <code>adminrest.go</code> and the design document: no effect in Zenoh 1.9.0</td></tr>
+    <tr><td>Design document: the router binds the mesh IP</td><td>Role default <code>goat_zenoh_listen_host: 0.0.0.0</code>; operator override and port map</td></tr>
+    <tr><td>Internal TLS CA document: no intermediate CA</td><td><code>ops/enrollment/x509ca/intermediate.go</code> is in the code</td></tr>
+    <tr><td><code>pgbackrest.md</code>, node topologies: automatic VRRP failover</td><td>ADR 1141: VRRP removed</td></tr>
+    <tr><td>ADR 0112: a small web UI uses TypeScript and Node</td><td>The engineering baseline and the new CI check: plain JavaScript, no build step</td></tr>
+    <tr><td>ADRs 1025, 1109, 1157, 1198, 1213, 1225 "Proposed"</td><td>Their code is built and in use, to different degrees</td></tr>
+  </table></div>
+  <p><b>Reading rule.</b> Trust the code and the newest ADR more than the header of a design document. Look in <code>docs/adr/INDEX.md</code> for a later decision before you use one document.</p>
+</section>
+
+<section id="repo">
+  <div class="kicker">13</div><h2>The repository</h2>
+  <div class="stats">
+    <div class="stat"><b>171k / 211k</b><span>lines of Rust / Go (vendored and generated files included), and 94k Python, 62k shell. Counted at 706cdde.</span></div>
+    <div class="stat"><b>355</b><span>ADR files. A new record replaces an old record.</span></div>
+    <div class="stat"><b>138</b><span><code>check-*</code> scripts in <code>ops/ci</code>; you can run each one locally; 91 workflows</span></div>
+    <div class="stat"><b>~1,800</b><span>Rust tests, 204 Go test files, 281 bats cases, 78 acceptance rows. Counted at 706cdde.</span></div>
+  </div>
+  <ul>
+    <li><b>Gates.</b> A leak gate compares added lines with a private list of deployment names and does not print the match. Each commit must be signed and verified (ADR 1226). cargo-deny, CodeQL, trivy. Shell scripts must run on bash 3.2. Design documents must change with the code.</li>
+    <li><b>Releases.</b> cosign with no long-life key, on <code>SHA256SUMS</code>. linux-amd64, linux-arm64, darwin-arm64. <code>RELEASE-CONTENTS.md</code> marks the Terraform modules and the standup on real hosts as "Not run" in CI.</li>
+    <li><b>You supply.</b> Ubuntu 24.04 hosts with disk encryption, a secret store, a CA, a pins row, group_vars and inventory. For internet access: an AWS account, a Cloudflare zone and a domain.</li>
+    <li><b>Observability.</b> Prometheus, Grafana, Alertmanager, exporters. Vector sends OCSF events to Object-Lock MinIO. An OTel collector. Health data on the fabric supplies <code>goat top</code>, <code>goat health</code> and <code>goat status</code>.</li>
+  </ul>
+  <h3>Reading sequence</h3>
+  <ol>
+    <li><code>docs/tutorials/00-goatlite.md</code>, then the README mock standup: a system in operation quickly.</li>
+    <li><code>docs/design/zenoh-data-fabric.md</code> and <code>zenoh-brokerless-consequences.md</code>: the data model and its limits.</li>
+    <li><code>docs/design/goatbuilder.md</code> and <code>crates/goatbuilder/src/converger.rs</code>: the deployment contract.</li>
+    <li><code>docs/design/identity-access-and-onboarding-reference.md</code>: the credential planes.</li>
+    <li><code>docs/operations/sovereign-federation-runbook.md</code> and <code>ops/federation/republisher/README.md</code>: federation.</li>
+    <li>ADR 0206, 0306, 0709, 0801, 1025, 1141, 1157, 1160, 1192, 1224, 1225: the reasons for the design.</li>
+  </ol>
+</section>
+
+<section id="sources">
+  <div class="kicker">Sources</div><h2>Files that this note uses</h2>
+  <p><code>README.md</code>, <code>AGENTS.md</code>, <code>docs/RELEASE-CONTENTS.md</code>; <code>docs/adr/</code> 0206, 0218, 0223, 0302, 0306, 0312, 0709, 0712, 0801, 0844, 1020, 1025, 1053, 1084, 1085, 1094, 1109, 1141, 1157, 1160, 1165, 1192, 1198, 1206, 1213, 1218, 1221, 1224, 1225, 1226; <code>docs/design/</code> zenoh-data-fabric, zenoh-brokerless-consequences, zenoh-loadtest, zenoh-qos-and-prioritization, zenoh-pqc-tls, federated-trust-model, federation-package-spec, identity-access-and-onboarding-reference, internal-tls-ca, offline-enrollment, island-mode-multi-writer, island-mode-write-inventory, service-criticality-tiers, goatbuilder, goatlite, fleet-management, goatnet-end-state, scale-validation-plan, control-plane-storm-resilience, netbird-relay-wire-protocol; <code>docs/operations/sovereign-federation-runbook.md</code>; <code>ops/federation/republisher/README.md</code>; code in <code>crates/goatbuilder/src</code>, <code>crates/goat-cli/src</code>, <code>crates/goat-federation/src</code>, <code>goat-relay/src</code>, <code>signal-server/internal</code>, <code>ops/ansible/roles/goat-zenoh</code>, <code>ops/ansible/roles/goat-zenoh-edge</code>, <code>ops/ansible/roles/spire</code>, <code>ops/postgres/spock</code>, <code>ops/errors/catalog.yaml</code>; the commit messages of 706cdde..cbf2cb7f. Other repositories: <code>goatstuff</code> at 7dbda25 and <code>zagros-moon-pod</code> at c67d185.</p>
+</section>
+
+</main>
+<footer>
+  Source: <code>usareur-af/goatcore</code> at commit cbf2cb7f (11 November 2026), from a local clone. No software was built, deployed or run. The measurement numbers are from the repository. goat is before version 1.0, and its interfaces can change between releases.
+</footer>
+</body>
+</html>

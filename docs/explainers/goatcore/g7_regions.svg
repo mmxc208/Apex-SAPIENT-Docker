@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" role="img" aria-label="Zenoh regions: the Auto preset and a custom subregion">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.r{fill:#3a1c22;stroke:#f87171;stroke-width:2}
+.fr{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:16px;font-weight:650;text-anchor:middle}
+.T{fill:#e6edf6;font-size:19px;font-weight:700;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13.5px}
+.n{fill:#e6edf6;font-size:15px;font-weight:650}
+.k{fill:#38bdf8;font-size:13px;font-weight:700;letter-spacing:.12em}
+.m{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace}
+.mc{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.ok{fill:#34d399;font-size:13px;font-weight:700}
+.wa{fill:#f59e0b;font-size:13px;font-weight:700}
+.wac{fill:#f59e0b;font-size:13.5px;font-weight:700;text-anchor:middle}
+.okc{fill:#34d399;font-size:13.5px;font-weight:700;text-anchor:middle}
+.rdc{fill:#f87171;font-size:13.5px;font-weight:700;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.3;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.gl{fill:none;stroke:#34d399;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.8;stroke-dasharray:6 4}
+.x{fill:none;stroke:#f87171;stroke-width:4}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#93a4bf" d="M0 0L10 5L0 10z"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#38bdf8" d="M0 0L10 5L0 10z"/></marker>
+<marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#f59e0b" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="fr" x="20" y="20" width="465" height="400" rx="16"/><text class="k" x="40" y="48">AUTO PRESET · WHAT GOAT USES NOW</text><rect class="g" x="40" y="66" width="425" height="110" rx="12" style="fill:none"/><text class="ok" x="54" y="88">north region: one link-state graph</text><rect class="h" x="55" y="100" width="118" height="58" rx="10"/><text class="t" x="114.0" y="134.0">Site router 1</text><rect class="g" x="55" y="250" width="118" height="58" rx="10"/><text class="t" x="114.0" y="274.0">Application</text><text class="s" x="114.0" y="295.0">mode: client</text><path class="l" d="M114 250L114 158" marker-end="url(#e)"/><rect class="h" x="195" y="100" width="118" height="58" rx="10"/><text class="t" x="254.0" y="134.0">Site router 2</text><rect class="g" x="195" y="250" width="118" height="58" rx="10"/><text class="t" x="254.0" y="274.0">Application</text><text class="s" x="254.0" y="295.0">mode: client</text><path class="l" d="M254 250L254 158" marker-end="url(#e)"/><rect class="h" x="335" y="100" width="118" height="58" rx="10"/><text class="t" x="394.0" y="134.0">Site router 3</text><rect class="g" x="335" y="250" width="118" height="58" rx="10"/><text class="t" x="394.0" y="274.0">Application</text><text class="s" x="394.0" y="295.0">mode: client</text><path class="l" d="M394 250L394 158" marker-end="url(#e)"/><path class="a" d="M173 129L195 129"/><path class="a" d="M313 129L335 129"/><text class="s" x="252" y="216">each client session is in south:0:client</text><text class="s" x="252" y="346">Clients add no routing state.</text><text class="s" x="252" y="372">3 routers: 3 × 2 = 6 route entries on each router.</text><text class="okc" x="252" y="400">No goat configuration sets gateway.south.</text><rect class="fr" x="515" y="20" width="465" height="400" rx="16"/><text class="k" x="535" y="48">CUSTOM · ONE TEST RIG ONLY</text><rect class="g" x="535" y="66" width="425" height="110" rx="12" style="fill:none"/><text class="ok" x="549" y="88">north region: 3 nodes</text><rect class="h" x="550" y="100" width="118" height="58" rx="10"/><text class="t" x="609.0" y="134.0">Router A</text><rect class="h" x="690" y="100" width="118" height="58" rx="10"/><text class="t" x="749.0" y="134.0">Router B</text><rect class="d" x="830" y="100" width="118" height="58" rx="10"/><text class="t" x="889.0" y="134.0">Gateway</text><path class="a" d="M668 129L690 129"/><path class="a" d="M808 129L830 129"/><rect class="d" x="675" y="226" width="285" height="100" rx="12" style="fill:none"/><text class="wa" x="689" y="246">south:0 subregion</text><rect class="h" x="690" y="256" width="118" height="58" rx="10"/><text class="t" x="749.0" y="290.0">Router C</text><rect class="h" x="830" y="256" width="118" height="58" rx="10"/><text class="t" x="889.0" y="290.0">Router D</text><path class="w" d="M889 226L889 158" marker-end="url(#y)"/><text class="q" x="535" y="246">gateway.south =</text><text class="q" x="535" y="266">Custom([...])</text><text class="q" x="535" y="286">on the gateway only</text><text class="s" x="747" y="352">Five routers. Route table on a member: 20 to 6.</text><text class="s" x="747" y="374">Route table on the gateway: 20 to 12.</text><text class="wac" x="747" y="400">Not tested: gateway failure, two gateways, queries.</text><rect class="r" x="20" y="440" width="960" height="44" rx="8"/><text class="t" x="500" y="468">Regions control routing state. They do not control access. Access stays with TLS and the ACL.</text>
+</svg>

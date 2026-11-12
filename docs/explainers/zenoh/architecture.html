@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAPIENT over Zenoh: architecture and high-level design</title>
+<style>
+  :root{--bg:#0b1220;--panel:#121b2e;--panel2:#0f1728;--line:#24324d;--fg:#e6edf6;--mute:#93a4bf;
+        --cyan:#38bdf8;--amber:#f59e0b;--green:#34d399;--red:#f87171}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  a{color:var(--cyan)}
+  header,main{max-width:1100px;margin:0 auto;padding:0 24px}
+  header{padding-top:56px}
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:700}
+  h1{font-size:42px;line-height:1.1;margin:10px 0 12px}
+  h2{font-size:28px;margin:0 0 8px}
+  h3{font-size:19px;margin:24px 0 8px}
+  .lede{color:var(--mute);font-size:18px;max-width:860px}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+  nav.toc a{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--fg);text-decoration:none}
+  nav.toc a:hover{border-color:var(--cyan)}
+  section{margin-top:52px;padding-top:10px;border-top:1px solid var(--line)}
+  figure{margin:18px 0;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+  figure img{width:100%;display:block}
+  figcaption{color:var(--mute);font-size:14px;margin-top:10px}
+  .box{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:14px 18px;margin:16px 0}
+  .box.amber{border-left-color:var(--amber)} .box.red{border-left-color:var(--red)}
+  .box b.lbl{display:block;font-size:12px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px;color:var(--green)}
+  .box.amber b.lbl{color:var(--amber)} .box.red b.lbl{color:var(--red)}
+  details{background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin:14px 0;padding:0 18px}
+  details[open]{padding-bottom:14px}
+  summary{cursor:pointer;padding:12px 0;font-weight:700;color:var(--cyan);list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--mute)} details[open] summary::before{content:"▾ "}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14.5px}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top}
+  th{color:var(--mute);font-weight:600;background:var(--panel)}
+  code,.mono{font-family:"SF Mono",Menlo,monospace;font-size:.9em;background:#0b1424;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:#cfe3ff}
+  pre{background:#0b1424;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13.5px;line-height:1.5}
+  pre code{border:0;padding:0;background:none}
+  ul,ol{padding-left:22px} li{margin:5px 0}
+  .ok{color:var(--green)} .warn{color:var(--amber)} .bad{color:var(--red)}
+  footer{max-width:1100px;margin:60px auto 40px;padding:0 24px;color:var(--mute);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Technical design note</div>
+  <h1>SAPIENT over Zenoh: architecture and high-level design</h1>
+  <p class="lede">For developers who will build or review it. Covers Zenoh's model and limits as read from source, the mapping of BSI Flex 335 v2.0 requirements, two integration options, the §4.11 hierarchy, Stone Soup as the fusion engine, risks, and a test plan.</p>
+  <p style="color:var(--mute);font-size:15px;margin:14px 0 0">Design study, last changed on 2026-11-08, before stages 1 to 4 were built. <code>README.md</code> and <code>docs/acceptance.md</code> record what was built and measured later. The original has a narrated video. The video is not part of this copy.</p>
+  <nav class="toc">
+    <a href="#scope">0 · Scope</a><a href="#zenoh">1 · Zenoh model</a><a href="#mapping">2 · Requirement map</a>
+    <a href="#optiona">3 · Option A bridge</a><a href="#optionb">4 · Option B native</a><a href="#config">5 · Router config</a>
+    <a href="#hierarchy">6 · Hierarchy</a><a href="#stonesoup">7 · Stone Soup</a><a href="#risks">8 · Risks</a>
+    <a href="#tests">9 · Test plan</a><a href="#decisions">10 · Decisions</a><a href="#sources">Sources</a>
+  </nav>
+</header>
+<main>
+
+<section id="scope">
+  <div class="kicker">0</div><h2>Scope and evidence</h2>
+  <table>
+    <tr><th>Claim class</th><th>Basis</th></tr>
+    <tr><td>Zenoh behaviour (roles, QoS, reliability, regions, interceptors, defaults)</td><td class="ok">Read from source at commit <code>9c47e3d8</code> (1.10.2 + 6), <code>DEFAULT_CONFIG.json5</code>, and the Python binding's type stubs</td></tr>
+    <tr><td>Apex behaviour (framing, connection roles, validation, forwarding)</td><td class="ok">Read from Apex 4.2.0 source: <code>apex_server.py</code>, <code>connection.py</code>, <code>trio_util.py</code>, <code>message_io.py</code></td></tr>
+    <tr><td>Standard requirements</td><td class="ok">BSI Flex 335 v2.0:2024-03, clauses 4.1, 4.2, 4.9, 4.11, 6.2.5.5</td></tr>
+    <tr><td>Stone Soup component inventory</td><td class="ok">Source tree at v1.9.1+103</td></tr>
+    <tr><td>Performance, bandwidth saved, behaviour under failure, open Zenoh bugs</td><td class="warn">Not measured or reproduced here. Treat as expectations until the test plan in §9 is run</td></tr>
+  </table>
+</section>
+
+<section id="zenoh">
+  <div class="kicker">1</div><h2>Zenoh in one page</h2>
+  <figure><img src="d2_zenoh.svg" alt="Zenoh routers, peers and clients across three sites"><figcaption>Roles: routers form the backbone (north region); peers and clients sit south of them. A client holds one session to one router.</figcaption></figure>
+  <table>
+    <tr><th>Facet</th><th>What the code does</th><th>Consequence for SAPIENT</th></tr>
+    <tr><td>Roles</td><td><code>WhatAmI</code> = Router, Peer, Client. Routers run link-state routing among themselves; peers can gossip or run full link-state; clients attach to one router.</td><td>Sensors and fusion apps are clients or peers of their local router. Routers are infrastructure only.</td></tr>
+    <tr><td>Addressing</td><td>Hierarchical key expressions with <code>*</code> and <code>**</code>; wire-level key IDs are <code>u16</code> per face.</td><td>Keep key names bounded. Never put report IDs or timestamps in keys (see risk #2825).</td></tr>
+    <tr><td>Primitives</td><td>put/delete, subscribe, get/queryable, liveliness tokens, matching listeners.</td><td>Liveliness replaces the "close socket after 3 missed status reports" rule.</td></tr>
+    <tr><td>Priority</td><td>8 levels, <code>Control</code>..<code>Background</code>; separate transmit queues per priority. Ordering is preserved within a priority only.</td><td>Tasks higher than detections. Keep <code>New</code>/<code>Unchanged</code> status reports at one priority.</td></tr>
+    <tr><td>Congestion control</td><td><code>Drop</code> (default for put) waits <code>wait_before_drop</code> = 1 ms then drops; <code>Block</code> waits, and closes the transport after <code>wait_before_close</code> = 5 s.</td><td>Registration, task, alert, ack → Block. Detection → Drop acceptable.</td></tr>
+    <tr><td>Reliability</td><td>The <code>Reliability</code> flag selects a link type; the publisher docs say it "does not trigger any data retransmission". Receiver drops out-of-sequence frames silently. The retransmission queue in <code>universal/reliability.rs</code> is not compiled in.</td><td>Delivery is per hop and only as good as each link (TCP/TLS/QUIC). Use <code>AdvancedPublisher</code>/<code>AdvancedSubscriber</code> for application-level recovery of tracks.</td></tr>
+    <tr><td>Regions (1.9+)</td><td>A router runs one routing instance per region: North, Local and user-defined South subregions chosen by <code>gateway.south</code> filters on modes, interfaces, zids or <code>region_names</code>.</td><td>Each pod can be its own subregion of the host router, bounding routing tables.</td></tr>
+    <tr><td>Interceptors</td><td>Access control (rules × subjects by interface, cert CN, username), downsampling (max Hz per key), low-pass filter, QoS overwrite.</td><td>ACL for effector authority; downsampling on the WAN uplink.</td></tr>
+    <tr><td>Transports</td><td>TCP, TLS, QUIC, QUIC datagram, UDP, WebSocket, serial, Unix socket/pipe, vsock; shared memory for local peers.</td><td>TLS or QUIC between routers; TCP or SHM inside a pod.</td></tr>
+    <tr><td>Defaults</td><td>Router listens on <code>tcp/[::]:7447</code>; multicast scouting on; TLS, auth and ACL off; adminspace off; link lease 10 s.</td><td>Every default must be changed for a deployed system (§5).</td></tr>
+    <tr><td>Python</td><td><code>eclipse-zenoh</code> wheels, Python ≥ 3.8, synchronous API (no <code>async def</code> in the stubs); handlers are callbacks or FIFO/ring channels.</td><td>Bridge to Trio/asyncio via a thread-safe queue, as Stone Soup's <code>KafkaDetectionReader</code> already does.</td></tr>
+  </table>
+</section>
+
+<section id="mapping">
+  <div class="kicker">2</div><h2>BSI Flex 335 v2.0 requirements mapped to Zenoh</h2>
+  <table>
+    <tr><th>Requirement</th><th>Today (TCP + Apex)</th><th>Over Zenoh</th><th>Fit</th></tr>
+    <tr><td>§4.1 TCP/IP shall be supported as a minimum</td><td>Native</td><td>Zenoh can only be <em>additional</em>. A TCP path (bridge or Apex port) must remain.</td><td class="warn">Constraint</td></tr>
+    <tr><td>§4.2 4-byte little-endian length prefix</td><td><code>struct.pack("&lt;I", len)</code> in <code>message_io.py</code></td><td>Drop the prefix on Zenoh links; Zenoh preserves message boundaries. Re-add at the bridge.</td><td class="ok">Good</td></tr>
+    <tr><td>Routing by <code>node_id</code> / <code>destination_id</code></td><td>Apex maps connection ↔ node_id</td><td>Key per node: <code>.../&lt;node_id&gt;/up/*</code>, <code>.../&lt;node_id&gt;/down/task</code></td><td class="ok">Good</td></tr>
+    <tr><td>§4.9 reconnect every 10 s; re-register if &gt; 2 min</td><td>Node's TCP client logic</td><td>Zenoh reconnects itself; liveliness token expiry (lease 10 s) tells the fusion side. Bridge must emulate the 2-minute rule toward Apex.</td><td class="warn">Needs bridge logic</td></tr>
+    <tr><td>§6.2.5.5 close after 3 missed status intervals</td><td>Fusion/Apex closes socket</td><td>Fusion drops the node when its token disappears or status stops; no socket to close.</td><td class="ok">Good</td></tr>
+    <tr><td>Registration ack within 30 s or reconnect</td><td>Apex or fusion replies on the same socket</td><td>Reply on <code>down/registration_ack</code> with <code>destination_id</code>; same 30 s timer in the node.</td><td class="ok">Good</td></tr>
+    <tr><td>Must-arrive messages (registration, task, alert, acks)</td><td>One TCP hop</td><td><code>Block</code> + reliable links on every hop; still per hop. SAPIENT acks remain the end-to-end check.</td><td class="warn">Config</td></tr>
+    <tr><td>Status "Unchanged" must follow "New"</td><td>TCP order</td><td>Same priority for both message types.</td><td class="warn">Design rule</td></tr>
+    <tr><td>Node authentication</td><td>None; Apex only compares connections</td><td>mTLS cert per node + ACL subjects by <code>cert_common_names</code></td><td class="ok">Gain</td></tr>
+    <tr><td>Late-joining fusion node sees existing registrations</td><td>Apex replays registration and last status</td><td>Fusion caches them, or an <code>AdvancedPublisher</code> cache on the registration key</td><td class="ok">Good</td></tr>
+    <tr><td>§4.11 hierarchy of fusion nodes</td><td>Not provided by Apex's Parent port (see §6)</td><td>Natural: pod fusion registers with host fusion as <code>Fusion_Node</code> on its own keys</td><td class="ok">Good</td></tr>
+  </table>
+</section>
+
+<section id="optiona">
+  <div class="kicker">3</div><h2>Option A: sidecar bridge, Apex retained</h2>
+  <figure><img src="d3_bridge.svg" alt="SAPIENT nodes bridged over Zenoh routers into an unchanged Apex"><figcaption>Bridges carry framed SAPIENT bytes between local TCP and Zenoh keys. Apex and the nodes are unchanged.</figcaption></figure>
+  <h3>Bridge responsibilities</h3>
+  <ul>
+    <li><b>Node side:</b> accept the node's TCP connection, read length-prefixed <code>SapientMessage</code>s, peek <code>node_id</code> from the first (registration) message, publish each on <code>sapient/v2/&lt;node_id&gt;/up/&lt;type&gt;</code>, declare a liveliness token <code>sapient/v2/live/&lt;node_id&gt;</code>, subscribe to <code>.../&lt;node_id&gt;/down/**</code> and write those back to the socket.</li>
+    <li><b>Apex side:</b> subscribe to <code>sapient/v2/*/up/**</code> and to <code>live/**</code>. On a new <code>node_id</code> open one TCP connection to Apex's Child port (5020 for v2). Apex binds identity to the connection (<code>ChildConnection._handle_other</code> rejects a node_id mismatch as "hijacked"), so one socket per node is mandatory. Forward Apex's replies to <code>.../down/&lt;type&gt;</code>.</li>
+    <li><b>Presence:</b> when a node's token drops, close its Apex socket, otherwise Apex keeps a ghost registration. Optionally hold the socket for up to 2 minutes to honour §4.9 without a re-registration, since Apex requires the first message on any new connection to be a registration.</li>
+    <li><b>QoS:</b> <code>Block</code> on registration, task, alert and acks; <code>Drop</code> allowed on detections; express flag on tasks.</li>
+  </ul>
+  <details><summary>Why not put Zenoh inside Apex instead</summary>
+    <p><code>ApexServer.serve()</code> only needs <code>receive_some</code>, <code>send_all</code> and <code>aclose</code> on a Trio stream, so a Zenoh-backed stream per node is feasible. The costs are spawning a virtual connection per node from liveliness events, and marshalling Zenoh's synchronous callbacks into Trio (<code>trio.from_thread</code> or a memory channel). Do this only after the sidecar has proved the key design and QoS settings. Apex's single parser token (<code>CapacityLimiter(total_tokens=1)</code>) remains the throughput ceiling either way.</p>
+  </details>
+</section>
+
+<section id="optionb">
+  <div class="kicker">4</div><h2>Option B: Zenoh-native pods, host and external host</h2>
+  <figure><img src="d4_native.svg" alt="Recommended Zenoh-native layout"><figcaption>Recommended layout. Nodes attach only to their pod router; routers hold the only inter-level links; the control plane is applied to every router.</figcaption></figure>
+  <h3>Where Apex's jobs go</h3>
+  <table>
+    <tr><th>Apex job</th><th>Option B owner</th></tr>
+    <tr><td>Accept connections, forward by node_id</td><td>Zenoh routers (keys)</td></tr>
+    <tr><td>Validate every message (<code>validate_proto.py</code> rules: mandatory fields, unknown fields, ID format, timestamp window)</td><td>Each fusion/COP on ingest; the bridge for legacy nodes. Reuse Apex's <code>Validator</code> class, it is standalone Python.</td></tr>
+    <tr><td>Translate XML/v1/v2 (<code>message_io.change_schema</code>)</td><td>Legacy bridge only</td></tr>
+    <tr><td>Record everything (SQLite, Elasticsearch, REST)</td><td>Recorder client subscribing <code>**</code> → S3 (or Zenoh storage-manager plugin). Apex may stay as a consumer behind a bridge for its GUI.</td></tr>
+    <tr><td>Replay registrations/status to late joiners</td><td>Fusion caches them; liveliness tells it who is alive</td></tr>
+    <tr><td>Act as the "message handling application" (sends own status reports)</td><td>The fusion/COP at each tier</td></tr>
+  </table>
+  <h3>Key namespace</h3>
+<pre><code>&lt;host&gt;/&lt;pod&gt;/sapient/v2/&lt;node_id&gt;/up/{registration,status,detection,alert,task_ack,alert_ack,error}
+&lt;host&gt;/&lt;pod&gt;/sapient/v2/&lt;node_id&gt;/down/{registration_ack,task,alert_ack,error}
+&lt;host&gt;/&lt;pod&gt;/fusion/up/{registration,status,detection,alert}      # pod fusion as a child Fusion_Node
+&lt;host&gt;/&lt;pod&gt;/fusion/down/{registration_ack,task}
+&lt;host&gt;/fusion/up/{...}                                            # host fusion toward the external host
+sapient/v2/live/&lt;node_id&gt;                                         # liveliness tokens</code></pre>
+  <ul>
+    <li>Subscriptions: pod fusion <code>h1/p1/sapient/v2/*/up/**</code>; host fusion <code>h1/*/fusion/up/**</code>; external COP <code>h1/fusion/up/**</code>.</li>
+    <li>Payload: the serialised <code>SapientMessage</code>, unchanged, encoding <code>application/protobuf</code>. No length prefix.</li>
+    <li>Only node UUIDs appear in keys; they are fixed-length, so key cardinality equals node count.</li>
+  </ul>
+  <h3>QoS matrix</h3>
+  <table>
+    <tr><th>Message</th><th>Priority</th><th>Congestion</th><th>Express</th><th>Notes</th></tr>
+    <tr><td>task, task_ack, alert, alert_ack</td><td>InteractiveHigh</td><td>Block</td><td>yes</td><td>ACL: only fusion/COP certs may publish <code>down/task</code></td></tr>
+    <tr><td>registration, registration_ack</td><td>InteractiveLow</td><td>Block</td><td>no</td><td>Cache on publisher for late joiners</td></tr>
+    <tr><td>status</td><td>Data</td><td>Block</td><td>no</td><td>New and Unchanged at the same priority</td></tr>
+    <tr><td>detection</td><td>Data</td><td>Drop</td><td>no</td><td>Downsample per key on the WAN uplink if needed</td></tr>
+    <tr><td>fused tracks (fusion/up/detection)</td><td>DataHigh</td><td>Block</td><td>no</td><td>AdvancedPublisher cache so a reconnecting COP recovers history</td></tr>
+  </table>
+</section>
+
+<section id="config">
+  <div class="kicker">5</div><h2>Router configuration sketch</h2>
+  <p>Shapes follow <code>DEFAULT_CONFIG.json5</code> in the Zenoh repo. Values are illustrative; validate against the installed version before use.</p>
+<pre><code>{
+  mode: "router",
+  listen:  { endpoints: ["tls/0.0.0.0:7447"] },
+  connect: { endpoints: ["tls/host-router.example:7447"] },   // pod → host; host → external
+  scouting: { multicast: { enabled: false }, gossip: { enabled: true } },
+  transport: {
+    link: { tls: {
+      root_ca_certificate: "/etc/zenoh/ca.pem",
+      listen_private_key: "/etc/zenoh/pod1.key", listen_certificate: "/etc/zenoh/pod1.pem",
+      connect_private_key: "/etc/zenoh/pod1.key", connect_certificate: "/etc/zenoh/pod1.pem",
+      enable_mtls: true, verify_name_on_connect: true, close_link_on_expiration: true } },
+    unicast: { lease: 5000, keep_alive: 4 }
+  },
+  access_control: {
+    enabled: true, default_permission: "deny",
+    rules: [
+      { id: "fusion-tasks",  messages: ["put"], flows: ["ingress"], permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/*/down/**", "h1/p1/fusion/down/**"] },
+      { id: "node-uplink",   messages: ["put","liveliness_token"], flows: ["ingress"], permission: "allow",
+        key_exprs: ["h1/p1/sapient/v2/*/up/**", "sapient/v2/live/*"] },
+      { id: "anyone-reads",  messages: ["declare_subscriber","query"], flows: ["ingress"], permission: "allow",
+        key_exprs: ["h1/**", "sapient/v2/live/**"] }
+    ],
+    subjects: [
+      { id: "fusion", cert_common_names: ["fusion.p1.h1.example"] },
+      { id: "nodes",  cert_common_names: ["radar1.p1.h1.example", "cam1.p1.h1.example", "eff1.p1.h1.example"] }
+    ],
+    policies: [
+      { rules: ["fusion-tasks","anyone-reads"], subjects: ["fusion"] },
+      { rules: ["node-uplink","anyone-reads"],  subjects: ["nodes"] }
+    ]
+  },
+  downsampling: [                                    // host router, WAN side only
+    { interfaces: ["wan0"], flows: ["egress"], messages: ["put"],
+      rules: [ { key_expr: "h1/*/fusion/up/detection", freq: 2.0 } ] }
+  ],
+  gateway: { south: [ { filters: [ { region_names: ["pod1"] } ] },
+                      { filters: [ { region_names: ["pod2"] } ] } ] }   // host router: one subregion per pod
+}</code></pre>
+  <div class="box amber"><b class="lbl">Check before use</b>The ACL <code>key_exprs</code> for a node should ideally be restricted to that node's own <code>node_id</code>, which means one subject per node or a templating step at provisioning. The <code>gateway.south</code> custom form is new in 1.9 and documented tersely; confirm the exact nesting against the installed version.</div>
+</section>
+
+<section id="hierarchy">
+  <div class="kicker">6</div><h2>The §4.11 hierarchy on Zenoh tiers</h2>
+  <p>BSI Flex 335 v2.0 §4.11: a child fusion node "shall publish and receive messages as edge nodes do", registering with node type <code>Fusion_Node</code> and declaring the aggregated detection and tasking capability of its edge nodes. Lower-level raw detections do not cross a level; the child's own detection reports (fused tracks) do. The TCP role rules (top fusion = server, mid-level = client up and server down, edge = client) describe connections, which Zenoh replaces, but the registration relationship between fusion applications still has to exist.</p>
+  <figure><img src="d5_hierarchy.svg" alt="Registration sequence over Zenoh"><figcaption>Presence, edge registration, child-fusion registration and steady state over Zenoh keys.</figcaption></figure>
+  <table>
+    <tr><th>§4.11 element</th><th>Pod / host / external host</th><th>Match</th></tr>
+    <tr><td>Edge nodes</td><td>Sensors and effectors in a pod</td><td class="ok">Same</td></tr>
+    <tr><td>Lowest fusion node</td><td>Pod fusion/COP, registering upward as <code>Fusion_Node</code></td><td class="ok">Same</td></tr>
+    <tr><td>Parent fusion node</td><td>Host fusion/COP, tasking pod fusion as a taskable edge node</td><td class="ok">Same</td></tr>
+    <tr><td>Client/server channels per level</td><td>Router-to-router links</td><td class="warn">Different layer; still need the app-level registration</td></tr>
+    <tr><td>Only fused output crosses a level</td><td>Anything on a matching key crosses</td><td class="warn">Enforce by subscription design (host reads <code>*/fusion/**</code>, never <code>*/sapient/v2/*/up/detection</code>) and by ACL</td></tr>
+  </table>
+  <div class="box amber"><b class="lbl">Apex and hierarchy</b>Apex's <code>ParentConnection</code> forwards fused tracks and alerts to a listener and relays anything received to the DMMs; it does not register with a parent. A conformant child fusion node must itself connect to the parent's Child port and send a registration. Chaining Apex instances does not implement §4.11; the fusion node does.</div>
+</section>
+
+<section id="stonesoup">
+  <div class="kicker">7</div><h2>Stone Soup as the fusion node</h2>
+  <figure><img src="d6_stonesoup.svg" alt="Stone Soup with a SAPIENT adapter"><figcaption>The adapter (to build) wraps existing Stone Soup components. The same tracker runs whether detections arrive via Apex/TCP or via Zenoh.</figcaption></figure>
+  <h3>What exists (v1.9.1+103)</h3>
+  <ul>
+    <li><code>stonesoup.reader.base.DetectionReader</code> and <code>TrackReader</code> abstractions; concrete readers for Kafka, CBOR, YAML, HDF5, AIS, OpenSky, pandas, video; writers for Kafka, CBOR, YAML. Nothing for SAPIENT, raw TCP or Zenoh.</li>
+    <li><code>KafkaDetectionReader</code> consumes on a background thread into a <code>Queue</code> and yields <code>(timestamp, set[Detection])</code>. This is the template for a Zenoh-backed reader, since <code>eclipse-zenoh</code> delivers samples on its own threads.</li>
+    <li>Trackers in <code>tracker/simple.py</code> (<code>MultiTargetTracker</code>, <code>MultiTargetMixtureTracker</code>), plus particle, PMHT and point-process trackers; predictors, updaters, data associators, initiators, deleters; <code>platform</code> and <code>sensor</code> models; metrics.</li>
+  </ul>
+  <h3>Adapter design</h3>
+  <ol>
+    <li><b>Ingress:</b> a <code>SapientDetectionReader(DetectionReader)</code> with a pluggable source: Zenoh subscriber on <code>h1/p1/sapient/v2/*/up/detection</code>, or a TCP client to Apex's Peer port (5001) reading length-prefixed messages. Both feed one queue.</li>
+    <li><b>Registry:</b> keep each sensor's <code>Registration</code> and latest <code>StatusReport</code> (location, field of view). Build the sensor's measurement model from them: Cartesian for lat/long/UTM reports, polar bearing–range for range-bearing reports. Only the ENU velocity frame exists in v2.</li>
+    <li><b>Conversion:</b> <code>DetectionReport</code> → <code>Detection(state_vector, timestamp, measurement_model, metadata={node_id, report_id, object_info})</code>. Use the message timestamp as measurement time; NTP is mandatory in the standard.</li>
+    <li><b>Tracking:</b> standard components, unchanged.</li>
+    <li><b>Egress:</b> publish tracks as <code>DetectionReport</code>s from the fusion node's own <code>node_id</code> with <code>associated_detection</code> listing source report IDs, on <code>h1/p1/fusion/up/detection</code>. Publish the fusion node's own <code>Registration</code> (type <code>Fusion_Node</code>, aggregated capabilities per §4.11) and periodic <code>StatusReport</code> with a coverage area that updates as sensors come and go.</li>
+    <li><b>Tasking:</b> subscribe to <code>h1/p1/fusion/down/task</code>; decompose a task into per-sensor <code>Task</code>s on <code>.../&lt;node_id&gt;/down/task</code>; relay <code>TaskAck</code>s.</li>
+    <li><b>Test harness:</b> <code>sapient_apex_replay</code> can replay a recorded SQLite trial into the TCP source; the fake nodes in <code>Apex-SAPIENT-Docker/emulators</code> exercise the live path.</li>
+  </ol>
+  <div class="box"><b class="lbl">Design rule</b>Keep the Zenoh dependency inside the source class. The reader, registry, tracker and egress code must not import <code>zenoh</code>, so the same fusion node runs over Apex/TCP in Option A and natively in Option B.</div>
+</section>
+
+<section id="risks">
+  <div class="kicker">8</div><h2>Risks and open issues</h2>
+  <table>
+    <tr><th>Risk</th><th>Evidence</th><th>Mitigation</th></tr>
+    <tr><td>Messages dropped under load</td><td><code>CongestionControl::Drop</code> is the default for put; 1 ms wait</td><td>Block on all control messages; monitor drop counters (<code>stats</code> feature)</td></tr>
+    <tr><td>No end-to-end retransmission</td><td>Publisher docs; <code>reliability.rs</code> not compiled</td><td>Reliable links on every hop; SAPIENT acks; AdvancedSubscriber recovery for tracks</td></tr>
+    <tr><td>Router freeze when a face's u16 ExprId space is exhausted</td><td>Issue #2825 (open); <code>get_next_local_id()</code> loops without bound</td><td>Bounded key cardinality; never embed IDs or times in keys; soak test T-09</td></tr>
+    <tr><td>Process abort on a key &gt; 65 535 bytes</td><td>Issue #2840 (open); <code>unwrap()</code> in <code>pipeline.rs</code></td><td>Validate key length in the bridge and adapter</td></tr>
+    <tr><td>Router stops accepting sessions; routing corruption after reconnect</td><td>Issues #2735, #2864 (open, not reproduced here)</td><td>Redundant pod routers; reconnect soak test T-10; pin a tested release</td></tr>
+    <tr><td>Abandoned <code>lockfree</code> dependency (RUSTSEC-2026-0291)</td><td>Issue #2803; still in <code>Cargo.lock</code></td><td>Track the fix; it is behind an optional feature in <code>zenoh-transport</code></td></tr>
+    <tr><td>Open defaults</td><td>No TLS/auth/ACL by default; multicast scouting on</td><td>§5 configuration is mandatory, not optional</td></tr>
+    <tr><td>Conformance</td><td>§4.1 TCP minimum</td><td>Keep a TCP path; run the BSI test harness against the bridge</td></tr>
+    <tr><td>Throughput ceiling if Apex stays in path</td><td><code>CapacityLimiter(total_tokens=1)</code> in <code>apex_server.py</code></td><td>Option B, or raise the limiter after checking thread safety of the parsers</td></tr>
+  </table>
+</section>
+
+<section id="tests">
+  <div class="kicker">9</div><h2>Test plan</h2>
+  <table>
+    <tr><th>ID</th><th>Test</th><th>Pass criterion</th></tr>
+    <tr><td>T-01</td><td>Bridge round trip: fake radar (Docker emulator) → pod bridge → router → host bridge → Apex</td><td>Apex SQLite shows registration, status and detections with the right node_id; RegistrationAck reaches the radar within 30 s</td></tr>
+    <tr><td>T-02</td><td>Task path: fake fusion node on Apex Peer port sends <code>look_at</code> to the radar</td><td>Radar receives the task and its TaskAck appears at the fusion node</td></tr>
+    <tr><td>T-03</td><td>Node loss: kill the radar process</td><td>Within 2 × lease the host bridge closes the Apex socket and Apex records the disconnection</td></tr>
+    <tr><td>T-04</td><td>Short outage &lt; 2 min on the router link</td><td>Node resumes without re-registration (§4.9); no duplicate registration in Apex</td></tr>
+    <tr><td>T-05</td><td>Long outage &gt; 2 min</td><td>Node re-registers; Apex accepts it; no "hijacked" errors</td></tr>
+    <tr><td>T-06</td><td>Congestion: 20 fake sensors at 10 Hz over a 1 Mbit/s shaped WAN link</td><td>No task or alert lost; detection drops counted and reported; downsampling rule holds the uplink rate</td></tr>
+    <tr><td>T-07</td><td>ACL: sensor cert attempts to publish on <code>down/task</code></td><td>Rejected at the router; logged</td></tr>
+    <tr><td>T-08</td><td>Ordering: status New then Unchanged at the same priority under load</td><td>Apex never reports "Unchanged before New"</td></tr>
+    <tr><td>T-09</td><td>Soak: 24 h with sensors joining and leaving every minute</td><td>Router memory flat; no ExprId exhaustion; no stalled accept loop</td></tr>
+    <tr><td>T-10</td><td>Router failover in a pod with two routers</td><td>Clients reconnect to the second router; traffic resumes within the lease</td></tr>
+    <tr><td>T-11</td><td>Hierarchy: pod fusion registers with host fusion as <code>Fusion_Node</code></td><td>Host fusion acks; host sees only fused tracks, never raw pod detections</td></tr>
+    <tr><td>T-12</td><td>Conformance: BSI Flex 335 v2 test harness against the pod bridge's TCP side</td><td>Harness passes as it does against Apex</td></tr>
+    <tr><td>T-13</td><td>Stone Soup adapter: replay a recorded trial through <code>SapientDetectionReader</code></td><td>Tracks produced; emitted DetectionReports validate with Apex's <code>Validator</code></td></tr>
+  </table>
+  <h3>Acceptance checklist</h3>
+  <ul>
+    <li>All defaults in §5 changed and verified on every router.</li>
+    <li>T-01 to T-08 pass on the Docker rig; T-09, T-10 pass on real hardware; T-12 passes.</li>
+    <li>A written answer to each decision in §10.</li>
+  </ul>
+</section>
+
+<section id="decisions">
+  <div class="kicker">10</div><h2>Decisions needed</h2>
+  <ol>
+    <li><b>Target topology.</b> Single LAN → keep TCP, add TLS. Multi-site → Option A first. Pods/host/external → Option B.</li>
+    <li><b>Effector authority.</b> Which certs may publish <code>down/task</code> to an effector: pod fusion, host fusion, human COP only. Encoded in ACL.</li>
+    <li><b>Apex's future.</b> In path (A), consumer behind a bridge (B with GUI), or retired.</li>
+    <li><b>Zenoh release pin and upgrade policy</b>, given the open router issues.</li>
+    <li><b>Stone Soup adapter ownership</b>, needed in every option.</li>
+  </ol>
+</section>
+
+<section id="sources">
+  <div class="kicker">Sources</div><h2>What this is based on</h2>
+  <ul>
+    <li>BSI Flex 335 v2.0:2024-03, <code>doc/bsi-flex-335.pdf</code> in this research folder.</li>
+    <li>Apex SAPIENT Middleware 4.2.0 source and user manual, <code>Apex-SAPIENT-Middleware/</code>; Docker rig and emulators, <code>Apex-SAPIENT-Docker/</code>.</li>
+    <li>Eclipse Zenoh, <a href="https://github.com/eclipse-zenoh/zenoh">github.com/eclipse-zenoh/zenoh</a>, commit <code>9c47e3d8</code>; issues <a href="https://github.com/eclipse-zenoh/zenoh/issues/2825">#2825</a>, <a href="https://github.com/eclipse-zenoh/zenoh/issues/2840">#2840</a>, <a href="https://github.com/eclipse-zenoh/zenoh/issues/2735">#2735</a>, <a href="https://github.com/eclipse-zenoh/zenoh/issues/2864">#2864</a>, <a href="https://github.com/eclipse-zenoh/zenoh/issues/2803">#2803</a>; <a href="https://github.com/eclipse-zenoh/zenoh-python">zenoh-python</a> type stubs.</li>
+    <li>Stone Soup, <code>Stone-Soup/</code> at v1.9.1+103.</li>
+    <li>Companion plain-language page: <a href="overview.html">overview.html</a>.</li>
+  </ul>
+</section>
+</main>
+<footer>Prepared 2026-11-08 from source reading only; nothing in this note was executed against a live Zenoh network.</footer>
+</body>
+</html>

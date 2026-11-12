@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" role="img" aria-label="Registration sequence from edge node to pod fusion to host fusion over Zenoh">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.t{fill:#e6edf6;font-size:15px;font-weight:600;text-anchor:middle}.s{fill:#93a4bf;font-size:12.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13px}.n{fill:#e6edf6;font-size:14px;font-weight:600}.m{fill:#cfe3ff;font-size:12px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.life{stroke:#34435f;stroke-width:1.5;stroke-dasharray:4 4}.msg{fill:none;stroke:#93a4bf;stroke-width:1.6}.key{fill:none;stroke:#38bdf8;stroke-width:2}
+.ah{fill:#93a4bf}.aha{fill:#38bdf8}.band{fill:#0f1728;stroke:#24324d}
+</style>
+<defs><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="aha" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="b" x="40" y="20" width="130" height="50" rx="8"/><text class="t" x="105" y="42">Sensor</text><text class="s" x="105" y="60">edge node, pod 1</text>
+<rect class="h" x="230" y="20" width="130" height="50" rx="8"/><text class="t" x="295" y="42">Pod router</text><text class="s" x="295" y="60">zenohd</text>
+<rect class="g" x="420" y="20" width="150" height="50" rx="8"/><text class="t" x="495" y="42">Pod fusion</text><text class="s" x="495" y="60">child Fusion_Node</text>
+<rect class="h" x="630" y="20" width="130" height="50" rx="8"/><text class="t" x="695" y="42">Host router</text><text class="s" x="695" y="60">zenohd</text>
+<rect class="g" x="820" y="20" width="150" height="50" rx="8"/><text class="t" x="895" y="42">Host fusion</text><text class="s" x="895" y="60">parent</text>
+<g class="life"><line x1="105" y1="70" x2="105" y2="540"/><line x1="295" y1="70" x2="295" y2="540"/><line x1="495" y1="70" x2="495" y2="540"/><line x1="695" y1="70" x2="695" y2="540"/><line x1="895" y1="70" x2="895" y2="540"/></g>
+<rect class="band" x="30" y="92" width="940" height="24" rx="4"/><text class="n" x="40" y="109">1. Presence</text>
+<path class="key" marker-end="url(#k)" d="M105 135L293 135"/><text class="m" x="190" y="128">liveliness token</text>
+<text class="s" x="200" y="152">sapient/v2/live/&lt;sensor&gt;</text>
+<path class="key" marker-end="url(#k)" d="M297 135L493 135"/><text class="s" x="395" y="128">fusion subscribes to live/**</text>
+<rect class="band" x="30" y="175" width="940" height="24" rx="4"/><text class="n" x="40" y="192">2. Registration, edge to pod</text>
+<path class="msg" marker-end="url(#e)" d="M105 220L293 220"/><text class="m" x="195" y="213">put .../up/registration</text>
+<path class="msg" marker-end="url(#e)" d="M297 220L493 220"/><text class="s" x="395" y="213">Block, routed by key</text>
+<path class="msg" marker-end="url(#e)" d="M493 250L297 250"/><text class="m" x="395" y="243">put .../down/registration_ack</text>
+<path class="msg" marker-end="url(#e)" d="M293 250L107 250"/><text class="s" x="195" y="266">destination_id = sensor</text>
+<text class="q" x="40" y="290">Rule kept: no ack within 30 s means the sensor re-sends. Rule changed: no socket to close, the token does the work.</text>
+<rect class="band" x="30" y="305" width="940" height="24" rx="4"/><text class="n" x="40" y="322">3. Registration, pod fusion to host fusion (BSI Flex 335 v2.0 clause 4.11)</text>
+<path class="msg" marker-end="url(#e)" d="M495 350L693 350"/><text class="m" x="594" y="343">put h1/p1/fusion/up/registration</text>
+<path class="msg" marker-end="url(#e)" d="M697 350L893 350"/><text class="s" x="795" y="343">node_type Fusion_Node</text>
+<text class="q" x="40" y="380">The child declares the aggregated detection and tasking capability of its sensors, exactly as an edge node would.</text>
+<path class="msg" marker-end="url(#e)" d="M893 405L697 405"/><text class="m" x="795" y="398">put h1/p1/fusion/down/registration_ack</text>
+<path class="msg" marker-end="url(#e)" d="M693 405L497 405"/>
+<rect class="band" x="30" y="430" width="940" height="24" rx="4"/><text class="n" x="40" y="447">4. Steady state</text>
+<path class="msg" marker-end="url(#e)" d="M105 475L293 475"/><text class="m" x="200" y="468">up/detection (Drop)</text>
+<path class="msg" marker-end="url(#e)" d="M297 475L493 475"/>
+<path class="msg" marker-end="url(#e)" d="M495 505L693 505"/><text class="m" x="594" y="498">fusion/up/detection = fused tracks</text>
+<path class="msg" marker-end="url(#e)" d="M697 505L893 505"/>
+<path class="msg" marker-end="url(#e)" d="M893 535L697 535"/><text class="m" x="795" y="528">fusion/down/task (Block, ACL-gated)</text>
+<path class="msg" marker-end="url(#e)" d="M693 535L497 535"/>
+<text class="q" x="40" y="555">Raw detections stop at pod fusion. Only fused tracks, alerts and tasks cross to the host, as the standard's hierarchy intends.</text>
+</svg>

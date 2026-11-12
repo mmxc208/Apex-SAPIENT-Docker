@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" role="img" aria-label="How two devices join and connect">
+<style>
+text{font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.b{fill:#121b2e;stroke:#3a4a6a;stroke-width:1.5}
+.h{fill:#1f3350;stroke:#38bdf8;stroke-width:2}
+.g{fill:#17352a;stroke:#34d399;stroke-width:2}
+.d{fill:#121b2e;stroke:#f59e0b;stroke-width:1.6;stroke-dasharray:6 4}
+.r{fill:#3a1c22;stroke:#f87171;stroke-width:2}
+.fr{fill:none;stroke:#34435f;stroke-width:1.5;stroke-dasharray:3 4}
+.t{fill:#e6edf6;font-size:16px;font-weight:650;text-anchor:middle}
+.T{fill:#e6edf6;font-size:19px;font-weight:700;text-anchor:middle}
+.s{fill:#93a4bf;font-size:13.5px;text-anchor:middle}
+.q{fill:#93a4bf;font-size:13.5px}
+.n{fill:#e6edf6;font-size:15px;font-weight:650}
+.k{fill:#38bdf8;font-size:13px;font-weight:700;letter-spacing:.12em}
+.m{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace}
+.mc{fill:#cfe3ff;font-size:14px;font-family:"SF Mono",Menlo,monospace;text-anchor:middle}
+.ok{fill:#34d399;font-size:13px;font-weight:700}
+.wa{fill:#f59e0b;font-size:13px;font-weight:700}
+.wac{fill:#f59e0b;font-size:13.5px;font-weight:700;text-anchor:middle}
+.okc{fill:#34d399;font-size:13.5px;font-weight:700;text-anchor:middle}
+.rdc{fill:#f87171;font-size:13.5px;font-weight:700;text-anchor:middle}
+.l{fill:none;stroke:#93a4bf;stroke-width:1.6}
+.f{fill:none;stroke:#93a4bf;stroke-width:1.3;stroke-dasharray:4 4}
+.a{fill:none;stroke:#38bdf8;stroke-width:3}
+.gl{fill:none;stroke:#34d399;stroke-width:3}
+.w{fill:none;stroke:#f59e0b;stroke-width:1.8;stroke-dasharray:6 4}
+.x{fill:none;stroke:#f87171;stroke-width:4}
+</style>
+<defs>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#93a4bf" d="M0 0L10 5L0 10z"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#38bdf8" d="M0 0L10 5L0 10z"/></marker>
+<marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="#f59e0b" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="h" x="350" y="24" width="300" height="122" rx="10"/><text class="T" x="500.0" y="60.0">Cloud relay (public)</text><text class="s" x="500.0" y="81.0">TLS :443 passed through unread</text><text class="s" x="500.0" y="100.0">STUN UDP :3478 · relay :33073</text><text class="s" x="500.0" y="119.0">holds no keys, sees only ciphertext</text><rect class="b" x="730" y="24" width="245" height="122" rx="10"/><text class="T" x="852.5" y="60.0">Host site</text><text class="s" x="852.5" y="81.0">no public address</text><text class="s" x="852.5" y="100.0">NetBird management</text><text class="s" x="852.5" y="119.0">signal-server (gRPC)</text><path class="l" d="M730 85L650 85" marker-end="url(#e)"/><text class="s" x="852" y="170">rathole tunnel: the host dials out</text><rect class="b" x="25" y="24" width="250" height="86" rx="10"/><text class="t" x="150.0" y="52.0">Public DNS</text><text class="s" x="150.0" y="73.0">netbird.&lt;zone&gt;</text><text class="s" x="150.0" y="92.0">one A record per relay</text><path class="f" d="M275 67L350 67" marker-end="url(#e)"/><rect class="g" x="40" y="400" width="220" height="96" rx="10"/><text class="T" x="150.0" y="433.0">Device A</text><text class="s" x="150.0" y="454.0">WireGuard key pair</text><text class="s" x="150.0" y="473.0">mesh address 100.127.x.x</text><rect class="g" x="740" y="400" width="220" height="96" rx="10"/><text class="T" x="850.0" y="433.0">Device B</text><text class="s" x="850.0" y="454.0">WireGuard key pair</text><text class="s" x="850.0" y="473.0">mesh address 100.127.x.x</text><path class="f" d="M150 400L400 146" marker-end="url(#e)"/><path class="f" d="M850 400L600 146" marker-end="url(#e)"/><text class="q" x="52" y="262">1 · enrol with a</text><text class="q" x="52" y="280">short-lived setup key</text><text class="q" x="52" y="306">2 · exchange connection</text><text class="q" x="52" y="324">offers through signal</text><rect class="b" x="300" y="508" width="400" height="78" rx="10"/><text class="t" x="500.0" y="532.0">Path choice per pair (ICE)</text><text class="s" x="500.0" y="553.0">LAN candidates first · STUN after 500 ms</text><text class="s" x="500.0" y="572.0">relay after 2 s · the chosen path is kept</text><path class="gl" d="M260 448L740 448"/><text class="okc" x="500" y="436">3 · direct WireGuard tunnel, UDP 51820</text><text class="s" x="500" y="472">stays up when management, signal and relays are all down</text><path class="w" d="M235 400L450 146"/><path class="w" d="M765 400L550 146"/><text class="wac" x="500" y="300">fallback: one relay hop</text><text class="wac" x="500" y="320">adds 10 to 100 ms</text><text class="s" x="500" y="346">relays sized for about</text><text class="s" x="500" y="364">10% of fleet traffic</text>
+</svg>
