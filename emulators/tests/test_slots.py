@@ -62,6 +62,7 @@ def test_unknown_alias_is_refused():
     ("camera = 1", "camera = 0", "camera"),             # two aliases on one slot
     ("vehicle = 2", "vehicle = 8", "vehicle"),          # outside the pool
     ('site = "p1"', 'site = "P/1"', "site"),            # not [a-z0-9]+
+    ('site = "p1"', 'site = "' + "s" * 33 + '"', "site"),  # longer than 32 characters
     ('prefix = "h1/p1/"', 'prefix = "h1/p1"', "prefix"),  # must end with "/"
     ('salt = "goat1-fabric"', 'salt = "goat1-pod1"', "salt"),  # salts must differ
     ('kind = "fabric"', 'kind = "broker"', "kind"),
@@ -84,3 +85,7 @@ def test_pod_table_missing_a_field_is_refused():
 def test_fabric_table_with_a_pod_field_is_refused():
     with pytest.raises(RegistryError, match="prefix"):
         parse_registry(REGISTRY.replace('site = "h1"', 'site = "h1"\nprefix = "x/"'))
+
+
+def test_registry_accepts_a_site_of_32_characters():
+    assert parse_registry(REGISTRY.replace('site = "p1"', 'site = "' + "s" * 32 + '"'))["pod1"].site == "s" * 32

@@ -181,8 +181,8 @@ class FakeFusionNode:
     # ---- outgoing ------------------------------------------------------------------------
 
     async def send(self, msg):
-        await self.link.send(msg)
-        self.log.info(f"-> {summary(msg)}")
+        if await self.link.send(msg) is not False:  # only the fabric link says False, when it sent nothing
+            self.log.info(f"-> {summary(msg)}")
 
     def _has_parent(self) -> bool:
         """Whether a parent listens above this node: only a pod's fusion node over Zenoh has one."""
@@ -821,10 +821,10 @@ def main():
                         help="comma-separated task kinds to cycle through; empty to disable")
     parser.add_argument("--task-interval", type=float, default=float(env("TASK_INTERVAL", "20")))
     parser.add_argument("--status-interval", type=float, default=float(env("STATUS_INTERVAL", "10")),
-                        help="seconds between this node's own status reports, used with --transport zenoh")
+                        help="seconds between this node's own status reports, used with --transport zenoh or fabric")
     parser.add_argument("--node-hold-seconds", type=float, default=float(env("NODE_HOLD_SECONDS", "120")),
                         help="how long a node's liveliness token may be gone before it is forgotten, "
-                             "used with --transport zenoh")
+                             "used with --transport zenoh or fabric")
     parser.add_argument("--no-publish-tracks", dest="publish_tracks", action="store_false",
                         default=env("PUBLISH_TRACKS", "1") != "0")
     args = parser.parse_args()

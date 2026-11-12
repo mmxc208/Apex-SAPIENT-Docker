@@ -195,3 +195,11 @@ def test_unsafe_or_reserved_alias_writes_nothing(tmp_path, capsys, alias, kind_t
     assert main([str(_write_registry(tmp_path, text)), str(out)]) == 2
     assert alias.strip('"') in capsys.readouterr().err
     assert not out.exists() or not any(out.iterdir())
+
+
+def test_a_site_of_33_characters_writes_nothing(tmp_path, capsys):
+    out = tmp_path / "out"
+    registry = _write_registry(tmp_path, REGISTRY.replace('site = "h1"', 'site = "' + "h" * 33 + '"'))
+    assert main([str(registry), str(out)]) == 2
+    assert "site" in capsys.readouterr().err
+    assert not out.exists() or not any(out.iterdir())

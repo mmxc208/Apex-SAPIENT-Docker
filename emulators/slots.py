@@ -14,7 +14,9 @@ import tomllib
 import uuid
 from dataclasses import dataclass, field
 
-_SITE = re.compile(r"[a-z0-9]+")
+from fabric_keys import MAX_SITE_CHARS
+
+_SITE = re.compile(r"[a-z0-9]{1,%d}" % MAX_SITE_CHARS)
 _KINDS = ("pod", "fabric")
 _COMMON = {"kind", "salt", "pool_size", "site", "router_cn", "slots"}
 _POD_ONLY = ("prefix", "fusion_cn", "fusion_node_id", "recorder_cn", "bridge_cn")
@@ -88,7 +90,7 @@ def _router(name: str, table: object) -> Router:
     router_cn = _string(name, table, "router_cn")
     site = _string(name, table, "site")
     if not _SITE.fullmatch(site):
-        raise RegistryError(f"[{name}] site must match [a-z0-9]+, got {site!r}")
+        raise RegistryError(f"[{name}] site must be 1 to {MAX_SITE_CHARS} characters of [a-z0-9], got {site!r}")
     pool_size = table.get("pool_size")
     if not isinstance(pool_size, int) or isinstance(pool_size, bool) or pool_size < 1:
         raise RegistryError(f"[{name}] pool_size must be a positive integer")

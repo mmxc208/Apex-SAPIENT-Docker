@@ -92,24 +92,32 @@ class FabricFusionLink:
 
     # ---- outgoing ----------------------------------------------------------------------------
 
-    async def send(self, msg: SapientMessage):
+    async def send(self, msg: SapientMessage) -> bool:
         """Publish to msg.destination_id if set, at that node's site; otherwise as this node's own output.
 
-        Both go below this node's own anchor.
+        Both go below this node's own anchor. False when nothing was sent: no route, a kind with no key,
+        or a key that cannot be built. This never raises for a key, so a bad route cannot end the node.
         """
         kind = msg.WhichOneof("content")
         if msg.destination_id:
-            route = self.routes.get(msg.destination_id)
+            node = msg.destination_id
+            route = self.routes.get(node)
             if route is None:
-                self.log.info(f"no route to node {msg.destination_id}; {kind} not sent")
-                return
-            key = fabric_keys.key_for(self.anchor, route.site, kind, msg.destination_id)
-            await self.session.publish(key, msg)
+                self.log.info(f"no route to node {node}; {kind} not sent")
+                return False
+            site, fused = route.site, False
         elif kind in fabric_keys.TELEMETRY_KINDS:
-            key = fabric_keys.key_for(self.anchor, self.site, kind, self.fusion_id)
-            await self.session.publish(key, msg, fused=True)
+            node, site, fused = self.fusion_id, self.site, True
         else:
             self.log.info(f"a {kind} with no destination has no key on the fabric; not sent")
+            return False
+        try:
+            key = fabric_keys.key_for(self.anchor, site, kind, node)
+        except ValueError as e:
+            self.log.info(f"no key for a {kind} to node {node}: {e}; not sent")
+            return False
+        await self.session.publish(key, msg, fused=fused)
+        return True
 
     async def send_upward(self, msg: SapientMessage):
         """Nothing: the host has no parent."""

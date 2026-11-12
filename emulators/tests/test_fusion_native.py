@@ -1470,3 +1470,36 @@ async def test_the_fabric_transport_has_no_parent_loop(monkeypatch, templates):
 
     assert FabricFusionLink.has_parent is False
     assert started == ["zenoh"]
+
+
+def arrow_lines(caplog) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.getMessage().startswith("->")]
+
+
+async def test_on_the_fabric_a_send_without_a_route_logs_no_arrow(host, caplog):
+    with caplog.at_level(logging.INFO):
+        await host.send(stamp(load_template("fusion_node", "Task.LookAt"), HOST_FUSION, FUSION))
+
+    assert arrow_lines(caplog) == []
+    assert any(f"no route to node {FUSION}" in r.getMessage() for r in caplog.records)
+
+
+async def test_on_the_fabric_a_key_that_cannot_be_built_is_logged_and_the_node_goes_on(
+    host, fake_session, templates, caplog, monkeypatch
+):
+    import fabric_keys
+
+    fake_session.inject(pod_key("registration"), fusion_typed_registration(templates, FUSION).SerializeToString())
+    await until(lambda: FUSION in host.nodes)
+
+    def refuse(*args):
+        raise ValueError("cannot build")
+
+    monkeypatch.setattr(fabric_keys, "key_for", refuse)
+    with caplog.at_level(logging.INFO):
+        await host.send(stamp(load_template("fusion_node", "Task.LookAt"), HOST_FUSION, FUSION))
+        monkeypatch.undo()
+        await host.send(stamp(load_template("fusion_node", "Task.LookAt"), HOST_FUSION, FUSION))
+
+    assert len(arrow_lines(caplog)) == 1
+    assert any("not sent" in r.getMessage() and FUSION in r.getMessage() for r in caplog.records)

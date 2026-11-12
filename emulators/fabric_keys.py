@@ -7,8 +7,9 @@ task IDs, object IDs or timestamps:
     <anchor>/ack/<site>/sapient/v2/<kind>/<node_id>         registration_ack, task_ack, alert_ack
     <anchor>/task/<site>/sapient/v2/task/<node_id>          task
     <anchor>/telemetry/sapient/<site>/v2/live/<node_id>     liveliness token
-<anchor> is 32 lower-case hex characters, <site> matches [a-z0-9]+, <node_id> is a
-canonical UUID. <kind> is the SapientMessage.content oneof field name.
+<anchor> is 32 lower-case hex characters, <site> is 1 to MAX_SITE_CHARS characters of
+[a-z0-9], <node_id> is a canonical UUID. The cap on the site makes every key of every kind
+fit in MAX_KEY_BYTES, so a reply to a site that parsed can always be built. <kind> is the SapientMessage.content oneof field name.
 
 Standard library only: this module also runs with the Mac's python3.
 """
@@ -20,9 +21,10 @@ TELEMETRY_KINDS = frozenset({"registration", "status_report", "detection_report"
 ACK_KINDS = frozenset({"registration_ack", "task_ack", "alert_ack"})
 KINDS = TELEMETRY_KINDS | ACK_KINDS | {"task"}
 MAX_KEY_BYTES = 256
+MAX_SITE_CHARS = 32
 
 _ANCHOR = re.compile(r"[0-9a-f]{32}")
-_SITE = re.compile(r"[a-z0-9]+")
+_SITE = re.compile(r"[a-z0-9]{1,%d}" % MAX_SITE_CHARS)
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,7 @@ def _checked_anchor(anchor: str) -> str:
 
 def _checked_site(site: str) -> str:
     if not isinstance(site, str) or not _SITE.fullmatch(site):
-        raise ValueError(f"site does not match [a-z0-9]+: {site!r}")
+        raise ValueError(f"site is not 1 to {MAX_SITE_CHARS} characters of [a-z0-9]: {site!r}")
     return site
 
 
@@ -90,6 +92,7 @@ def live_key(anchor: str, site: str, node_id: str) -> str:
 
 def _parse_any(key: str) -> FabricKey:
     """Parse a data key or a live key, accepting only the exact shapes."""
+    _sized(key)
     parts = key.split("/")
     if len(parts) != 7:
         raise ValueError(f"not a fabric key: {key!r}")

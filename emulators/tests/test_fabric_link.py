@@ -184,3 +184,56 @@ async def test_receive_raises_connection_error_once_the_session_is_closed(sessio
 
     with pytest.raises(ConnectionError):
         await received(link)
+
+
+@pytest.mark.parametrize("site", ["s" * 33, "s" * 200])
+async def test_a_sample_with_an_over_long_site_is_dropped_and_teaches_no_route(session, link, caplog, site):
+    bad = f"{ANCHOR}/telemetry/sapient/{site}/v2/registration/{FUSION}"
+    good = key_for(OTHER, "p2", "registration", FUSION)
+    payload = message("sensor", "Registration").SerializeToString()
+
+    with caplog.at_level(logging.INFO):
+        session.inject(bad, payload)
+        session.inject(good, payload)
+        await received(link)
+
+    assert link.last_sample[0] == good
+    assert link.routes[FUSION].anchor == OTHER  # the bad sample taught nothing: the good one's anchor holds
+    assert any(bad in r.getMessage() for r in caplog.records)
+
+
+async def test_a_live_key_with_an_over_long_site_is_refused(link):
+    with pytest.raises(ValueError):
+        link.node_of_live_key(f"{ANCHOR}/telemetry/sapient/{'s' * 33}/v2/live/{FUSION}")
+
+    assert link.routes == {}
+
+
+async def test_send_returns_false_without_a_route_and_true_once_published(session, link):
+    assert await link.send(message("fusion_node", "Task.LookAt", HOSTFUSION, FUSION)) is False
+    link.node_of_live_key(live_key(ANCHOR, "p1", FUSION))
+
+    assert await link.send(message("fusion_node", "Task.LookAt", HOSTFUSION, FUSION)) is True
+    assert await link.send(message("sensor", "StatusReport", HOSTFUSION)) is True
+
+
+async def test_own_output_of_a_kind_that_goes_down_only_returns_false(session, link):
+    assert await link.send(message("fusion_node", "Task.LookAt", HOSTFUSION)) is False
+
+
+@pytest.mark.parametrize("destination", [FUSION, None])
+async def test_send_does_not_raise_for_a_key_it_cannot_build(session, link, caplog, monkeypatch, destination):
+    link.node_of_live_key(live_key(ANCHOR, "p1", FUSION))
+
+    def refuse(*args):
+        raise ValueError("cannot build")
+
+    monkeypatch.setattr(fabric_keys, "key_for", refuse)
+    kind = ("fusion_node", "Task.LookAt") if destination else ("sensor", "StatusReport")
+    with caplog.at_level(logging.INFO):
+        sent = await link.send(message(*kind, HOSTFUSION, destination))
+
+    assert sent is False
+    assert session.published == []
+    node = destination or HOSTFUSION
+    assert any(node in r.getMessage() and "not sent" in r.getMessage() for r in caplog.records)
