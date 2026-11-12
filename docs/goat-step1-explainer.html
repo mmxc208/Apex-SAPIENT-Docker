@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goat step 1 explained: SAPIENT pods on a goat fabric</title>
+<style>
+  :root{
+    --x-bg:var(--bg,#0b1220); --x-text:var(--text,#e6edf6);
+    --x-card:var(--card,#121b2e); --x-card-fg:var(--card-fg,#e6edf6);
+    --x-card2:var(--bg-elevated,#0f1728);
+    --x-line:var(--border,#24324d); --x-line2:var(--border-strong,#3a4c70);
+    --x-mute:var(--muted-strong,#93a4bf);
+    --x-accent:var(--accent,#38bdf8); --x-accent-soft:var(--accent-subtle,rgba(56,189,248,.14));
+    --x-ok:var(--ok,#34d399); --x-ok-soft:var(--ok-subtle,rgba(52,211,153,.14));
+    --x-warn:var(--warn,#f59e0b); --x-warn-soft:var(--warn-subtle,rgba(245,158,11,.14));
+    --x-bad:var(--danger,#f87171); --x-bad-soft:var(--danger-subtle,rgba(248,113,113,.14));
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--x-bg);color:var(--x-text);font:17px/1.6 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  header,main,footer{max-width:1000px;margin:0 auto;padding:0 22px}
+  header{padding-top:44px}
+  .kicker{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--x-accent);font-weight:700}
+  h1{font-size:38px;line-height:1.12;margin:10px 0 12px}
+  h2{font-size:27px;margin:0 0 8px;line-height:1.2}
+  h3{font-size:19px;margin:18px 0 6px}
+  p{margin:10px 0}
+  .lede{color:var(--x-mute);font-size:19px;max-width:820px}
+  code,.mono{font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+  code{background:var(--x-card2);color:var(--x-text);border:1px solid var(--x-line);border-radius:5px;padding:1px 5px}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px}
+  nav.toc a{background:var(--x-card);color:var(--x-card-fg);border:1px solid var(--x-line);border-radius:999px;padding:5px 13px;font-size:14px;text-decoration:none}
+  nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--x-accent)}
+  section{margin-top:46px;padding-top:14px;border-top:1px solid var(--x-line)}
+  .card{background:var(--x-card);color:var(--x-card-fg);border:1px solid var(--x-line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .box{background:var(--x-card);color:var(--x-card-fg);border:1px solid var(--x-line);border-left:5px solid var(--x-accent);border-radius:10px;padding:12px 16px;margin:14px 0}
+  .box.ok{border-left-color:var(--x-ok)} .box.warn{border-left-color:var(--x-warn)} .box.bad{border-left-color:var(--x-bad)}
+  .lbl{display:block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--x-accent);margin-bottom:3px}
+  .box.ok .lbl{color:var(--x-ok)} .box.warn .lbl{color:var(--x-warn)} .box.bad .lbl{color:var(--x-bad)}
+  .mute{color:var(--x-mute)} .small{font-size:14.5px}
+  ul{padding-left:22px;margin:8px 0} li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15.5px}
+  th,td{text-align:left;border-bottom:1px solid var(--x-line);padding:8px 9px;vertical-align:top}
+  th{color:var(--x-mute);font-weight:600}
+  button{font:inherit;cursor:pointer}
+  .btn{background:var(--x-card2);color:var(--x-text);border:1px solid var(--x-line2);border-radius:8px;padding:6px 13px;font-size:14.5px}
+  .btn:hover{border-color:var(--x-accent)}
+  .btn[aria-pressed="true"],.btn[aria-selected="true"]{background:var(--x-accent-soft);border-color:var(--x-accent);color:var(--x-text);font-weight:600}
+  .btn:disabled{opacity:.45;cursor:default}
+  :focus-visible{outline:2px solid var(--x-accent);outline-offset:2px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media (max-width:780px){.two{grid-template-columns:1fr}}
+  .pill{display:inline-block;border-radius:999px;padding:1px 10px;font-size:12.5px;font-weight:600;border:1px solid var(--x-line2);color:var(--x-mute)}
+  .pill.ok{background:var(--x-ok-soft);border-color:var(--x-ok);color:var(--x-text)}
+  .pill.warn{background:var(--x-warn-soft);border-color:var(--x-warn);color:var(--x-text)}
+  .pill.bad{background:var(--x-bad-soft);border-color:var(--x-bad);color:var(--x-text)}
+  /* zones and parts (end goal and rig) */
+  .zones{display:grid;gap:12px;margin:14px 0}
+  .zones.goal{grid-template-columns:1.25fr 1fr .9fr} .zones.rig{grid-template-columns:1.35fr .5fr 1fr}
+  @media (max-width:780px){.zones.goal,.zones.rig{grid-template-columns:1fr}}
+  .zone{border:1.5px dashed var(--x-line2);border-radius:12px;padding:10px 10px 12px;background:var(--x-card2);color:var(--x-text)}
+  .zone>b{display:block;font-size:14.5px;margin-bottom:2px} .zone>span{display:block;font-size:12.5px;color:var(--x-mute);margin-bottom:8px}
+  .parts{display:flex;flex-wrap:wrap;gap:7px}
+  .part{background:var(--x-card);color:var(--x-card-fg);border:1.5px solid var(--x-line2);border-radius:9px;padding:6px 10px;font-size:14px;text-align:left;line-height:1.3;transition:opacity .15s}
+  .part small{display:block;color:var(--x-mute);font-size:12px}
+  .part.router{border-color:var(--x-accent)} .part.later{border-style:dashed}
+  .part.on{background:var(--x-accent-soft);border-color:var(--x-accent);box-shadow:0 0 0 2px var(--x-accent)}
+  .dimmed .part:not(.on),.dimmed .band:not(.on){opacity:.5}
+  #rig-fig.dimmed .part:not(.on){opacity:.8}
+  .band{border:1.5px dashed var(--x-warn);border-radius:10px;padding:8px 12px;font-size:14px;margin:0 0 12px;background:var(--x-card2);color:var(--x-text);transition:opacity .15s}
+  .link-note{font-size:13px;color:var(--x-mute);text-align:center;align-self:center}
+  .mesh{display:flex;flex-direction:column;justify-content:center;gap:8px;text-align:center}
+  .mesh .wire{border-top:3px solid var(--x-accent);margin:2px 0}
+  /* flow */
+  .lanes{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin:16px 0 6px;padding-bottom:56px}
+  .lane{text-align:center;font-size:13.5px;font-weight:600;line-height:1.25;padding:0 2px}
+  .lane small{display:block;font-weight:400;color:var(--x-mute);font-size:11.5px}
+  .lane::after{content:"";display:block;width:2px;height:46px;margin:6px auto 0;background:var(--x-line2)}
+  .lane.on{color:var(--x-accent)} .lane.on::after{background:var(--x-accent)}
+  .hop{position:absolute;bottom:26px;height:4px;border-radius:2px;background:var(--x-accent);opacity:.55}
+  .dot{position:absolute;bottom:17px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--x-accent);border:3px solid var(--x-bg)}
+  .readout{min-height:150px}
+  .readout h3{margin-top:2px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  /* key tester */
+  .keys{list-style:none;padding:0;margin:8px 0}
+  .keys li{display:flex;gap:10px;align-items:baseline;padding:4px 8px;border-radius:7px;border:1px solid transparent}
+  .keys li.hit{background:var(--x-ok-soft);border-color:var(--x-ok)}
+  .keys li .m{width:74px;flex:none;font-size:12.5px;font-weight:700;color:var(--x-mute)}
+  .keys li.hit .m{color:var(--x-text)}
+  input[type=text]{font:14px ui-monospace,Menlo,monospace;width:100%;background:var(--x-bg);color:var(--x-text);border:1px solid var(--x-line2);border-radius:8px;padding:8px 10px}
+  details{background:var(--x-card);color:var(--x-card-fg);border:1px solid var(--x-line);border-radius:10px;padding:10px 14px;margin:10px 0}
+  summary{cursor:pointer;font-weight:600}
+  .tl{list-style:none;padding:0;margin:10px 0 2px;border-left:3px solid var(--x-line2)}
+  .tl li{padding:2px 0 8px 14px;margin:0;position:relative}
+  .tl li b{color:var(--x-accent);font:600 13px ui-monospace,Menlo,monospace;margin-right:6px}
+  dl.gl{margin:8px 0} dl.gl dt{font-weight:700;margin-top:10px} dl.gl dd{margin:2px 0 0 0;color:var(--x-mute)}
+  footer{margin:52px auto 40px;color:var(--x-mute);font-size:14px}
+  @media (prefers-reduced-motion:reduce){.part,.band{transition:none}}
+</style>
+</head><body>
+<header>
+  <div class="kicker">Briefing for new team members · goat step 1</div>
+  <h1>SAPIENT pods on a goat fabric: what step 1 does</h1>
+  <p class="lede">This page explains the first step of our proof of concept. You do not need to know SAPIENT, Zenoh or the goat network. Each one is explained below. Reading time is about 10 minutes. You can click most of the pictures.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#idea">1 The idea</a><a href="#background">2 Three things to know</a><a href="#goal">3 The end goal</a><a href="#rig">4 The rig</a><a href="#flow">5 Follow a message</a><a href="#rules">6 Break the rules</a><a href="#faults">7 When things fail</a><a href="#proof">8 What was shown</a><a href="#next">9 What is next</a><a href="#glossary">10 Words</a>
+  </nav>
+</header>
+<main>
+
+<section id="idea">
+  <div class="kicker">1</div><h2>The idea in one minute</h2>
+  <p>A site that must detect and stop drones uses sensors from many makers: radars, cameras and others. The sensors must report what they see in one common format. Software must join these reports into one picture. People at a higher site must see that picture and send orders back.</p>
+  <p>We build this in levels. A <b>pod</b> is a small group of sensors at the edge, with its own software that joins their reports. A <b>host</b> is the next level up. It collects the pictures of several pods. An <b>external host</b> belongs to a partner, who gets only the data that we release.</p>
+  <div class="box"><span class="lbl">What step 1 shows</span>One pod sends its joined picture to one host, and takes orders from it, over a network that follows the rules of the <b>goat network</b>. Each party can write only in its own space. The pod continues to work when the link to the host is lost.</div>
+  <div class="box ok"><span class="lbl">A way to picture it</span>Think of a branch office and a head office. The branch (the pod) does its own work every day. One clerk at the door (the pod bridge) carries the manager's summary to the head office (the host) and brings orders back. The clerk does not open the envelopes, but checks each address. Every person has a badge, and can put papers only into the locker with their own number.</div>
+</section>
+
+<section id="background">
+  <div class="kicker">2</div><h2>Three things to know first</h2>
+  <p>Step 1 puts three existing things together. Select each one.</p>
+  <div class="row" role="tablist" aria-label="Background topics">
+    <button class="btn" role="tab" id="tab-sapient" aria-controls="pan-sapient" aria-selected="true">SAPIENT: the message standard</button>
+    <button class="btn" role="tab" id="tab-zenoh" aria-controls="pan-zenoh" aria-selected="false">Zenoh: the transport</button>
+    <button class="btn" role="tab" id="tab-goat" aria-controls="pan-goat" aria-selected="false">goat: the network and its rules</button>
+  </div>
+
+  <div class="card" role="tabpanel" id="pan-sapient" aria-labelledby="tab-sapient">
+    <h3>SAPIENT</h3>
+    <p><b>What it is.</b> SAPIENT is a standard for the messages between sensors, effectors and the software that joins their data. Dstl, a UK government laboratory, developed it. The British Standards Institution publishes it as BSI Flex 335. We use version 2.0.</p>
+    <p><b>A way to picture it.</b> It is a set of standard forms. Every sensor fills in the same form in the same way, whoever made the sensor.</p>
+    <p><b>What matters here.</b> Each device is a <b>node</b> with a node ID. A sensor is a node. The software that joins reports is a <b>fusion node</b>. A node must register before it sends data. Each message is one protobuf structure, <code>SapientMessage</code>. Select a message kind:</p>
+    <div class="row" id="msg-kinds" role="group" aria-label="SAPIENT message kinds"></div>
+    <div class="box" id="msg-info" aria-live="polite"><span class="lbl">Registration</span><span id="msg-text"></span></div>
+    <p class="small mute">The standard carries these messages over TCP. Dstl's reference software for that is the Apex middleware. Our earlier work (stages 1 to 4 in <code>README.md</code>) moved the same messages onto Zenoh.</p>
+  </div>
+
+  <div class="card" role="tabpanel" id="pan-zenoh" aria-labelledby="tab-zenoh" hidden>
+    <h3>Zenoh</h3>
+    <p><b>What it is.</b> Zenoh is an open source protocol for publish and subscribe. A program publishes data on a <b>key</b>. Other programs subscribe to keys and receive the data. A <b>router</b> passes the data between them.</p>
+    <p><b>A way to picture it.</b> It is a wall of pigeonholes, and each one has an address. You put a paper into one pigeonhole. Other people ask for "all pigeonholes that match this pattern".</p>
+    <p><b>What matters here.</b></p>
+    <ul>
+      <li>A key is a path, for example <code>h1/p1/fusion/up/detection_report</code>.</li>
+      <li>A subscriber gives a pattern, called a <b>key expression</b>. <code>*</code> stands for exactly one part of the path. <code>**</code> stands for any number of parts.</li>
+      <li>A router can check a certificate before it lets a program write or read a key. This is how the rules below are enforced.</li>
+      <li>A <b>liveliness token</b> is a key that exists only while its owner is connected. Others use it to know that a node is present.</li>
+    </ul>
+    <h3>Try a key expression</h3>
+    <p class="small mute">The names in capitals are short forms. RADAR, CAMERA and FUSION stand for node IDs. POD and HOST stand for the two anchors that the goat part explains. This tester knows <code>*</code> and <code>**</code> only.</p>
+    <label for="ke" class="small">Key expression</label>
+    <input type="text" id="ke" value="h1/p1/sapient/v2/*/up/**" autocomplete="off" spellcheck="false">
+    <div class="row" id="ke-presets" role="group" aria-label="Examples"></div>
+    <ul class="keys" id="ke-keys"></ul>
+    <p class="small" id="ke-note" aria-live="polite"></p>
+  </div>
+
+  <div class="card" role="tabpanel" id="pan-goat" aria-labelledby="tab-goat" hidden>
+    <h3>The goat network</h3>
+    <p><b>What it is.</b> goat is an open source project of United States Army Europe and Africa. One goat network, a "goatnet", has four parts: a private mesh network between machines (WireGuard), a Zenoh data <b>fabric</b>, an identity service, and a certificate authority (CA). One nation or organisation operates one goatnet.</p>
+    <p><b>A way to picture it.</b> It is a building with badges and numbered lockers. The badge is a certificate. The locker number is an <b>anchor</b>.</p>
+    <p><b>The rules that matter here.</b></p>
+    <ul>
+      <li><b>Identity is a slot.</b> The operator makes a pool of slots before anyone joins. Each slot has an anchor: 32 characters, made from a hash. A new member gets the certificate of a free slot. The router does not restart.</li>
+      <li><b>You write only below your own anchor.</b> Every key that a member writes starts with its anchor, for example <code>18214b1a…/telemetry/…</code>. So a reader always knows who wrote the data.</li>
+      <li><b>Every certified member may read.</b> But a subscription to everything (<code>**</code>) is refused. A reader must name at least the top level, as in <code>*/telemetry/…</code>.</li>
+      <li><b>A denial is silent.</b> The router drops a forbidden message and tells the sender nothing.</li>
+      <li><b>Other nations get release lanes.</b> Data for a partner goes to special keys and through a separate router. This is step 6, not step 1.</li>
+    </ul>
+    <div class="box warn"><span class="lbl">Important for step 1</span>Step 1 does not use a real goatnet. It uses our own stand-in: a stock Zenoh router of the version that goat uses (1.9.0), with access rules that we generate by goat's rules, on Docker networks. A real goatnet comes in step 4. One real goat tool is used: goat's command line client reads our data in one check.</div>
+  </div>
+</section>
+
+<section id="goal">
+  <div class="kicker">3</div><h2>The end goal, and the six steps</h2>
+  <p>The picture shows the end goal of the proof of concept. Select a step to see which parts it adds. Parts with a dashed border are not built yet.</p>
+  <div class="row" id="steps" role="group" aria-label="Steps"></div>
+  <div id="goal-fig">
+    <div class="band" data-steps="4">goat control plane: identity, certificates, policy, time. <span class="mute">Step 1 uses a generator and a test CA in its place.</span></div>
+    <div class="zones goal">
+      <div class="zone"><b>Pod 1, at the edge</b><span>sensors and their own fusion</span>
+        <div class="parts">
+          <div class="part" data-steps="1">Sensors<small>radar, camera</small></div>
+          <div class="part" data-steps="1">Old sensor + node bridge<small>speaks TCP only</small></div>
+          <div class="part later" data-steps="3">Vendor sensor + Billie adapter<small>not SAPIENT</small></div>
+          <div class="part router" data-steps="1">Pod router<small>Zenoh, pod CA</small></div>
+          <div class="part" data-steps="1 2">Pod fusion node<small>step 2: Stone Soup</small></div>
+          <div class="part" data-steps="1">Pod bridge<small>the only way out</small></div>
+          <div class="part later" data-steps="5">Pod 2<small>a second pod</small></div>
+        </div>
+      </div>
+      <div class="zone"><b>Host, in a cloud or data centre</b><span>collects the pods' pictures</span>
+        <div class="parts">
+          <div class="part router" data-steps="1 4">Fabric router<small>step 4: a real goatnet</small></div>
+          <div class="part" data-steps="1 2">Host fusion node<small>with a display</small></div>
+          <div class="part" data-steps="1">Recorder</div>
+          <div class="part later router" data-steps="6">Edge router<small>one for each partner</small></div>
+        </div>
+      </div>
+      <div class="zone"><b>External host</b><span>another nation or organisation</span>
+        <div class="parts">
+          <div class="part later router" data-steps="6">Their router</div>
+          <div class="part later" data-steps="6">Their display<small>sees released data only</small></div>
+        </div>
+      </div>
+    </div>
+    <p class="link-note">Pod to host: TLS on a Docker network in step 1, the WireGuard mesh from step 4. Host to external host: an encrypted tunnel, in step 6.</p>
+  </div>
+  <div class="box" id="step-info" aria-live="polite"><span class="lbl" id="step-title"></span><span id="step-text"></span></div>
+</section>
+
+<section id="rig">
+  <div class="kicker">4</div><h2>This phase: the rig of step 1</h2>
+  <p>Everything runs on one machine, in Docker. Three Docker networks stand for the pod's local network, the mesh, and the host's network. Select a part to see what it is and what it may do.</p>
+  <div id="rig-fig">
+    <div class="zones rig">
+      <div class="zone"><b>Network pod1</b><span>pod 1, site name p1</span>
+        <div class="parts" id="rig-pod"></div>
+      </div>
+      <div class="zone mesh"><b>Network mesh</b><span>in place of the WireGuard mesh</span>
+        <div class="parts" id="rig-mesh" style="justify-content:center"></div>
+        <div class="wire" aria-hidden="true"></div>
+        <span class="small mute">TLS in both directions</span>
+      </div>
+      <div class="zone"><b>Network host</b><span>the host, site name h1</span>
+        <div class="parts" id="rig-host"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="rig-info" aria-live="polite">
+    <h3 id="rig-name"></h3>
+    <p id="rig-what"></p>
+    <table><tbody>
+      <tr><th style="width:150px">Identity</th><td id="rig-id"></td></tr>
+      <tr><th>May write</th><td id="rig-w"></td></tr>
+      <tr><th>May read</th><td id="rig-r"></td></tr>
+    </tbody></table>
+  </div>
+  <p class="small mute">Two certificate authorities exist. The pod CA signs everything inside the pod. The fabric CA signs the host side, and one certificate for the pod bridge.</p>
+</section>
+
+<section id="flow">
+  <div class="kicker">5</div><h2>Follow a message</h2>
+  <p>Select a story. Then step through it, or press Play. Each step shows the key of the message and who may write that key.</p>
+  <div class="row" id="stories" role="group" aria-label="Stories"></div>
+  <div class="card">
+    <div class="lanes" id="lanes" aria-hidden="true">
+      <div class="lane">Sensor<small>radar, camera</small></div>
+      <div class="lane">Pod fusion node</div>
+      <div class="lane">Pod bridge</div>
+      <div class="lane">Fabric router</div>
+      <div class="lane">Host<small>fusion node, recorder</small></div>
+      <div class="hop" id="hop"></div><div class="dot" id="dot"></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="f-prev">Back</button>
+      <button class="btn" id="f-next">Next</button>
+      <button class="btn" id="f-play" aria-pressed="false">Play</button>
+      <span class="small mute" id="f-count"></span>
+    </div>
+    <div class="readout" id="f-read">
+      <h3 id="f-title"></h3>
+      <p id="f-text"></p>
+      <table><tbody>
+        <tr><th style="width:150px">Key</th><td class="mono" id="f-key"></td></tr>
+        <tr><th>Who may write it</th><td id="f-who"></td></tr>
+      </tbody></table>
+    </div>
+    <div class="sr" aria-live="polite" id="f-live"></div>
+  </div>
+  <div class="box ok"><span class="lbl">The main point</span>Raw sensor data stops at the pod fusion node. Only what the fusion node sends upward reaches the fabric: its registration, its status, its joined tracks and its alerts. The bridge copies the bytes and changes nothing. It only gives the message a new key.</div>
+</section>
+
+<section id="rules">
+  <div class="kicker">6</div><h2>Try to break the rules</h2>
+  <p>The routers enforce the rules. The sender gets no error: the message is dropped. These four attempts were made on the running rig. Select one.</p>
+  <div class="row" id="cheats" role="group" aria-label="Attempts"></div>
+  <div class="box" id="cheat-box" aria-live="polite">
+    <span class="lbl" id="cheat-verdict"></span>
+    <p id="cheat-what" style="margin-top:2px"></p>
+    <p class="mono" id="cheat-key"></p>
+    <p id="cheat-why"></p>
+  </div>
+</section>
+
+<section id="faults">
+  <div class="kicker">7</div><h2>When things fail, and when a sensor joins</h2>
+  <p>A pod at the edge can lose its link to the host. Step 1 tested a short loss and a long loss. It also tested a new sensor that joins a running pod.</p>
+  <details open><summary>A short loss of the link (30 seconds)</summary>
+    <ul class="tl">
+      <li><b>0 s</b>The link between the pod bridge and the fabric router is cut.</li>
+      <li><b>10 s</b>The bridge notices the loss. Inside the pod nothing changes: sensors report, the fusion node makes tracks.</li>
+      <li><b>30 s</b>The link returns. The bridge connects again by itself.</li>
+      <li><b>after</b>The host receives tracks again. It did not remove the pod, and the pod did not register again.</li>
+    </ul>
+    <p class="small mute">The host keeps a node for a hold time (120 seconds by default) after its presence token is gone. A task that the host sent during the loss was lost. It was not delivered late.</p>
+  </details>
+  <details><summary>A long loss of the link (40 seconds, with the hold time set to 20 seconds)</summary>
+    <ul class="tl">
+      <li><b>0 s</b>The link is cut.</li>
+      <li><b>10 s</b>The bridge notices the loss. The host stops seeing the pod's presence token, and its hold time starts.</li>
+      <li><b>30 s</b>The hold time ends. The host removes the pod fusion node from its list.</li>
+      <li><b>40 s</b>The link returns.</li>
+      <li><b>44 s</b>The host sees the pod again and sends a task: "register again". The pod registers, and the host accepts it.</li>
+    </ul>
+  </details>
+  <details><summary>A new sensor joins with no router restart</summary>
+    <ul class="tl">
+      <li><b>1</b>The pool of the pod router has 8 slots from the start. Slots 0, 1 and 2 are in use. Slot 3 is free.</li>
+      <li><b>2</b>We give the name <code>radar2</code> to slot 3 in one file and run the generator. It makes one new certificate. The router files do not change.</li>
+      <li><b>3</b>The new radar starts with that certificate. The pod fusion node accepts its registration and takes its detections.</li>
+      <li><b>4</b>The router's start time is the same as before. It did not restart.</li>
+    </ul>
+    <p class="small mute">The earlier stage 4 pod could not do this. A new sensor needed a change of the router's access list and a restart.</p>
+  </details>
+</section>
+
+<section id="proof">
+  <div class="kicker">8</div><h2>What step 1 showed</h2>
+  <p>Step 1 has eleven acceptance checks. All passed, in two whole runs from newly made certificates. The record is <code>docs/acceptance-goat1.md</code>. The saved outputs are in <code>docs/evidence/goat1/</code>.</p>
+  <table>
+    <thead><tr><th style="width:74px">Check</th><th>In plain words</th><th style="width:92px">Result</th></tr></thead>
+    <tbody>
+      <tr><td>G1-01</td><td>Our Zenoh library (1.10.2) works with a router of goat's version (1.9.0), also after the router restarts.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-02</td><td>The host receives the pod's tracks and alerts. No raw sensor data is on the fabric: of 6304 records at the host, none holds a sensor's ID.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-03</td><td>The pod fusion node registers with the host, and the host accepts it.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-04</td><td>A task from the host reaches the radar and the camera. The acknowledgement returns to the host.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-05</td><td>Four forbidden actions are denied by the running routers (section 6).</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-06</td><td>A short loss of the link: the pod works alone, and the host keeps the pod.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-07</td><td>A long loss: the host removes the pod, then asks it to register again.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-08</td><td>The bridge drops a task that is older than 5 seconds.</td><td><span class="pill ok">pass</span> <span class="small mute">unit test only</span></td></tr>
+      <tr><td>G1-09</td><td>A new radar joins with a new certificate only. The pod router does not restart.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-10</td><td>goat's own command line tool, built from goat's source, reads the pod's tracks from our fabric router.</td><td><span class="pill ok">pass</span></td></tr>
+      <tr><td>G1-11</td><td>The earlier rigs still work. The unit suite has 454 passing tests.</td><td><span class="pill ok">pass</span></td></tr>
+    </tbody>
+  </table>
+  <div class="box warn"><span class="lbl">What step 1 does not show</span>
+    <ul>
+      <li><b>No real goatnet yet.</b> The host side is our stand-in on one machine, with a test CA. Docker networks stand for the mesh.</li>
+      <li><b>Clocks must agree.</b> Each side rejects a message that is more than 0.9 seconds old. A real network needs synchronised clocks.</li>
+      <li><b>A lost link is noticed late.</b> It takes 9 to 10 seconds. Messages sent in that time are lost.</li>
+      <li><b>Who owns a node ID.</b> The host gives a node ID to the first sender that names it. The design asks for more. This must be fixed before a second pod.</li>
+      <li><b>No way to remove a member.</b> A certificate stays valid. Nothing revokes it.</li>
+      <li><b>The fusion is a toy.</b> It joins detections that are closer than 100 metres. Real fusion comes in step 2.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <div class="kicker">9</div><h2>What comes next, and where to read more</h2>
+  <table>
+    <thead><tr><th style="width:64px">Step</th><th>Content</th><th style="width:110px">Status</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Pod 1 to host, on a stand-in fabric with goat's rules</td><td><span class="pill ok">done</span></td></tr>
+      <tr><td>2</td><td>Stone Soup, a real tracking library, in the fusion node</td><td><span class="pill">not started</span></td></tr>
+      <tr><td>3</td><td>The Billie adapter, for a sensor that speaks its maker's own protocol</td><td><span class="pill">not started</span></td></tr>
+      <tr><td>4</td><td>The host on a real goatnet</td><td><span class="pill">not started</span></td></tr>
+      <tr><td>5</td><td>A second pod</td><td><span class="pill">not started</span></td></tr>
+      <tr><td>6</td><td>An external host that belongs to another nation</td><td><span class="pill">not started</span></td></tr>
+    </tbody>
+  </table>
+  <h3>Files to read, in this order</h3>
+  <p class="small mute">All are in the repository <code>Apex-SAPIENT-Docker</code>, branch <code>goat</code>.</p>
+  <table><tbody>
+    <tr><td><code>README-goat.md</code></td><td>The entry page: the drawings, and ten steps to run the rig yourself</td></tr>
+    <tr><td><code>docs/goat-roadmap.md</code></td><td>The six steps: what is decided, what is open</td></tr>
+    <tr><td><code>docs/goat-context.md</code></td><td>The goat rules that we follow, each with its source in goat's own files</td></tr>
+    <tr><td><code>docs/acceptance-goat1.md</code></td><td>The record of step 1: each check, what was measured, and the known limits</td></tr>
+    <tr><td><code>README.md</code></td><td>The base rig and the four earlier stages (TCP, then Zenoh, then one pod with access control)</td></tr>
+  </tbody></table>
+</section>
+
+<section id="glossary">
+  <div class="kicker">10</div><h2>Words used on this page</h2>
+  <label for="gl-q" class="small">Filter</label>
+  <input type="text" id="gl-q" placeholder="type a word, for example: anchor" autocomplete="off">
+  <dl class="gl" id="gl"></dl>
+  <p class="small mute" id="gl-none" hidden>No word matches.</p>
+</section>
+</main>
+<footer>
+  <p>Made on 2026-11-12 from the repository <code>Apex-SAPIENT-Docker</code>, branch <code>goat</code>, commit <code>c1fc418</code>. The numbers come from <code>docs/acceptance-goat1.md</code>. This page has no network access and loads no other file.</p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  function btn(label, onClick) {
+    var b = document.createElement('button');
+    b.className = 'btn'; b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function press(group, chosen) {
+    Array.prototype.forEach.call(group.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', b === chosen ? 'true' : 'false');
+    });
+  }
+
+  /* ---- 2. background tabs ---- */
+  var tabs = ['sapient', 'zenoh', 'goat'];
+  tabs.forEach(function (name) {
+    $('tab-' + name).addEventListener('click', function () {
+      tabs.forEach(function (n) {
+        $('tab-' + n).setAttribute('aria-selected', n === name ? 'true' : 'false');
+        $('pan-' + n).hidden = n !== name;
+      });
+    });
+  });
+
+  var KINDS = [
+    ['Registration', 'A node says who it is and what it can do. It is the first message of every node. A node that has not registered must not send data.'],
+    ['Registration ack', 'The fusion node answers a registration: accepted or not.'],
+    ['Status report', 'A node says how it is: working or not, and where it is. It repeats this every few seconds.'],
+    ['Detection report', 'A sensor says: I see an object here, at this time, of this kind. A fusion node uses the same message for a joined track.'],
+    ['Task', 'An order to a node. Examples: look at this place, move to this place, send your registration again.'],
+    ['Task ack', 'The answer to a task: accepted or rejected, with a reason.'],
+    ['Alert', 'A node reports something that needs attention. In step 1 the pod fusion node sends one alert for each new track.'],
+    ['Alert ack', 'The answer to an alert.'],
+    ['Error', 'A node says that a message it received was not valid.']
+  ];
+  var kindsBox = $('msg-kinds');
+  KINDS.forEach(function (k, i) {
+    var b = btn(k[0], function () {
+      press(kindsBox, b);
+      $('msg-info').querySelector('.lbl').textContent = k[0];
+      $('msg-text').textContent = k[1];
+    });
+    b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    kindsBox.appendChild(b);
+  });
+  $('msg-text').textContent = KINDS[0][1];
+
+  /* key expression tester: * is one part, ** is any number of parts */
+  var SAMPLE_KEYS = [
+    'h1/p1/sapient/v2/RADAR/up/detection_report',
+    'h1/p1/sapient/v2/CAMERA/up/status_report',
+    'h1/p1/fusion/up/detection_report',
+    'POD/telemetry/sapient/p1/v2/detection_report/FUSION',
+    'POD/telemetry/sapient/p1/v2/alert/FUSION',
+    'HOST/task/p1/sapient/v2/task/FUSION'
+  ];
+  var PRESETS = [
+    ['h1/p1/sapient/v2/*/up/**', 'This is what the pod fusion node reads: the upward messages of every sensor in the pod.'],
+    ['h1/p1/fusion/up/**', 'This is what the pod bridge reads in the pod: only the output of the fusion node. It cannot read a sensor.'],
+    ['*/telemetry/sapient/*/v2/*/*', 'This is what the host reads on the fabric: the telemetry of every anchor.'],
+    ['**', 'This matches every key. A goat fabric refuses this subscription. A reader must name at least the top level.']
+  ];
+  function kmatch(p, k) {
+    if (!p.length) return !k.length;
+    if (p[0] === '**') {
+      if (p.length === 1) return true;
+      for (var i = 0; i <= k.length; i++) { if (kmatch(p.slice(1), k.slice(i))) return true; }
+      return false;
+    }
+    if (!k.length) return false;
+    if (p[0] === '*' || p[0] === k[0]) return kmatch(p.slice(1), k.slice(1));
+    return false;
+  }
+  var keList = $('ke-keys');
+  SAMPLE_KEYS.forEach(function (key) {
+    var li = document.createElement('li');
+    var m = document.createElement('span'); m.className = 'm';
+    var c = document.createElement('span'); c.className = 'mono'; c.textContent = key;
+    li.appendChild(m); li.appendChild(c); keList.appendChild(li);
+  });
+  function runKe(note) {
+    var raw = $('ke').value.trim();
+    var parts = raw.split('/');
+    var bad = !raw || parts.some(function (x) { return x === ''; });
+    var hits = 0;
+    Array.prototype.forEach.call(keList.children, function (li, i) {
+      var ok = !bad && kmatch(parts, SAMPLE_KEYS[i].split('/'));
+      if (ok) hits++;
+      li.className = ok ? 'hit' : '';
+      li.firstChild.textContent = ok ? 'matches' : 'no';
+    });
+    var text = bad ? 'This is not a valid key expression. Parts are separated by one "/" and must not be empty.'
+      : hits + ' of ' + SAMPLE_KEYS.length + ' keys match.';
+    $('ke-note').textContent = note ? text + ' ' + note : text;
+  }
+  var presetBox = $('ke-presets');
+  PRESETS.forEach(function (p) {
+    presetBox.appendChild(btn(p[0], function () { $('ke').value = p[0]; runKe(p[1]); }));
+  });
+  $('ke').addEventListener('input', function () { runKe(''); });
+  runKe(PRESETS[0][1]);
+
+  /* ---- 3. the six steps ---- */
+  var STEPS = [
+    ['Step 1: pod 1 to host', 'Done. One pod sends its tracks and alerts to one host and takes tasks from it. The fabric router is our stand-in that follows goat\'s rules. This page is about this step.'],
+    ['Step 2: Stone Soup in the fusion node', 'Not started. Today the fusion node joins detections that are closer than 100 metres. Stone Soup is an open source tracking library that does this properly.'],
+    ['Step 3: the Billie adapter', 'Not started. Some sensors do not speak SAPIENT. Billie is goat\'s translator for such sensors. The adapter also gives the sensor a registration and a status in the pod.'],
+    ['Step 4: the host on a real goatnet', 'Not started. A real goatnet replaces our stand-in router and test CA: mesh network, identity service, CA and fabric router. The clients should need a change of configuration only.'],
+    ['Step 5: pod 2', 'Not started. A second pod with its own router and CA. The host joins the tracks of two pods. One pod must not be able to speak for the other.'],
+    ['Step 6: the external host', 'Not started. The host releases a chosen set of data to a partner nation, through a separate router and an encrypted tunnel. The partner sees nothing else.']
+  ];
+  var goalFig = $('goal-fig'), stepBox = $('steps');
+  function showStep(n, b) {
+    press(stepBox, b);
+    goalFig.classList.add('dimmed');
+    Array.prototype.forEach.call(goalFig.querySelectorAll('[data-steps]'), function (el) {
+      el.classList.toggle('on', el.getAttribute('data-steps').split(' ').indexOf(String(n)) !== -1);
+    });
+    $('step-title').textContent = STEPS[n - 1][0];
+    $('step-text').textContent = STEPS[n - 1][1];
+  }
+  STEPS.forEach(function (s, i) {
+    var b = btn('Step ' + (i + 1), function () { showStep(i + 1, b); });
+    stepBox.appendChild(b);
+    if (i === 0) showStep(1, b);
+  });
+
+  /* ---- 4. the rig ---- */
+  var RIG = [
+    ['pod', 'radar', 'Radar', 'sensor, slot 0', 'A fake radar. It registers, reports its status and sends detections of a drone that moves.',
+      'Pod slot 0. The slot gives it its certificate and its node ID.', 'Only its own upward keys: h1/p1/sapient/v2/<its ID>/up/…', 'Only its own downward keys: tasks and acknowledgements for it.'],
+    ['pod', 'camera', 'Camera', 'sensor, slot 1', 'A fake camera. It works like the radar.',
+      'Pod slot 1.', 'Only its own upward keys.', 'Only its own downward keys.'],
+    ['pod', 'vehicle', 'Vehicle', 'old node, TCP only', 'A fake node that speaks SAPIENT over plain TCP, as the standard describes. It stands for equipment that we cannot change.',
+      'None of its own. The node bridge holds a certificate for it.', 'Nothing on Zenoh. It sends over TCP to the node bridge.', 'Nothing on Zenoh.'],
+    ['pod', 'bridge-node', 'Node bridge', 'for the vehicle, slot 2', 'It takes the vehicle\'s TCP messages and publishes them on Zenoh, and the reverse. Do not confuse it with the pod bridge.',
+      'Pod slot 2, used for the vehicle.', 'Only the vehicle\'s upward keys.', 'Only the vehicle\'s downward keys.'],
+    ['pod', 'fusion-node', 'Pod fusion node', 'joins the reports', 'It accepts the sensors\' registrations, checks every message, joins detections into tracks, and gives tasks to sensors. It also registers upward, sends its tracks and alerts upward, and acts on tasks from the host.',
+      'A named pod certificate. It is not in the slot pool.', 'The downward keys of every sensor, and its own output on h1/p1/fusion/up/…', 'The upward keys of every sensor, and h1/p1/fusion/down/… from the host.'],
+    ['pod', 'recorder', 'Pod recorder', 'keeps every message', 'It writes each SAPIENT message in the pod to a file.',
+      'A named pod certificate.', 'Nothing.', 'All SAPIENT keys of the pod.'],
+    ['pod', 'zenohd-pod', 'Pod router', 'Zenoh 1.10.2', 'The Zenoh router of the pod. Every program in the pod connects to it. It checks each certificate and enforces the access rules of the pod. Its pool has 8 slots.',
+      'The router certificate of the pod CA.', 'It passes messages on. It does not write its own.', 'It passes messages on.'],
+    ['pod', 'radar2', 'Radar 2', 'joins later, slot 3', 'A second radar. It is not started with the rig. It joins in the "join" check, with a new certificate for slot 3 and no router restart.',
+      'Pod slot 3, a free slot until then.', 'Only its own upward keys.', 'Only its own downward keys.'],
+    ['mesh', 'pod-bridge', 'Pod bridge', 'the only way out', 'One program with two connections: one to the pod router, one to the fabric router. Upward it copies the fusion node\'s output to the fabric. Downward it copies the host\'s messages into the pod, after four checks. It never changes the bytes.',
+      'Two certificates: a named one of the pod CA, and fabric slot 0 of the fabric CA. Its anchor is 18214b1a34e3c722d1cac283b272a62c.', 'In the pod: only h1/p1/fusion/down/… On the fabric: only keys below its own anchor.', 'In the pod: only h1/p1/fusion/up/… It cannot read a sensor. On the fabric: the host\'s keys for site p1.'],
+    ['host', 'zenohd-fabric', 'Fabric router', 'Zenoh 1.9.0', 'Our stand-in for the fabric router of a goatnet. It is a stock Zenoh router of goat\'s version, with access rules made by goat\'s rules. Its pool has 8 slots.',
+      'The router certificate of the fabric CA.', 'It passes messages on.', 'It passes messages on.'],
+    ['host', 'host-fusion', 'Host fusion node', 'slot 1', 'The same program as the pod fusion node, with other settings. It accepts the pod fusion node\'s registration, shows the pod\'s tracks and alerts, and sends tasks to the pod.',
+      'Fabric slot 1. Its anchor is b005ae3a8f2baf89160bd71632902672.', 'Only keys below its own anchor: tasks and acknowledgements.', 'The telemetry and acknowledgements of every anchor.'],
+    ['host', 'host-recorder', 'Host recorder', 'slot 2', 'It writes each message on the fabric to a file. The check "no raw sensor data on the fabric" reads this file.',
+      'Fabric slot 2.', 'Nothing.', 'Telemetry, acknowledgements and tasks of every anchor. A subscription to "**" is refused.'],
+    ['host', 'goat-cli', 'goat client', 'slot 3, one check', 'goat\'s own command line tool, built from goat\'s source. It is not part of the rig. One check starts it to show that a real goat program can read our fabric.',
+      'Fabric slot 3.', 'Nothing in this check.', 'It subscribed to the pod\'s anchor and received the pod\'s tracks.']
+  ];
+  var rigFig = $('rig-fig');
+  function showRig(item, el) {
+    Array.prototype.forEach.call(rigFig.querySelectorAll('.part'), function (p) {
+      p.classList.toggle('on', p === el);
+      p.setAttribute('aria-pressed', p === el ? 'true' : 'false');
+    });
+    rigFig.classList.add('dimmed');
+    $('rig-name').textContent = item[2];
+    $('rig-what').textContent = item[4];
+    $('rig-id').textContent = item[5];
+    $('rig-w').textContent = item[6];
+    $('rig-r').textContent = item[7];
+  }
+  RIG.forEach(function (item) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'part' + (item[1].indexOf('zenohd') === 0 ? ' router' : '') + (item[1] === 'radar2' || item[1] === 'goat-cli' ? ' later' : '');
+    b.appendChild(document.createTextNode(item[2]));
+    var s = document.createElement('small'); s.textContent = item[3]; b.appendChild(s);
+    b.addEventListener('click', function () { showRig(item, b); });
+    $('rig-' + item[0]).appendChild(b);
+    if (item[1] === 'pod-bridge') showRig(item, b);
+  });
+
+  /* ---- 5. follow a message ---- */
+  /* Adapted from anatomy by Ryan (MIT License): see living-ui/LICENSE-anatomy.md. */
+  var LivingUI = LivingUI || {};
+  // One requestAnimationFrame loop for a stage, the figure's root element.
+  // tick(dt, calm) runs each frame and returns true while anything moves. dt is
+  // in seconds, 1/60 on the first frame after a wake and never over 1/30, and
+  // calm is true under prefers-reduced-motion, following its change event. The
+  // loop sleeps when tick returns false or the stage is offscreen; kick() wakes
+  // it after an input or a data change, and stop() ends it for good.
+  LivingUI.loop = (stage, tick) => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    let frame = 0, last = -1, inView = false, ended = false;
+    const step = (now) => {
+      const dt = last < 0 ? 1 / 60 : Math.min((now - last) / 1000, 1 / 30);
+      last = now;
+      frame = 0;
+      const moving = tick(dt, reduce.matches);
+      if (moving && inView && !ended && !frame) frame = requestAnimationFrame(step);
+    };
+    const kick = () => {
+      if (frame || !inView || ended) return;
+      last = -1;
+      frame = requestAnimationFrame(step);
+    };
+    // One callback can carry several entries for the stage, oldest first, so
+    // only the newest one says whether the stage is in view now.
+    const view = new IntersectionObserver((entries) => {
+      inView = entries[entries.length - 1].isIntersecting;
+      if (inView) return kick();
+      cancelAnimationFrame(frame);
+      frame = 0;
+    }, { rootMargin: '120px 0px' });
+    view.observe(stage);
+    reduce.addEventListener('change', kick);
+    return {
+      kick,
+      stop() {
+        ended = true;
+        cancelAnimationFrame(frame);
+        view.disconnect();
+        reduce.removeEventListener('change', kick);
+      },
+      get calm() { return reduce.matches; },
+    };
+  };
+  // Exponential follow. Each frame x covers 1 - e^(-dt / tau) of its gap to
+  // target, so it slows as it arrives and moves the same at any frame rate.
+  // tau is in seconds; 0.1 to 0.3 feels right. Returns the new x, which is
+  // exactly target under calm or once it is within 0.0005, so x === target
+  // means it has arrived.
+  LivingUI.follow = (x, target, dt, tau = 0.2, calm = false) => {
+    const next = target + (x - target) * Math.exp(-dt / tau);
+    return calm || Math.abs(target - next) < 5e-4 ? target : next;
+  };
+
+  var POD = '18214b1a…', HOST = 'b005ae3a…', FUS = '<fusion node ID>';
+  /* lanes: 0 sensor, 1 pod fusion node, 2 pod bridge, 3 fabric router, 4 host */
+  var STORIES = [
+    ['A pod starts', [
+      [0, 1, 'The radar registers in the pod', 'The radar sends a registration: who it is and what it can do. The pod fusion node checks it and answers "accepted".',
+        'h1/p1/sapient/v2/<radar ID>/up/registration', 'Only the radar\'s certificate (pod slot 0). The pod router checks this.'],
+      [1, 2, 'The pod fusion node registers upward', 'When its sensors have registered, the pod fusion node sends its own registration. It describes the pod as one node.',
+        'h1/p1/fusion/up/registration', 'Only the pod fusion node.'],
+      [2, 3, 'The bridge copies it to the fabric', 'The bridge copies the bytes and gives the message a fabric key. The key starts with the bridge\'s anchor. The bridge also declares a presence token for the pod.',
+        POD + '/telemetry/sapient/p1/v2/registration/' + FUS, 'Only fabric slot 0, the pod bridge. The fabric router checks that the key starts with the writer\'s anchor.'],
+      [3, 4, 'The host receives the registration', 'The host fusion node checks the registration and adds the pod to its list.',
+        POD + '/telemetry/sapient/p1/v2/registration/' + FUS, 'The router only passes it on.'],
+      [4, 1, 'The host answers "accepted"', 'The answer goes down the same way: fabric router, bridge, pod fusion node. The pod is now registered at the host.',
+        HOST + '/ack/p1/sapient/v2/registration_ack/' + FUS, 'Only fabric slot 1, the host fusion node.']
+    ]],
+    ['A drone is detected', [
+      [0, 1, 'The radar sees an object', 'The radar sends a detection report: an object, its place, the time. The camera does the same. These are raw sensor reports.',
+        'h1/p1/sapient/v2/<radar ID>/up/detection_report', 'Only the radar\'s certificate (pod slot 0).'],
+      [1, 1, 'The pod fusion node makes a track', 'It joins the reports of the radar and the camera into one track with its own track ID. This step happens inside the fusion node. No message leaves it yet.',
+        '(no message)', '(no message)'],
+      [1, 2, 'The fusion node sends the track upward', 'It publishes the track as a detection report with its own node ID as the sender. For a new track it also sends one alert.',
+        'h1/p1/fusion/up/detection_report', 'Only the pod fusion node.'],
+      [2, 3, 'The bridge copies it to the fabric', 'The bytes are not changed. The key changes: it now starts with the anchor of the pod bridge.',
+        POD + '/telemetry/sapient/p1/v2/detection_report/' + FUS, 'Only fabric slot 0, the pod bridge.'],
+      [3, 4, 'The host shows the track', 'The host fusion node checks the message and shows the track. The host recorder writes it to a file. The host answers the alert with an acknowledgement.',
+        POD + '/telemetry/sapient/p1/v2/detection_report/' + FUS, 'The router only passes it on.']
+    ]],
+    ['The host gives a task', [
+      [4, 3, 'The host sends a task', 'The host fusion node sends a task to the pod fusion node: "look at this place". The host can task only the pod fusion node, not a sensor.',
+        HOST + '/task/p1/sapient/v2/task/' + FUS, 'Only fabric slot 1, the host fusion node. It writes below its own anchor, never below the pod\'s.'],
+      [3, 2, 'The bridge receives it and checks it', 'The bridge makes four checks. Can the message be decoded? Is its destination the node that the key names? Has the bridge seen that node before? Is the task less than 5 seconds old? If one check fails, the bridge drops the message and counts it.',
+        HOST + '/task/p1/sapient/v2/task/' + FUS, 'The router only passes it on.'],
+      [2, 1, 'The bridge copies it into the pod', 'The bytes are not changed. The pod fusion node then checks the message with the standard\'s validator.',
+        'h1/p1/fusion/down/task', 'Only the pod bridge.'],
+      [1, 0, 'The fusion node passes the order to its sensors', 'It sends a copy of the order, with a new task ID, to each registered sensor that can do it. Here these are the radar and the camera.',
+        'h1/p1/sapient/v2/<sensor ID>/down/task', 'Only the pod fusion node.'],
+      [0, 1, 'The sensors answer', 'Each sensor sends a task acknowledgement to the pod fusion node. These answers stay inside the pod.',
+        'h1/p1/sapient/v2/<sensor ID>/up/task_ack', 'Only that sensor.'],
+      [1, 4, 'The pod answers the host', 'The pod fusion node sends its own acknowledgement of the host\'s task: "look_at sent to 2 nodes". It goes up through the bridge and the fabric router.',
+        POD + '/ack/p1/sapient/v2/task_ack/' + FUS, 'In the pod: the pod fusion node. On the fabric: slot 0, the pod bridge.']
+    ]]
+  ];
+  var state = { story: 1, step: 0, x: 0, target: 0, timer: 0, playing: false };
+  var lanesEl = $('lanes'), dot = $('dot'), hop = $('hop');
+  var laneEls = lanesEl.querySelectorAll('.lane');
+  function laneX(i) { return 10 + 20 * i; } /* centre of lane i, in percent */
+  var run = LivingUI.loop(lanesEl, function (dt, calm) {
+    state.x = LivingUI.follow(state.x, state.target, dt, 0.22, calm);
+    dot.style.left = state.x + '%';
+    return state.x !== state.target;
+  });
+  function steps() { return STORIES[state.story][1]; }
+  function render(announce) {
+    var s = steps()[state.step];
+    var a = laneX(s[0]), b = laneX(s[1]);
+    state.x = a; state.target = b;
+    dot.style.left = a + '%';
+    hop.style.left = Math.min(a, b) + '%';
+    hop.style.width = Math.abs(b - a) + '%';
+    Array.prototype.forEach.call(laneEls, function (el, i) {
+      el.classList.toggle('on', i === s[1]);
+    });
+    $('f-title').textContent = s[2];
+    $('f-text').textContent = s[3];
+    $('f-key').textContent = s[4];
+    $('f-who').textContent = s[5];
+    $('f-count').textContent = 'Step ' + (state.step + 1) + ' of ' + steps().length;
+    $('f-prev').disabled = state.step === 0;
+    $('f-next').disabled = state.step === steps().length - 1;
+    if (announce) $('f-live').textContent = 'Step ' + (state.step + 1) + ': ' + s[2];
+    run.kick();
+  }
+  function stopPlay() {
+    clearTimeout(state.timer); state.playing = false;
+    $('f-play').textContent = 'Play'; $('f-play').setAttribute('aria-pressed', 'false');
+  }
+  function go(delta, byUser) {
+    var n = state.step + delta;
+    if (n < 0 || n >= steps().length) return false;
+    state.step = n; render(byUser); return true;
+  }
+  function tickPlay() {
+    state.timer = setTimeout(function () {
+      if (!go(1, false)) { stopPlay(); return; }
+      if (state.step === steps().length - 1) { stopPlay(); return; }
+      tickPlay();
+    }, 3200);
+  }
+  $('f-prev').addEventListener('click', function () { stopPlay(); go(-1, true); });
+  $('f-next').addEventListener('click', function () { stopPlay(); go(1, true); });
+  $('f-play').addEventListener('click', function () {
+    if (state.playing) { stopPlay(); return; }
+    if (state.step === steps().length - 1) { state.step = 0; render(false); }
+    state.playing = true;
+    $('f-play').textContent = 'Pause'; $('f-play').setAttribute('aria-pressed', 'true');
+    tickPlay();
+  });
+  var storyBox = $('stories');
+  STORIES.forEach(function (st, i) {
+    var b = btn(st[0], function () { stopPlay(); state.story = i; state.step = 0; press(storyBox, b); render(true); });
+    b.setAttribute('aria-pressed', i === state.story ? 'true' : 'false');
+    storyBox.appendChild(b);
+  });
+  render(false);
+
+  /* ---- 6. break the rules ---- */
+  var CHEATS = [
+    ['The pod writes a task as if it were the host', false,
+      'The pod bridge\'s certificate tries to publish on a key below the host\'s anchor.',
+      HOST + '/task/p1/sapient/v2/task/' + FUS,
+      'Denied. A slot writes only below its own anchor. The subscriber on that key received nothing, and the fabric router logged the denial.'],
+    ['The host writes an alert as if it were the pod', false,
+      'The host fusion node\'s certificate tries to publish on a key below the pod\'s anchor.',
+      POD + '/telemetry/sapient/p1/v2/alert/' + FUS,
+      'Denied, by the same rule. The host can give tasks, but it cannot put data into the pod\'s space.'],
+    ['A reader asks for everything', false,
+      'The host recorder\'s certificate subscribes to the key expression "**".',
+      '**',
+      'Refused. It received nothing in 15 seconds. The same certificate received about 30 messages in 15 seconds when it asked for */telemetry/sapient/*/v2/*/* instead.'],
+    ['The radar writes the camera\'s key', false,
+      'Inside the pod, the radar\'s certificate tries to publish a status report on the camera\'s key.',
+      'h1/p1/sapient/v2/<camera ID>/up/status_report',
+      'Denied by the pod router. In the pod a slot may write only the keys of its own node ID. So one sensor cannot speak for another.'],
+    ['The same writers on their own keys', true,
+      'As a control, each test was repeated with the certificate that is allowed to write the key.',
+      'the same four keys',
+      'Allowed. The message arrived. This shows that the test itself works, and that the denial comes from the rule.']
+  ];
+  var cheatBox = $('cheats');
+  function showCheat(c, b) {
+    press(cheatBox, b);
+    var box = $('cheat-box');
+    box.className = 'box ' + (c[1] ? 'ok' : 'bad');
+    $('cheat-verdict').textContent = c[1] ? 'Allowed' : 'Denied';
+    $('cheat-what').textContent = c[2];
+    $('cheat-key').textContent = c[3];
+    $('cheat-why').textContent = c[4];
+  }
+  CHEATS.forEach(function (c, i) {
+    var b = btn(c[0], function () { showCheat(c, b); });
+    cheatBox.appendChild(b);
+    if (i === 0) showCheat(c, b);
+  });
+
+  /* ---- 10. glossary ---- */
+  var WORDS = [
+    ['Anchor', 'The first part of every key that a goat member may write. It is 32 hexadecimal characters, made from a hash. Each slot has one.'],
+    ['Apex', 'Dstl\'s reference middleware for SAPIENT over TCP. Our fusion node uses its message validator.'],
+    ['CA (certificate authority)', 'The party that signs certificates. Step 1 has a pod CA and a fabric CA. Both are test CAs.'],
+    ['Certificate', 'A signed file that proves who a program is. The routers decide by it what the program may write and read.'],
+    ['Detection report', 'A SAPIENT message: one object seen by a sensor, or one track made by a fusion node.'],
+    ['External host', 'A host that belongs to another nation or organisation. It gets released data only. Step 6.'],
+    ['Fabric', 'The Zenoh data network of a goatnet. In step 1 it is one stand-in router.'],
+    ['Fusion node', 'The SAPIENT node that joins the reports of several sensors into tracks, and gives tasks to sensors.'],
+    ['goat, goatnet', 'An open source network of United States Army Europe and Africa: a mesh, a Zenoh fabric, an identity service and a CA. One such network is a goatnet.'],
+    ['Host', 'The level above the pods. It has the fabric router, a host fusion node and a recorder.'],
+    ['Key', 'The address of data in Zenoh. It is a path, with parts separated by "/".'],
+    ['Key expression', 'A pattern for keys. "*" is exactly one part. "**" is any number of parts.'],
+    ['Liveliness token', 'A Zenoh key that exists only while its owner is connected. It shows that a node is present.'],
+    ['Mutual TLS', 'An encrypted connection in which both sides show a certificate.'],
+    ['Node', 'One SAPIENT participant with a node ID: a sensor, an effector or a fusion node.'],
+    ['Node bridge', 'A small program beside an old node. It moves the node\'s TCP messages onto Zenoh.'],
+    ['Pod', 'A small group of sensors at the edge, with its own router and its own fusion node.'],
+    ['Pod bridge', 'The one program that connects a pod to the fabric. It copies messages in both directions and changes only the key.'],
+    ['Registration', 'The first SAPIENT message of a node: who it is and what it can do.'],
+    ['Router', 'The Zenoh program that passes messages between clients and enforces the access rules.'],
+    ['SAPIENT', 'The message standard for sensors, effectors and fusion nodes. Published as BSI Flex 335. We use version 2.0.'],
+    ['Scoped read', 'goat\'s read rule: a member may read every anchor, but must name the top level. A subscription to "**" is refused.'],
+    ['Slot', 'One place in a pool of identities that is made in advance. A new member takes a free slot, so the router needs no change.'],
+    ['Stone Soup', 'An open source library for tracking and data fusion. It will replace our simple fusion in step 2.'],
+    ['Task', 'A SAPIENT order to a node, for example "look at this place".'],
+    ['Track', 'One object followed over time, made by a fusion node from several detections.'],
+    ['Zenoh', 'An open source protocol for publish and subscribe, with routers, keys and access control.']
+  ];
+  var gl = $('gl');
+  WORDS.forEach(function (w) {
+    var dt = document.createElement('dt'); dt.textContent = w[0];
+    var dd = document.createElement('dd'); dd.textContent = w[1];
+    gl.appendChild(dt); gl.appendChild(dd);
+  });
+  $('gl-q').addEventListener('input', function () {
+    var q = this.value.trim().toLowerCase(), shown = 0;
+    for (var i = 0; i < gl.children.length; i += 2) {
+      var hit = !q || (gl.children[i].textContent + ' ' + gl.children[i + 1].textContent).toLowerCase().indexOf(q) !== -1;
+      gl.children[i].hidden = gl.children[i + 1].hidden = !hit;
+      if (hit) shown++;
+    }
+    $('gl-none').hidden = shown > 0;
+  });
+})();
+</script>
+</body></html>
