@@ -477,3 +477,32 @@ async def test_main_refuses_an_empty_host_list(monkeypatch):
         monkeypatch.setenv(name, value)
     with pytest.raises(ValueError, match="FABRIC_HOST_ANCHORS"):
         await pod_bridge.main_async()
+
+
+class BrokenSource:
+    """A session queue whose reader fails."""
+
+    async def get(self):
+        raise RuntimeError("reader broke")
+
+
+async def test_run_ends_with_the_error_when_a_reader_fails(bridge, pod, caplog):
+    pod.subscribe = lambda keyexpr: BrokenSource()
+    caplog.set_level(logging.INFO, logger=log.name)
+
+    with pytest.raises(RuntimeError, match="reader broke"):
+        await asyncio.wait_for(bridge.run(), TIMEOUT)
+
+    assert "pod reader" in caplog.text and "reader broke" in caplog.text
+
+
+@pytest.mark.parametrize("side", ["pod", "fabric"])
+async def test_run_returns_with_a_log_line_when_a_session_closes(bridge, pod, fabric, caplog, side):
+    caplog.set_level(logging.INFO, logger=log.name)
+    runner = await running(bridge)
+
+    {"pod": pod, "fabric": fabric}[side].close()
+    await asyncio.wait_for(runner, TIMEOUT)
+
+    assert runner.result() is None
+    assert f"{side} session closed; the bridge stops" in caplog.text

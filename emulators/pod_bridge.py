@@ -200,24 +200,37 @@ class PodBridge:
     # --- the pumps --------------------------------------------------------------------------
 
     async def run(self) -> None:
-        """Pump both directions and run the timers, until cancelled or a session is closed."""
+        """Pump both directions and run the timers, until cancelled, a session is closed or a task fails.
+
+        A closed session logs a line and returns. Any other task that ends is a fault: it is logged
+        and raised, so the process ends with an error and compose starts it again. A lost router is
+        not a reason to end; on_transport handles it.
+        """
         up, down = _DropOldest(), _DropOldest()
-        tasks = [
-            asyncio.create_task(self._read(self.pod.subscribe(FUSION_UP_ALL), up)),
-            asyncio.create_task(self._write(up, self.forward_up)),
-            asyncio.create_task(self._write(down, self.forward_down)),
-            asyncio.create_task(self._transport("pod", self.pod)),
-            asyncio.create_task(self._transport("fabric", self.fabric)),
-            asyncio.create_task(self._timers()),
-            asyncio.create_task(self.pod.closed.wait()),
-            asyncio.create_task(self.fabric.closed.wait()),
-        ]
-        tasks += [
-            asyncio.create_task(self._read(self.fabric.subscribe(expr), down)) for expr in self._subscriptions
-        ]
-        closers = tasks[6:8]
+        named = {
+            "pod session": self.pod.closed.wait(),
+            "fabric session": self.fabric.closed.wait(),
+            "pod reader": self._read(self.pod.subscribe(FUSION_UP_ALL), up),
+            "up writer": self._write(up, self.forward_up),
+            "down writer": self._write(down, self.forward_down),
+            "pod transport": self._transport("pod", self.pod),
+            "fabric transport": self._transport("fabric", self.fabric),
+            "timers": self._timers(),
+        }
+        for expr in self._subscriptions:
+            named[f"fabric reader {expr}"] = self._read(self.fabric.subscribe(expr), down)
+        tasks = {asyncio.create_task(coroutine, name=name): name for name, coroutine in named.items()}
         try:
-            await asyncio.wait(closers, return_when=asyncio.FIRST_COMPLETED)
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            faults = [task for task in tasks if task in done and not tasks[task].endswith(" session")]
+            if not faults:
+                side = tasks[next(iter(done))].split()[0]
+                self.log.info(f"{side} session closed; the bridge stops")
+                return
+            task = faults[0]
+            error = (None if task.cancelled() else task.exception()) or RuntimeError(f"the {tasks[task]} task ended")
+            self.log.error(f"the {tasks[task]} task ended with {error!r}; the bridge stops")
+            raise error
         finally:
             for task in tasks:
                 task.cancel()
