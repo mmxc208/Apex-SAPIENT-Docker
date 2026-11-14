@@ -17,6 +17,8 @@ This file holds the part of goat that this repository must follow. It is an extr
   | `hello-galaxy-time-hygiene` | `35b2028` |
   | `hello-galaxy-zenoh-patterns` | `c563017` |
 
+  Sections 3.1, 3.4 and 3.5 were updated on 2026-11-14 from ADR 1237 and ADR 1239, read at `goatcore` `e8f223b7`, and from `zagros-moon-pod/docs/partner-contract.md`, read at `zagros-moon-pod` `e44114d`.
+
 - **Status words.** goat gives each part one of four words, and this file uses them the same way: built, measured, designed, not built.
 - **Evidence.** "Read" means the named file was read for this file. "Notes" means the statement comes from the analysis of 9 to 11 November at the same commit, and the source was not read again. No goat software was built or run for this file.
 - **Caution.** goat is before version 1.0 (`goat` 0.5.19, notes). Its interfaces can change. Check the commit before you rely on a line here.
@@ -145,6 +147,17 @@ goat's rule for the order of the parts of a key is: stable parts with few values
 
 A link from our fabric into a pod's local router is not part of the base rights of a pod. It is a separate grant with the name `router-peer`, given for each pod. goat also says that a moon pod is a learning tool, not the operational path between nations. Source (read): `goatcore/docs/adr/1092-moon-pod-peer-classes.md`.
 
+ADR 1239 (proposed, 2026-11-14) states the position of a moon pod once, and every goat document now points to it:
+
+1. A moon pod is used today only to learn. It is rung 2 of goat's learner ladder (ADR 1238), and it is not in operational use.
+2. It is not a sovereignty guarantee. The pod joins an environment that someone else runs, and the owner of that environment controls enrolment, the access rules and what data may leave the pod. This is the POD class above.
+3. It can become a real capability on one condition: the pod's operator accepts the environment owner as trusted, and as the authority over data that leaves the pod.
+4. A party that needs sovereignty runs its own environment and federates across a boundary (section 4). That is not a moon pod.
+
+ADR 1239 also withdraws the word "sovereign" from the moon pod claims in ADRs 0223, 0856, 1025, 1157 and 1164. It changes no code and no configuration. Source (read): `goatcore/docs/adr/1239-a-moon-pod-is-a-learning-tool-and-not-a-sovereignty-guarantee.md` decisions 1 and 2.
+
+**For us.** Pod 1 and the host belong to one party and sit in one environment, so pod 1 is a POD, and ADR 1239 agrees with our design. The pod has no sovereignty of its own, and we do not claim it. A pod run by another nation or organisation that must keep control of its data does not join our host as a pod. It runs its own environment and receives data by release, as the external host does in step 6. The roadmap has no such pod today.
+
 ### 3.2 The pod is an aggregation tier
 
 - goat counts three units: systems, mesh peers and fabric identities. A pod is one mesh peer with a local router, and the systems behind it are not mesh peers.
@@ -179,6 +192,29 @@ The moon pod contract has seven requirements (read: `zagros-moon-pod/docs/partne
 - Landing interface: data goes in and out at well-known Zenoh keys below the pod's namespace.
 - Audit: the pod's owner keeps 90 days or more of access logs for the namespace.
 - Schema: each published topic has a schema declaration at `attest/schema/<topic>`. The goat boundary rejects a topic with no declaration.
+
+Requirement 6 was named the "sovereignty floor". It is now the **custody floor**: the partner's data at rest, operator credentials and audit logs live on the partner's side. The contract says that this is where three things live, and not a sovereignty guarantee. The goat-hosted coordination plane still enrols the pod and holds its connection metadata, and the goat-operated boundary processes the pod's data in flight (read: `zagros-moon-pod/docs/partner-contract.md`, at `e44114d`; ADR 1239 decision 2).
+
+**For us.** We keep the four requirements above as engineering rules for the pod, because each one is sound on its own. Their basis is the contract's boundary behaviour and the custody floor, not a claim that the pod is sovereign (section 3.1).
+
+The contract also says that a moon pod is a Tier-2 peer: its router connects to a goat-operated ingress gateway, which admits the pod's data scoped to its origin, and not to a goat core router (read: same file). Step 4 must check how a pod reaches the fabric on a real goatnet, and whether our pod bridge meets that gateway or a fabric router.
+
+### 3.5 Rebuilding a pod from its identities
+
+ADR 1237 (proposed, 2026-11-14) decides how a site is rebuilt after it may have been compromised. A tactical pod counts as a site.
+
+- **The extract.** `goatbuilder extract <site>` writes one signed file with the people, machines and processes that the site owns and that no configuration declares. Keys are carried only by reference (a public key, a certificate serial and fingerprint, the name of the variable that holds a secret). No private key, password hash or secret is carried, and no session, log, audit object or replication state.
+- **A cut-off site.** The extract is taken at the hub, from the hub's copy of the site's records. The site's own extract is evidence only.
+- **The rebuild.** Teardown, then `goatbuilder join-node` (or `standup` for the hub), then `goatbuilder import <site> --extract <file>`. No disk, dump or volume is restored. A pod is rebuilt with `join-node`.
+- **The comb.** The import checks each element again before it creates it. Routine elements get machine checks (declared or sponsored, still enrolled at the hub, not revoked, not dormant, grants within the class ceiling). Privileged elements also need a signed approval by a named person. Each element carries indicators of concern, for example "created at a cut-off site" or "credential changed shortly before the sever".
+- **A machine may need to enrol again.** It keeps its key only when the comb matches it against the hub's record.
+- **Status.** Not built. `extract` and `import` do not exist, and the pattern is a fast follow after goatbuilder 1.0. Machines and processes do not record all the provenance fields yet (`created_site`, `owner_site`, sponsor, last credential change).
+- Source (read): `goatcore/docs/adr/1237-a-site-is-rebuilt-from-nothing-and-a-combed-extract-of-its-identities.md` decisions 1 to 5 and 7, and its consequences.
+
+**For us.** Nothing in steps 1 to 6 uses this pattern. Two things can be prepared now:
+
+1. The condition for step 5 on node ID ownership (`docs/goat-roadmap.md`, step 5) is the same kind of problem as ADR 1237's provenance. If a node ID is bound to the anchor of an accepted registration, or taken from the registry, the registry can later say which pod owns which node ID, as the comb needs.
+2. The pod must not assume that its slot certificate lives for ever. After a rebuild the pod may enrol again and get a new certificate, so the five facts of section 5.1 must stay configuration only.
 
 ## 4. Between sovereigns
 
@@ -257,6 +293,8 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
 | Tasks from host to pod | Below the host's own slot, in the `task/` taxonomy, for one site. A task that waits during a partition expires. | 2.3, 2.8 |
 | Keys for SAPIENT on the fabric | Below `<slot>/telemetry/`, wire-faithful | 2.3 |
 | External host | Release lane, republisher, one edge router for each partner, `from/<us>/` | 2.5, 4 |
+| A pod run by another party | Not a pod of our host. It runs its own environment and receives data by release. | 3.1, 4 |
+| Pod identities after a compromise | Rebuilt from a combed extract of identities, not restored from disk. Not built. | 3.5 |
 
 ## 8. Gaps and unknowns
 
@@ -277,6 +315,8 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
 9. **Federation.** The one-command procedure is not built.
 10. **Scale.** goat's validated data stops near 100 peers (notes).
 11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and asks for source info on goat's own publishers. goat's command line tool also sets a publisher's session ID to its slot anchor, which its code credits to ADR 1039. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
+12. **Rebuild of a pod.** goat's pattern for rebuilding a compromised site from its identities (ADR 1237) is proposed and not built, and it comes after goatbuilder 1.0. Until then a compromised pod has no goat procedure to return. Section 3.5.
+13. **Pod ingress on a real goatnet.** The moon pod contract sends a pod through a goat-operated ingress gateway, not to a core router. Not checked against our pod bridge. Open for step 4 (section 3.4).
 
 ## 9. Where to read more
 
@@ -287,6 +327,10 @@ All paths are in `../usareur-af/`.
 - `goatcore/docs/adr/1025-zenoh-dynamic-tenant-authz-slot-pool.md`: slots.
 - `goatcore/docs/adr/1041-zenoh-router-zid-pinning-and-source-provenance.md`: the session ID as a label, a fixed router ID, and source info.
 - `goatcore/docs/adr/1092-moon-pod-peer-classes.md` and `1122-scale-envelope-systems-vs-peers-pod-tier.md`: pods.
+- `goatcore/docs/adr/1239-a-moon-pod-is-a-learning-tool-and-not-a-sovereignty-guarantee.md`: the position of a moon pod.
+- `goatcore/docs/adr/1237-a-site-is-rebuilt-from-nothing-and-a-combed-extract-of-its-identities.md`: rebuilding a site or a pod from its identities.
+- `goatcore/docs/adr/1238-the-learning-program-is-a-ten-rung-ladder-and-a-lane-beyond-it-in-use-while-proposed.md`: the learner ladder.
+- `zagros-moon-pod/docs/partner-contract.md`: the seven requirements and the custody floor.
 - `goatcore/docs/adr/1157-cross-sovereign-federation-edge-terminated.md` and `1208-sovereign-environments-release-namespaces-and-grant-encryption.md`: sovereigns.
 - `goatcore/docs/design/goatlite.md` and `goatcore/docs/tutorials/00-goatlite.md`: the smallest real goatnet.
 - `goatcore/ops/ansible/roles/goat-zenoh/`: the router role, its template and `acl-evaluate.py`.
