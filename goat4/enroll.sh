@@ -46,17 +46,27 @@ KEY="$(grep '^[[:space:]]*\(export[[:space:]]\{1,\}\)\{0,1\}CUASLAB_PORTAL_OPERA
 printf 'Authorization: Bearer %s\n' "$KEY" > "$WORK/auth.hdr"
 KEY=""
 
+# curl's own error text is discarded: it could name a URL, and a bundle URL
+# carries a token. Only the exit code is reported.
+CURL_OPTS="-sS --connect-timeout 10 --max-time 60"
+
 # api <method> <path> [json-body]: body to $WORK/resp, status to $STATUS
 STATUS=""
 api() {
-  local method="$1" path="$2" body="${3:-}"
+  local method="$1" path="$2" body="${3:-}" rc
+  rm -f "$WORK/resp"
   if [ -n "$body" ]; then
-    STATUS="$(curl -s -o "$WORK/resp" -w '%{http_code}' -X "$method" -H "@$WORK/auth.hdr" \
-      -H 'Content-Type: application/json' --data-binary "$body" "$PORTAL$path")" || STATUS="000"
+    STATUS="$(curl $CURL_OPTS -o "$WORK/resp" -w '%{http_code}' -X "$method" -H "@$WORK/auth.hdr" \
+      -H 'Content-Type: application/json' --data-binary "$body" "$PORTAL$path" 2>/dev/null)"
   else
-    STATUS="$(curl -s -o "$WORK/resp" -w '%{http_code}' -X "$method" -H "@$WORK/auth.hdr" "$PORTAL$path")" || STATUS="000"
+    STATUS="$(curl $CURL_OPTS -o "$WORK/resp" -w '%{http_code}' -X "$method" -H "@$WORK/auth.hdr" "$PORTAL$path" 2>/dev/null)"
   fi
+  rc=$?
+  if [ "$rc" != 0 ]; then STATUS="curl-exit-$rc"; fi
+  [ -f "$WORK/resp" ] || : > "$WORK/resp"
 }
+
+is2xx() { case "$1" in 2[0-9][0-9]) return 0 ;; *) return 1 ;; esac; }
 
 # jget <file> <key>: top-level string field, empty when missing
 jget() {
@@ -78,12 +88,15 @@ cn_of() {
 
 # 2. list the machines
 api GET /api/machines
-[ "$STATUS" = "200" ] || die "listing machines failed: HTTP $STATUS, code $(errcode)"
+is2xx "$STATUS" || die "listing machines failed: HTTP $STATUS, code $(errcode)"
 python3 -I -c '
 import json, sys
-for m in json.load(open(sys.argv[1])).get("machines", []):
+d = json.load(open(sys.argv[1]))
+if not isinstance(d, dict) or not isinstance(d.get("machines"), list):
+    sys.exit(1)
+for m in d["machines"]:
     print(m.get("system_handle", ""), m.get("slot_id", ""))
-' "$WORK/resp" > "$WORK/machines.txt" || die "cannot read the machine list"
+' "$WORK/resp" > "$WORK/machines.txt" || die "the machine list has no machines key; nothing was enrolled"
 
 # 3. decide per handle, before anything is written to the portal
 TODO=""
@@ -113,19 +126,23 @@ while IFS=: read -r handle stem class autonomy var; do
 done <<EOF
 $MACHINES
 EOF
+if [ -s "$ANCHORS" ] && [ ! -s "$OUT/pki/ca.pem" ]; then
+  echo "enroll.sh: handles are present but $OUT/pki/ca.pem is missing or empty; nothing was enrolled" >&2
+  BAD=1
+fi
 [ "$BAD" = 0 ] || exit 1
 
 # 4. the grant, only when something is to be enrolled
 if [ -n "$TODO" ]; then
   api GET "/api/machines/grant/$CUSTODIAN"
-  if [ "$STATUS" = "200" ]; then
+  if is2xx "$STATUS"; then
     :
   elif [ "$STATUS" = "404" ] && [ "$(errcode)" = "no_grant" ]; then
     api POST /api/machines/grant "$(python3 -I -c '
 import json, sys
 print(json.dumps({"custodian": sys.argv[1], "quota": int(sys.argv[2]), "affiliation": sys.argv[3]}))
 ' "$CUSTODIAN" "$QUOTA" "$AFFILIATION")"
-    [ "$STATUS" = "200" ] || die "setting the grant failed: HTTP $STATUS, code $(errcode)"
+    is2xx "$STATUS" || die "setting the grant failed: HTTP $STATUS, code $(errcode)"
   else
     die "reading the grant failed: HTTP $STATUS, code $(errcode)"
   fi
@@ -134,6 +151,7 @@ fi
 # 5. enrol the missing handles
 mkdir -p "$OUT/pki" || die "cannot create $OUT/pki"
 CA_DONE=0
+rc=0
 while IFS=: read -r handle stem class autonomy var; do
   case "$TODO " in *" $handle "*) ;; *) continue ;; esac
   body="$(python3 -I -c '
@@ -141,7 +159,7 @@ import json, sys
 print(json.dumps({"machine_handle": sys.argv[1], "node_class": sys.argv[2], "autonomy": sys.argv[3], "custodian": sys.argv[4]}))
 ' "$handle" "$class" "$autonomy" "$CUSTODIAN")"
   api POST /api/machines/enroll "$body"
-  [ "$STATUS" = "200" ] || die "$handle: enrolment refused: HTTP $STATUS, code $(errcode)"
+  is2xx "$STATUS" || die "$handle: enrolment refused: HTTP $STATUS, code $(errcode)"
   anchor="$(jget "$WORK/resp" slot_id)"
   burl="$(jget "$WORK/resp" bundle_url)"
   rm -f "$WORK/resp"
@@ -153,9 +171,11 @@ print(json.dumps({"machine_handle": sys.argv[1], "node_class": sys.argv[2], "aut
 
   stage="$WORK/stage-$stem"
   mkdir -p "$stage"
-  code="$(curl -s -o "$WORK/bundle.tgz" -w '%{http_code}' "$PORTAL$burl")" || code="000"
+  code="$(curl $CURL_OPTS -o "$WORK/bundle.tgz" -w '%{http_code}' "$PORTAL$burl" 2>/dev/null)"
+  rc=$?
   burl=""
-  [ "$code" = "200" ] || die "$handle: enrolled as $anchor, but the bundle download failed: HTTP $code"
+  [ "$rc" = 0 ] || code="curl-exit-$rc"
+  [ "$code" = "200" ] || die "$handle: enrolled as $anchor, but the bundle download failed: $code"
   tar -xzf "$WORK/bundle.tgz" -C "$stage" 2>/dev/null || die "$handle: enrolled as $anchor, but the bundle is not a readable tar.gz"
   rm -f "$WORK/bundle.tgz"
   [ -s "$stage/$anchor-cert.pem" ] || die "$handle: enrolled as $anchor, but the bundle has no $anchor-cert.pem"
@@ -167,6 +187,16 @@ print(json.dumps({"machine_handle": sys.argv[1], "node_class": sys.argv[2], "aut
   done
   [ -n "$root" ] || die "$handle: enrolled as $anchor, but the bundle has no root certificate"
   [ "$(cn_of "$stage/$anchor-cert.pem")" = "$anchor" ] || die "$handle: enrolled as $anchor, but the certificate's common name differs"
+
+  openssl pkey -in "$stage/$anchor-key.pem" -noout >/dev/null 2>&1 \
+    || die "$handle: enrolled as $anchor, but the bundle's key does not parse"
+  kpub="$(openssl pkey -in "$stage/$anchor-key.pem" -pubout 2>/dev/null)"
+  cpub="$(openssl x509 -in "$stage/$anchor-cert.pem" -pubkey -noout 2>/dev/null)"
+  [ -n "$kpub" ] && [ "$kpub" = "$cpub" ] \
+    || die "$handle: enrolled as $anchor, but the bundle's key does not match its certificate"
+  kpub=""; cpub=""
+  openssl verify -CAfile "$root" "$stage/$anchor-cert.pem" >/dev/null 2>&1 \
+    || die "$handle: enrolled as $anchor, but the certificate does not verify against the bundle's root"
 
   cp "$stage/$anchor-key.pem" "$OUT/pki/$stem.key" && chmod 600 "$OUT/pki/$stem.key" \
     && cp "$stage/$anchor-cert.pem" "$OUT/pki/$stem.pem" || die "$handle: cannot write files below $OUT/pki"

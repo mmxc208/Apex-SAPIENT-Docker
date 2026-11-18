@@ -33,13 +33,28 @@ API_KEYS = {h: "apikey-secret-" + h for h in ANCHORS}
 TOKENS = {h: "tok-secret-" + h for h in ANCHORS}
 
 
-def make_cert(directory, anchor):
-    cert = os.path.join(directory, anchor + "-cert.pem")
-    key = os.path.join(directory, anchor + "-key.pem")
+def make_ca(directory, name):
+    cert = os.path.join(directory, name + "-ca.pem")
+    key = os.path.join(directory, name + "-ca.key")
     subprocess.run(
         ["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
-         "-nodes", "-keyout", key, "-out", cert, "-subj", "/CN=" + anchor, "-days", "2"],
+         "-nodes", "-keyout", key, "-out", cert, "-subj", "/CN=" + name, "-days", "2"],
         check=True, capture_output=True)
+    return cert, key
+
+
+def make_cert(directory, anchor, ca, subject=None):
+    """A leaf with common name `subject` (default the anchor), signed by ca = (cert, key)."""
+    cert = os.path.join(directory, anchor + "-cert.pem")
+    key = os.path.join(directory, anchor + "-key.pem")
+    csr = os.path.join(directory, anchor + ".csr")
+    subprocess.run(
+        ["openssl", "req", "-new", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+         "-nodes", "-keyout", key, "-out", csr, "-subj", "/CN=" + (subject or anchor)],
+        check=True, capture_output=True)
+    subprocess.run(
+        ["openssl", "x509", "-req", "-in", csr, "-CA", ca[0], "-CAkey", ca[1], "-CAcreateserial",
+         "-out", cert, "-days", "2"], check=True, capture_output=True)
     return cert, key
 
 
@@ -47,13 +62,17 @@ class FakePortal:
     """State and behaviour of one fake portal; one instance per test."""
 
     def __init__(self, bundles, listed=(), grant_exists=False, refuse=None, no_mesh_key=False,
-                 bundle_without_key=False):
+                 bundle_without_key=False, bad_slot_for=None, bundle_status=200,
+                 machines_key=True):
         self.bundles = bundles          # anchor -> (cert path, key path, root path)
         self.listed = list(listed)      # handles that already hold a live slot
         self.grant_exists = grant_exists
         self.refuse = refuse            # (handle, status, code) to refuse
         self.no_mesh_key = no_mesh_key
         self.bundle_without_key = bundle_without_key
+        self.bad_slot_for = bad_slot_for
+        self.bundle_status = bundle_status
+        self.machines_key = machines_key
         self.requests = []              # (method, path, auth header, parsed body)
         self.lock = threading.Lock()
         portal = self
@@ -82,6 +101,8 @@ class FakePortal:
                 if auth != "Bearer " + OPERATOR_KEY:
                     return self.send_json(401, {"code": "unauthorized"})
                 if method == "GET" and self.path == "/api/machines":
+                    if not portal.machines_key:
+                        return self.send_json(200, {})
                     return self.send_json(200, {"machines": [
                         {"system_handle": h, "slot_id": ANCHORS[h]} for h in portal.listed]})
                 if method == "GET" and self.path == "/api/machines/grant/" + CUSTODIAN:
@@ -101,19 +122,24 @@ class FakePortal:
                     return self.send_json(portal.refuse[1], {"code": portal.refuse[2]})
                 anchor = ANCHORS[handle]
                 answer = {
-                    "slot_id": anchor,
+                    "slot_id": "XYZ" if portal.bad_slot_for == handle else anchor,
                     "api_key": API_KEYS[handle],
                     "bundle_token": TOKENS[handle],
-                    "bundle_url": "/api/org-bundle/%s/%s" % (anchor, TOKENS[handle]),
+                    "bundle_url": "/api/org-bundle/%s/%s.tar.gz" % (anchor, TOKENS[handle]),
+                    "quota_remaining": 4,
                     "mesh_groups": [], "mesh_note": "n/a",
                 }
                 if not portal.no_mesh_key:
                     answer["mesh_setup_key"] = "mesh-secret-" + handle
-                self.send_json(200, answer)
+                self.send_json(201, answer)
 
             def bundle(self):
                 parts = self.path.split("/")
                 anchor, token = parts[3], parts[4]
+                if token.endswith(".tar.gz"):
+                    token = token[: -len(".tar.gz")]
+                if portal.bundle_status != 200:
+                    return self.send_json(portal.bundle_status, {"code": "gone"})
                 handle = next((h for h, a in ANCHORS.items() if a == anchor), None)
                 if handle is None or TOKENS[handle] != token:
                     return self.send_json(404, {"code": "bad_bundle"})
@@ -161,10 +187,13 @@ class EnrollTest(unittest.TestCase):
     def setUpClass(cls):
         cls.keydir = tempfile.TemporaryDirectory()
         cls.bundles = {}
-        root, _ = make_cert(cls.keydir.name, "ee" * 16)
+        ca = make_ca(cls.keydir.name, "root")
+        other_ca = make_ca(cls.keydir.name, "other")
         for anchor in ANCHORS.values():
-            cert, key = make_cert(cls.keydir.name, anchor)
-            cls.bundles[anchor] = (cert, key, root)
+            cert, key = make_cert(cls.keydir.name, anchor, ca)
+            cls.bundles[anchor] = (cert, key, ca[0])
+        cls.wrong_cn = make_cert(cls.keydir.name, "dd" * 16, ca)
+        cls.other_ca_cert = other_ca[0]
 
     @classmethod
     def tearDownClass(cls):
@@ -188,6 +217,28 @@ class EnrollTest(unittest.TestCase):
         return subprocess.run(
             ["/bin/bash", SCRIPT, self.secrets, "--portal", portal.url, "--out", self.out],
             capture_output=True, text=True, timeout=120)
+
+    def bundles_with(self, handle, cert=None, key=None, root=None):
+        """A copy of the bundles in which one handle's cert, key or root is replaced."""
+        b = dict(self.bundles)
+        c, k, r = b[ANCHORS[handle]]
+        b[ANCHORS[handle]] = (cert or c, key or k, root or r)
+        return b
+
+    def place_all_files(self, ca=True):
+        for h, *_ in MACHINES:
+            self.place_files(h)
+        if ca:
+            with open(self.pki("ca.pem"), "w") as d, open(self.bundles[ANCHORS["pod1-bridge"]][2]) as s:
+                d.write(s.read())
+
+    def assert_stopped(self, res, portal, handle, enrolled):
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn(handle, res.stderr)
+        self.assertEqual([b["machine_handle"] for b in self.enrol_bodies(portal)], enrolled)
+        self.assertFalse(os.path.exists(os.path.join(self.out, "goat4.env")))
+        for secret in [OPERATOR_KEY, "PRIVATE KEY", "/api/org-bundle/"] + list(TOKENS.values()):
+            self.assertNotIn(secret, res.stdout + res.stderr)
 
     def pki(self, name):
         return os.path.join(self.out, "pki", name)
@@ -316,6 +367,69 @@ class EnrollTest(unittest.TestCase):
                              ["pod1-bridge"])
         self.assertFalse(os.path.exists(os.path.join(self.out, "goat4.env")))
         self.assertFalse(os.path.exists(self.pki("pod1.key")))
+
+    def test_enrol_answers_201_with_tar_gz_url(self):
+        # the real portal answers 201 and a bundle_url that ends in .tar.gz
+        with self.portal() as portal:
+            res = self.run_script(portal)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            bundle_gets = [r for r in portal.requests if r[1].startswith("/api/org-bundle/")]
+            self.assertEqual(len(bundle_gets), 3)
+            self.assertTrue(all(r[1].endswith(".tar.gz") for r in bundle_gets))
+
+    def test_cn_mismatch_on_fresh_bundle(self):
+        cert, key = self.wrong_cn
+        b = self.bundles_with("host-fusion", cert=cert, key=key)
+        with FakePortal(b) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", ["pod1-bridge", "host-fusion"])
+
+    def test_slot_id_not_hex(self):
+        with self.portal(bad_slot_for="host-fusion") as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", ["pod1-bridge", "host-fusion"])
+
+    def test_bundle_download_failure(self):
+        with self.portal(bundle_status=404) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "pod1-bridge", ["pod1-bridge"])
+
+    def test_existing_files_with_other_cn(self):
+        self.place_all_files()
+        cert, _ = self.wrong_cn
+        with open(cert) as s, open(self.pki("host-fusion.pem"), "w") as d:
+            d.write(s.read())
+        with self.portal(listed=ANCHORS, grant_exists=True) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", [])
+
+    def test_key_does_not_match_certificate(self):
+        other_key = self.bundles[ANCHORS["pod1-bridge"]][1]
+        b = self.bundles_with("host-fusion", key=other_key)
+        with FakePortal(b) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", ["pod1-bridge", "host-fusion"])
+
+    def test_leaf_does_not_verify_against_root(self):
+        b = self.bundles_with("host-fusion", root=self.other_ca_cert)
+        with FakePortal(b) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", ["pod1-bridge", "host-fusion"])
+
+    def test_all_skipped_but_ca_missing(self):
+        self.place_all_files(ca=False)
+        with self.portal(listed=ANCHORS, grant_exists=True) as portal:
+            res = self.run_script(portal)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertIn("ca.pem", res.stderr)
+            self.assertEqual(self.enrol_bodies(portal), [])
+        self.assertFalse(os.path.exists(os.path.join(self.out, "goat4.env")))
+
+    def test_machine_list_without_machines_key(self):
+        with self.portal(machines_key=False) as portal:
+            res = self.run_script(portal)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertEqual(self.enrol_bodies(portal), [])
 
     def test_no_mesh_key_is_accepted(self):
         with self.portal(no_mesh_key=True) as portal:
