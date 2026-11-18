@@ -63,7 +63,7 @@ class FakePortal:
 
     def __init__(self, bundles, listed=(), grant_exists=False, refuse=None, no_mesh_key=False,
                  bundle_without_key=False, bad_slot_for=None, bundle_status=200,
-                 machines_key=True):
+                 machines_key=True, extra_files=()):
         self.bundles = bundles          # anchor -> (cert path, key path, root path)
         self.listed = list(listed)      # handles that already hold a live slot
         self.grant_exists = grant_exists
@@ -73,6 +73,7 @@ class FakePortal:
         self.bad_slot_for = bad_slot_for
         self.bundle_status = bundle_status
         self.machines_key = machines_key
+        self.extra_files = list(extra_files)
         self.requests = []              # (method, path, auth header, parsed body)
         self.lock = threading.Lock()
         portal = self
@@ -149,10 +150,17 @@ class FakePortal:
                     tar.add(cert, arcname=anchor + "-cert.pem")
                     if not portal.bundle_without_key:
                         tar.add(key, arcname=anchor + "-key.pem")
-                    tar.add(root, arcname="root-cert.pem")
-                    info = tarfile.TarInfo("profile.cbor")
-                    info.size = 4
-                    tar.addfile(info, io.BytesIO(b"\xa0\xa0\xa0\xa0"))
+                    tar.add(root, arcname="cuaslab-ca-root.pem")
+                    for arcname, path in portal.extra_files:
+                        tar.add(path, arcname=arcname)
+                    pub = subprocess.run(["openssl", "pkey", "-in", key, "-pubout"],
+                                         check=True, capture_output=True).stdout
+                    for arcname, data in [(anchor + "-goat-cli-ca.pem", pub),
+                                          (anchor + "-goat-cli.cbor", b"\xa0\xa0\xa0\xa0"),
+                                          ("cuaslab-fabric-onboarding.md", b"# onboarding\n")]:
+                        info = tarfile.TarInfo(arcname)
+                        info.size = len(data)
+                        tar.addfile(info, io.BytesIO(data))
                 data = buf.getvalue()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/gzip")
@@ -194,6 +202,7 @@ class EnrollTest(unittest.TestCase):
             cls.bundles[anchor] = (cert, key, ca[0])
         cls.wrong_cn = make_cert(cls.keydir.name, "dd" * 16, ca)
         cls.other_ca_cert = other_ca[0]
+        cls.ca_cert = ca[0]
 
     @classmethod
     def tearDownClass(cls):
@@ -430,6 +439,38 @@ class EnrollTest(unittest.TestCase):
             res = self.run_script(portal)
             self.assertNotEqual(res.returncode, 0)
             self.assertEqual(self.enrol_bodies(portal), [])
+
+    def test_root_chosen_among_other_pem_files(self):
+        with self.portal() as portal:
+            res = self.run_script(portal)
+            self.assertEqual(res.returncode, 0, res.stderr)
+        with open(self.pki("ca.pem"), "rb") as a, open(self.ca_cert, "rb") as b:
+            self.assertEqual(a.read(), b.read())
+        for dirpath, _, files in os.walk(self.out):
+            for f in files:
+                self.assertFalse(f.endswith((".cbor", ".md", "-goat-cli-ca.pem")), f)
+
+    def test_two_candidate_roots_stops(self):
+        with self.portal(extra_files=[("second-root.pem", self.ca_cert)]) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "pod1-bridge", ["pod1-bridge"])
+
+    def test_later_bundle_with_other_root_stops(self):
+        other = make_ca(self.keydir.name, "third")
+        anchor = ANCHORS["host-fusion"]
+        cert, key = make_cert(self.keydir.name, anchor + "x", other, subject=anchor)
+        b = self.bundles_with("host-fusion", cert=cert, key=key, root=other[0])
+        with FakePortal(b) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", ["pod1-bridge", "host-fusion"])
+
+    def test_mixed_run_with_other_root_than_existing_ca_stops(self):
+        self.place_files("pod1-bridge")
+        with open(self.pki("ca.pem"), "w") as d, open(self.other_ca_cert) as s:
+            d.write(s.read())
+        with self.portal(listed=["pod1-bridge"], grant_exists=True) as portal:
+            res = self.run_script(portal)
+            self.assert_stopped(res, portal, "host-fusion", ["host-fusion"])
 
     def test_no_mesh_key_is_accepted(self):
         with self.portal(no_mesh_key=True) as portal:

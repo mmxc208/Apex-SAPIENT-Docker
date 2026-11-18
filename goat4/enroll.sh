@@ -82,6 +82,10 @@ print(v if isinstance(v, str) else "")
 
 errcode() { local c; c="$(jget "$WORK/resp" code)"; echo "${c:-none}"; }
 
+fp_of() {
+  openssl x509 -in "$1" -noout -fingerprint -sha256 2>/dev/null | sed 's/^.*=//'
+}
+
 cn_of() {
   openssl x509 -in "$1" -noout -subject -nameopt RFC2253 2>/dev/null | sed -n 's/.*CN=\([^,\/]*\).*/\1/p'
 }
@@ -152,6 +156,13 @@ fi
 mkdir -p "$OUT/pki" || die "cannot create $OUT/pki"
 CA_DONE=0
 rc=0
+# with a handle already skipped, the existing ca.pem is the root every bundle must match
+CA_FP=""
+if [ -s "$ANCHORS" ]; then
+  CA_FP="$(fp_of "$OUT/pki/ca.pem")"
+  [ -n "$CA_FP" ] || die "$OUT/pki/ca.pem is not a readable certificate"
+  CA_DONE=1
+fi
 while IFS=: read -r handle stem class autonomy var; do
   case "$TODO " in *" $handle "*) ;; *) continue ;; esac
   body="$(python3 -I -c '
@@ -180,12 +191,6 @@ print(json.dumps({"machine_handle": sys.argv[1], "node_class": sys.argv[2], "aut
   rm -f "$WORK/bundle.tgz"
   [ -s "$stage/$anchor-cert.pem" ] || die "$handle: enrolled as $anchor, but the bundle has no $anchor-cert.pem"
   [ -s "$stage/$anchor-key.pem" ] || die "$handle: enrolled as $anchor, but the bundle has no $anchor-key.pem"
-  root=""
-  for f in "$stage"/*.pem; do
-    [ -f "$f" ] || continue
-    case "$(basename "$f")" in "$anchor-cert.pem"|"$anchor-key.pem") ;; *) root="$f"; break ;; esac
-  done
-  [ -n "$root" ] || die "$handle: enrolled as $anchor, but the bundle has no root certificate"
   [ "$(cn_of "$stage/$anchor-cert.pem")" = "$anchor" ] || die "$handle: enrolled as $anchor, but the certificate's common name differs"
 
   openssl pkey -in "$stage/$anchor-key.pem" -noout >/dev/null 2>&1 \
@@ -195,14 +200,30 @@ print(json.dumps({"machine_handle": sys.argv[1], "node_class": sys.argv[2], "aut
   [ -n "$kpub" ] && [ "$kpub" = "$cpub" ] \
     || die "$handle: enrolled as $anchor, but the bundle's key does not match its certificate"
   kpub=""; cpub=""
-  openssl verify -CAfile "$root" "$stage/$anchor-cert.pem" >/dev/null 2>&1 \
-    || die "$handle: enrolled as $anchor, but the certificate does not verify against the bundle's root"
+  # the root: a *.pem other than cert and key that is an X.509 certificate and
+  # that the leaf verifies against. Public keys and other files are skipped.
+  root=""; nroots=0
+  for f in "$stage"/*.pem; do
+    [ -f "$f" ] || continue
+    case "$(basename "$f")" in "$anchor-cert.pem"|"$anchor-key.pem") continue ;; esac
+    openssl x509 -in "$f" -noout >/dev/null 2>&1 || continue
+    openssl verify -CAfile "$f" "$stage/$anchor-cert.pem" >/dev/null 2>&1 || continue
+    root="$f"; nroots=$((nroots + 1))
+  done
+  [ "$nroots" -ge 1 ] || die "$handle: enrolled as $anchor, but the bundle has no root certificate that the leaf verifies against"
+  [ "$nroots" -le 1 ] || die "$handle: enrolled as $anchor, but the bundle has more than one root certificate candidate"
+  rootfp="$(fp_of "$root")"
+  [ -n "$rootfp" ] || die "$handle: enrolled as $anchor, but the root certificate cannot be read"
+  if [ -n "$CA_FP" ] && [ "$rootfp" != "$CA_FP" ]; then
+    die "$handle: enrolled as $anchor, but the bundle's root differs from the one already in use (pki/ca.pem or an earlier bundle)"
+  fi
 
   cp "$stage/$anchor-key.pem" "$OUT/pki/$stem.key" && chmod 600 "$OUT/pki/$stem.key" \
     && cp "$stage/$anchor-cert.pem" "$OUT/pki/$stem.pem" || die "$handle: cannot write files below $OUT/pki"
   if [ "$CA_DONE" = 0 ]; then
     cp "$root" "$OUT/pki/ca.pem" || die "cannot write $OUT/pki/ca.pem"
     CA_DONE=1
+    CA_FP="$rootfp"
   fi
   rm -rf "$stage"
   echo "$handle $anchor $var" >> "$ANCHORS"
