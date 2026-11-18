@@ -19,12 +19,12 @@ import asyncio
 import logging
 import os
 import sys
+import uuid
 
 from zenoh_io import ZenohSession, open_session
 
 log = logging.getLogger("probe-fabric-pairing")
 
-NODE_ID = "a0000009-0000-4000-8000-000000000009"
 PUTS = 5
 SETTLE_SECONDS = 1.0  # time for a declaration to reach the router, and for a put to leave
 OPEN_SECONDS = 20.0
@@ -42,36 +42,48 @@ async def try_open(prefix: str) -> ZenohSession | None:
         return None
 
 
+async def exchange(anchor: str, writer: ZenohSession, reader: ZenohSession, run: str, result: dict) -> None:
+    """Fill result["received"] and result["token"]; may raise, the caller still reports."""
+    node = run  # a per-run UUID is a canonical node ID, so the key form is unchanged
+    key = f"{anchor}/telemetry/sapient/p1/v2/status_report/{node}"
+    live_key = f"{anchor}/telemetry/sapient/p1/v2/live/{node}"
+    payloads = {f"probe {run} {i}".encode() for i in range(PUTS)}
+    data = reader.subscribe(f"{anchor}/**")
+    live = reader.liveliness(f"{anchor}/**")
+    await asyncio.sleep(SETTLE_SECONDS)
+    writer.declare_token(live_key)
+    await asyncio.sleep(SETTLE_SECONDS)
+    for payload in sorted(payloads):
+        await writer.publish_raw(key, payload, "status_report")
+    await asyncio.sleep(SETTLE_SECONDS)
+    seen = set()
+    while not data.empty():
+        k, payload = data.get_nowait()
+        if k == key and payload in payloads:
+            seen.add(payload)
+    result["received"] = len(seen)
+    while not live.empty():
+        k, appeared = live.get_nowait()
+        result["token"] |= appeared and k == live_key
+
+
 async def run(anchor: str) -> bool:
-    reader = await try_open("READER")
-    writer = await try_open("ZENOH") if reader else None
-    received = 0
-    token_seen = False
+    run_id = str(uuid.uuid4())
+    writer, reader = await asyncio.gather(try_open("ZENOH"), try_open("READER"))
+    result = {"received": 0, "token": False}
     try:
-        if reader and writer:
-            data = reader.subscribe(f"{anchor}/**")
-            live = reader.liveliness(f"{anchor}/**")
-            await asyncio.sleep(SETTLE_SECONDS)
-            writer.declare_token(f"{anchor}/telemetry/sapient/p1/v2/live/{NODE_ID}")
-            await asyncio.sleep(SETTLE_SECONDS)
-            key = f"{anchor}/telemetry/sapient/p1/v2/status_report/{NODE_ID}"
-            for i in range(PUTS):
-                await writer.publish_raw(key, f"probe {i}".encode(), "status_report")
-            await asyncio.sleep(SETTLE_SECONDS)
-            while not data.empty():
-                data.get_nowait()
-                received += 1
-            while not live.empty():
-                k, appeared = live.get_nowait()
-                token_seen |= appeared and k.endswith(f"/live/{NODE_ID}")
+        if writer and reader:
+            await exchange(anchor, writer, reader, run_id, result)
+    except Exception as e:
+        log.info(f"exchange failed: {type(e).__name__}: {e}")
     finally:
         for session in (writer, reader):
             if session:
                 session.close()
     print(f"session: writer {str(writer is not None).lower()} reader {str(reader is not None).lower()}")
-    print(f"put below anchor received: {received} of {PUTS}")
-    print(f"liveliness token seen by reader: {str(token_seen).lower()}")
-    return bool(writer and reader) and received == PUTS and token_seen
+    print(f"put below anchor received: {result['received']} of {PUTS}")
+    print(f"liveliness token seen by reader: {str(result['token']).lower()}")
+    return bool(writer and reader) and result["received"] == PUTS and result["token"]
 
 
 def main(argv: list[str]) -> int:
@@ -79,8 +91,17 @@ def main(argv: list[str]) -> int:
     if len(argv) != 1:
         print(USAGE, file=sys.stderr)
         return 2
-    return 0 if asyncio.run(run(argv[0])) else 1
+    try:
+        code = 0 if asyncio.run(run(argv[0])) else 1
+    except BaseException as e:
+        log.info(f"probe failed: {type(e).__name__}: {e}")
+        code = 1
+    sys.stdout.flush()
+    sys.stderr.flush()
+    # A thread stuck in zenoh.open cannot be cancelled and would hold the interpreter at exit
+    # (asyncio.run waits for the default executor), so end the process here, lines flushed.
+    os._exit(code)
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    main(sys.argv[1:])
