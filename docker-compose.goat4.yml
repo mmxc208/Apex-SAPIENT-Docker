@@ -1,0 +1,43 @@
+# Goat step 4: the step 1 rig on cuaslab. This overlay replaces the stand-in fabric router with
+# the router of a real goatnet, by configuration only. Nothing else of step 1 changes.
+# Use it through goat4/dg4.sh:
+#   . goat4/dg4.sh && goat4_ready && dg4 up -d
+# The three fabric clients connect to tls/192.168.64.4:7447 with the certificates that
+# goat4/enroll.sh fetched, below zenoh/goat4/pki/.
+
+services:
+  # Kept so that step 1's depends_on and aliases still resolve; the profile keeps it from starting.
+  zenohd-fabric:
+    profiles: ["standin"]
+
+  pod-bridge:
+    depends_on: !override
+      - zenohd-pod
+    environment:
+      FABRIC_CONNECT: tls/192.168.64.4:7447
+    volumes:
+      - ./zenoh/goat4/pki/ca.pem:/certs/fabric/ca.pem:ro
+      - ./zenoh/goat4/pki/pod1.pem:/certs/fabric/pod1.pem:ro
+      - ./zenoh/goat4/pki/pod1.key:/certs/fabric/pod1.key:ro
+
+  host-fusion:
+    depends_on: !reset []
+    environment:
+      ZENOH_CONNECT: tls/192.168.64.4:7447
+    volumes:
+      - ./zenoh/goat4/pki/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat4/pki/host-fusion.pem:/certs/host-fusion.pem:ro
+      - ./zenoh/goat4/pki/host-fusion.key:/certs/host-fusion.key:ro
+
+  host-recorder:
+    depends_on: !reset []
+    environment:
+      ZENOH_CONNECT: tls/192.168.64.4:7447
+    volumes:
+      - ./zenoh/goat4/pki/ca.pem:/certs/ca.pem:ro
+      - ./zenoh/goat4/pki/host-recorder.pem:/certs/host-recorder.pem:ro
+      - ./zenoh/goat4/pki/host-recorder.key:/certs/host-recorder.key:ro
+
+networks:
+  pod1:
+    internal: true
