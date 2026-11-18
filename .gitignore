@@ -5,3 +5,4 @@ data-export/
 .DS_Store
 zenoh/pki/out/
 zenoh/goat1/
+zenoh/goat4/
