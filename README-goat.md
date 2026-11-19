@@ -16,6 +16,7 @@ goat is the open source network of United States Army Europe and Africa: a mesh,
 | 2 | Stone Soup in the fusion node | Not started |
 | 3 | Billie adapter for a sensor with a vendor protocol | Not started |
 | 4 | The host on a real goatnet (a goatlite) | Done on 2026-11-18 to 19 UTC against the goatlite `cuaslab`, on branch `goat-step4-cuaslab`. The section "Goat step 4" below has the run steps. |
+| 4b | The host on its own machine: the host services of step 4 in a third VM | Done on 2026-11-19 UTC, on branch `goat-step4b-host-vm`, stacked on `goat-step4-cuaslab`. The section "Goat step 4b" below has the run steps. |
 | 5 | Pod 2 | Not started |
 | 6 | External host, the second sovereign | Not started |
 
@@ -36,6 +37,10 @@ goat is the open source network of United States Army Europe and Africa: a mesh,
 | `docs/superpowers/plans/2026-11-18-goat-step4-cuaslab.md` | The plan of step 4 |
 | `docs/acceptance-goat4.md` | The acceptance record of step 4: checks G4-01 to G4-13, what was not shown, and what stays on `cuaslab` |
 | `docs/evidence/goat4/` | The saved outputs of step 4 that the record and this file quote, with an index and a quote checker that also searches for secrets |
+| `docs/superpowers/specs/2026-11-19-goat-step4b-host-vm-design.md` | The design of step 4b |
+| `docs/superpowers/plans/2026-11-19-goat-step4b-host-vm.md` | The plan of step 4b |
+| `docs/acceptance-goat4b.md` | The acceptance record of step 4b: checks G4B-01 to G4B-11, the known limits, and what step 4b left on the machines |
+| `docs/evidence/goat4b/` | The saved outputs of step 4b that the record and this file quote, with an index and a quote checker that also searches for secrets |
 
 ## Before you start
 
@@ -1017,3 +1022,452 @@ git diff goat --name-status
 `task-6-unit-suite.txt`. The first `git diff` printed nothing: no existing file below `emulators/` is modified, deleted or renamed. The second, at `11a9db4`, listed `.gitignore` as modified, and as added the overlay, `goat4/dg4.sh`, `goat4/enroll.sh`, `goat4/test_enroll.py`, `emulators/probe_fabric_pairing.py` and files below `docs/` (`task-6-g4-12.txt`). In the README run, on top of `5784f38`, it also listed `README-goat.md` as modified, because that commit added this section, and more files below `docs/` (block 18 of `readme-run.txt`). The plan allows all of these: the overlay, `goat4/`, `emulators/probe_fabric_pairing.py`, `.gitignore`, and files below `docs/` and `README-goat.md`. The step 1 rig's output is in `task-6-step1-rig.txt` and `task-6-addendum.txt`. The README run also ran steps 1 to 3 of the step 1 section and `dg down`, after `apex-goat4` was down, at the end of `readme-run.txt`; they printed output of the form shown in the step 1 section.
 
 To stop the step, run `dg4 down`. The recordings stay in the volumes `apex-goat4_pod-records` and `apex-goat4_host-records`. The grant and the three machines stay on `cuaslab`; `docs/acceptance-goat4.md` lists them, so that they can be revoked later, and its part "How to remove what step 4 left" gives the revoke, the grant and the undo of the portal change, read from source or from the session and not run.
+
+## Goat step 4b: the host on its own machine
+
+This step moves the two host services of the step 4 rig, the host fusion node and the host recorder, out of the pod's Docker VM (Colima) into a third VM of their own, `goathost`. The pod stays in Colima and the goatnet `cuaslab` stays in `goatlite`, so pod, goatnet and host run on three machines, as in a deployment. Then three things that step 4 could not test are measured: a clock difference between the pod and the host, a cut of the pod's real link, and a cut of the host's own link. No program changes, and no file of step 1 or step 4 changes.
+
+- **The VM.** `goat4b/goathost.yaml` is a Lima definition: Ubuntu 24.04 arm64, 2 CPUs, 4 GiB, 20 GiB, vzNAT, rootful Docker, no mount of the Mac's files. `goat4b/host-vm.sh` makes the VM, loads the image `apex-sapient:4.2.0` into it, copies `emulators/` and exactly five files of `zenoh/goat4/pki/` to `/opt/apex-host/` (`ca.pem`, and the certificate and key of `host-fusion` and of `host-recorder`; never `pod1.pem` or `pod1.key`), sets the two routes, and removes all of it again.
+- **Two engines, one definition.** `goat4b/dg4b.sh` defines `dg4b_pod`, which runs the step 1 file, the step 4 overlay and the new overlay `docker-compose.goat4b.yml` on Colima's engine as project `apex-goat4`, and `dg4b_host`, which runs the same three files on the engine of `goathost` as project `apex-goat4b`. The new overlay changes only where the bind mounts of the two host services come from. `dg4b_pod up` takes only pod services, and `dg4b_host up` only the two host services, always with `--no-deps`. `dg4b_host` reaches the VM's engine through the Docker socket that Lima forwards to `~/.lima/goathost/sock/docker.sock`.
+- **The gate and the state.** `goat4b_ready` passes only if `goat4_ready` of step 4 passes, the VM runs, the image has the same ID on both engines, the five files are in the VM (keys mode 0600, owner root) and no `pod1*` file is, both routes are there and name the VM's current address, the VM opens a TCP connection to `192.168.64.4:7447`, and no host service of `apex-goat4` runs in Colima. `g4b_state` prints the two clock services of `goathost`, the offset of `goathost` and of Colima from the Mac, and the route from each to the router. It changes nothing.
+
+All the checks of step 4b were run on 2026-11-19 UTC. Below each block is what the task runs printed, from the evidence files in `docs/evidence/goat4b/` (the file is named with each block); the blocks are shortened, and times, counts, IDs and container addresses differ from run to run. The commands were written out for zsh after the task runs, from the task runs' commands and the committed helpers; several are not the exact commands that the task runs used, and the notes say so.
+
+Then the blocks of "Run it" from step 1 through step 5, and the stop of step 10, were run as written on 2026-11-19 UTC (the README run), from a state with the VM present and both projects down. It was one `zsh -f` script with stdin at `/dev/null`, not a paste into an interactive shell; the only added lines were one that sets the Docker environment of the agent session and an `echo` around each block that prints its number, its exit status and the time. Its transcript is `docs/evidence/goat4b/readme-run.txt`; the blocks there are numbered 1 to 12 in the order of "Run it". All seven blocks that ran printed output of the form shown here, and the notes below each block say where the README run differed. The blocks that make, fill and remove the VM, and steps 6 to 9 and 11, were not run in the README run. `docs/acceptance-goat4b.md` records what passed and where each check falls short.
+
+### The rig of step 4b
+
+```
+ Colima VM 192.168.64.5               Lima VM goatlite 192.168.64.4     Lima VM goathost (192.168.64.6 here)
+ project apex-goat4, Colima's engine  cuaslab, a goatlite               project apex-goat4b, its own engine
++-------------------------------+    +--------------------------+     +------------------------------+
+| network pod1 (internal):      |    | fabric router            |     | network host:                |
+| radar, camera, vehicle,       |    | zenohd v1.9.0-modified   |     | host-fusion                  |
+| fusion-node, recorder,        |    | tls/192.168.64.4:7447    |     | host-recorder                |
+| zenohd-pod (pod CA)           |    | cuaslab goatlite CA      |     |                              |
+|        |                      |    |                          |     | /opt/apex-host/: emulators/, |
+|    pod-bridge -- network mesh |    | portal                   |     | ca.pem, two host certificates|
+|    (slot of pod1-bridge)      |    |                          |     | and their keys; no pod key   |
++---------------|---------------+    +------------|-------------+     +---------------|--------------+
+                |  route via the Mac              |   route via the Mac               |
+                +---------> Mac 192.168.64.1 <----+-----------------------------------+
+                     no route between Colima and goathost: everything crosses the router
+```
+
+- vzNAT isolates the VMs from each other, so each pair that must talk has a route through the Mac on both VMs: Colima and `goatlite` have the routes of step 4; `goathost` has `192.168.64.4/32 via 192.168.64.1` (file `/etc/netplan/90-cuaslab-route.yaml`), and `goatlite` has `<goathost>/32 via 192.168.64.1` (file `/etc/netplan/92-goathost-route.yaml`, the one change of this step in `goatlite`). Colima and `goathost` have no route to each other, and could not reach each other (check G4B-02).
+- The two host services hold the host certificates of step 4; nothing new was asked of `cuaslab`.
+
+### Before you run it
+
+- The path of step 4: the three items of "Before you run it: the path to cuaslab" above, and the enrolled files of step 4 in `zenoh/goat4/` (the certificates, keys and root in `pki/`, and `goat4.env`).
+- Lima's `limactl` on the Mac (2.3.0 in this step), Colima running, and the image `apex-sapient:4.2.0` in Colima.
+- The step 1 rig and the step 4 rig down: `dg down` and `dg4 down`. Step 4b reuses the project name `apex-goat4` for its pod services, so `dg4` and `dg4b_pod` act on the same containers; run one rig at a time.
+- The commands are for zsh, from the repo root. An agent session that cannot read `~/.docker` adds one line before them, which sets `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and a `DOCKER_CONFIG` of its own; nothing else changes.
+
+### Make the VM and fill it
+
+This makes the VM `goathost` and fills it. It ran in Task 2 of step 4b (`task-2-vm.txt`, `task-2-ready.txt`), and it was not run in the README run, which started with the VM present. `g4b_vm_create` makes the VM from `goat4b/goathost.yaml`, or starts it if it is stopped; it needs no sudo on the Mac and takes a few minutes the first time. `g4b_vm_sync` refuses while the host services run, because it replaces `emulators/` under them: stop them first with `dg4b_host stop`.
+
+```bash
+. goat4/dg4.sh; . goat4b/host-vm.sh; . goat4b/dg4b.sh
+g4b_vm_create
+g4b_vm_addr
+g4b_vm_load_image
+g4b_vm_sync
+g4b_routes_up
+g4b_routes_check
+```
+
+```text
+192.168.64.6
+colima:   sha256:a64e9a2d4007b88e87263d4eb614d7b07e543ffa4dd55e0dc0c5061f043d06a7
+goathost: sha256:a64e9a2d4007b88e87263d4eb614d7b07e543ffa4dd55e0dc0c5061f043d06a7
+synced emulators/, 5 identity files and 5 compose files to /opt/apex-host/ in goathost
+wrote /etc/netplan/90-cuaslab-route.yaml in goathost: 192.168.64.4/32 via 192.168.64.1
+wrote /etc/netplan/92-goathost-route.yaml on goatlite: 192.168.64.6/32 via 192.168.64.1
+route in goathost: 192.168.64.4 via 192.168.64.1 dev lima0
+route in goatlite: 192.168.64.6 via 192.168.64.1 dev lima0
+file /etc/netplan/92-goathost-route.yaml on goatlite names: 192.168.64.6
+```
+
+`task-2-vm.txt` and `task-2-ready.txt` (the two `wrote` lines; in the first run of `g4b_routes_up` they were not saved). The two image IDs must be equal. The address is given by vzNAT when the VM is made; `host-vm.sh` reads it each time, and `goat4b_ready` fails, naming both addresses, if the route file on `goatlite` names another one. After a restart of the Mac or of the VM, `g4b_vm_create` starts the VM again; the two route files keep the routes.
+
+### Run it
+
+Run these in order, from the repo root, with the VM `goathost` made and filled, and the step 1 and step 4 rigs down.
+
+**1. The gate and the start.** The generator makes the pod side, as in step 4. The rig starts only if `goat4b_ready` passes: the pod services on Colima, then the two host services in `goathost`.
+
+```bash
+. goat4/dg4.sh; . goat4b/host-vm.sh; . goat4b/dg4b.sh
+python3 emulators/goatgen.py goat1/registry.toml zenoh/goat1
+source zenoh/goat1/goat1.env
+source zenoh/goat4/goat4.env
+goat4b_ready && dg4b_pod up-all && dg4b_host up -d host-fusion host-recorder
+echo "exit=$?"
+sleep 45
+dg4b_pod ps --format '{{.Service}} {{.State}}'
+dg4b_host ps --format '{{.Service}} {{.State}}'
+```
+
+```text
+exit=0
+bridge-node running
+camera running
+fusion-node running
+pod-bridge running
+radar running
+recorder running
+vehicle running
+zenohd-pod running
+host-fusion running
+host-recorder running
+```
+
+`task-5-rig-back.txt` (without compose's `Container` lines; in the README run the generator printed nothing). Eight pod services on Colima, two host services in `goathost`. `goat4b_ready` prints nothing when it passes, and one line for each failure when it does not, for example `goat4b_ready: the VM goathost is not running (g4b_vm_create)` or `goat4b_ready: a pod1 file is in goathost: the pod's key must never be there` (`task-2-ready.txt`).
+
+**2. Placement (G4B-01).** Every container on the VM's engine, the pod services there and the host services in Colima (each count for any project), and the files in the VM, names and modes only.
+
+```bash
+vmdocker() { DOCKER_HOST=unix://$HOME/.lima/goathost/sock/docker.sock docker "$@"; }
+vmdocker ps -a --format '{{.Names}} {{.Label "com.docker.compose.project"}} {{.Label "com.docker.compose.service"}} {{.State}}'
+for s in zenohd-pod fusion-node radar camera vehicle bridge-node recorder pod-bridge; do echo "goathost $s: $(vmdocker ps -aq --filter label=com.docker.compose.service=$s | grep -c .)"; done
+for s in host-fusion host-recorder; do echo "colima $s: $(docker ps -aq --filter label=com.docker.compose.service=$s | grep -c .)"; done
+limactl shell goathost sudo ls -l /opt/apex-host/pki
+limactl shell goathost sudo find /opt/apex-host -name 'pod1*' | grep -c .
+```
+
+```text
+apex-goat4b-host-fusion-1 apex-goat4b host-fusion running
+apex-goat4b-host-recorder-1 apex-goat4b host-recorder running
+goathost zenohd-pod: 0
+goathost fusion-node: 0
+goathost radar: 0
+goathost camera: 0
+goathost vehicle: 0
+goathost bridge-node: 0
+goathost recorder: 0
+goathost pod-bridge: 0
+colima host-fusion: 0
+colima host-recorder: 0
+total 20
+-rw-r--r-- 1 root root 680 Nov 19 07:31 ca.pem
+-rw------- 1 root root 241 Nov 19 07:31 host-fusion.key
+-rw-r--r-- 1 root root 936 Nov 19 07:31 host-fusion.pem
+-rw------- 1 root root 241 Nov 19 07:31 host-recorder.key
+-rw-r--r-- 1 root root 936 Nov 19 07:31 host-recorder.pem
+0
+```
+
+`task-2-g4b-01.txt`. The task run counted with other commands; the counts are the same kind. `docker` with no `DOCKER_HOST` is Colima's engine. The last count is 0, so `grep -c` ends the block with exit status 1, which is the expected outcome; in a shell with `set -e` the block would stop there. The evidence file also shows the bind mounts of the two host services, all from `/opt/apex-host/`.
+
+**3. No path around the router (G4B-02).** A TCP connection from each place that must not reach the other side, with two kinds of control: the Mac reaches Colima's and `goathost`'s port 22, and `goathost` reaches the router. `P` is a small probe that each place runs from its standard input.
+
+```bash
+P='import socket, sys
+try:
+    socket.create_connection((sys.argv[1], int(sys.argv[2])), timeout=5).close(); print("CONNECTED")
+except OSError as e:
+    print("cannot connect: OSError [Errno %s] %s" % (e.errno, e.strerror))'
+H=$(g4b_vm_addr)
+R=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' apex-goat4-zenohd-pod-1)
+echo "Mac (control) -> 192.168.64.5:22: $(python3 -c "$P" 192.168.64.5 22)"
+echo "goathost VM shell -> 192.168.64.5:22: $(limactl shell goathost python3 - 192.168.64.5 22 <<< "$P")"
+echo "goathost host-fusion container -> 192.168.64.5:22: $(dg4b_host exec -T host-fusion python - 192.168.64.5 22 <<< "$P")"
+echo "goathost VM shell -> pod router $R:7447: $(limactl shell goathost python3 - $R 7447 <<< "$P")"
+echo "goathost host-fusion container -> pod router $R:7447: $(dg4b_host exec -T host-fusion python - $R 7447 <<< "$P")"
+echo "goathost VM shell -> 192.168.64.5:7447: $(limactl shell goathost python3 - 192.168.64.5 7447 <<< "$P")"
+echo "fusion-node container -> 192.168.64.4:7447: $(dg4b_pod exec -T fusion-node python - 192.168.64.4 7447 <<< "$P")"
+echo "radar container -> 192.168.64.4:7447: $(dg4b_pod exec -T radar python - 192.168.64.4 7447 <<< "$P")"
+echo "pod-bridge container (expected: CONNECTED, it is the bridge) -> 192.168.64.4:7447: $(dg4b_pod exec -T pod-bridge python - 192.168.64.4 7447 <<< "$P")"
+echo "pod-bridge container -> goathost $H:22: $(dg4b_pod exec -T pod-bridge python - $H 22 <<< "$P")"
+echo "Mac (control) -> goathost $H:22: $(python3 -c "$P" $H 22)"
+echo "Colima VM shell -> goathost $H:22: $(colima ssh -- python3 - $H 22 <<< "$P")"
+echo "goathost VM shell (control) -> 192.168.64.4:7447: $(limactl shell goathost python3 - 192.168.64.4 7447 <<< "$P")"
+echo "goathost host-fusion container (control) -> 192.168.64.4:7447: $(dg4b_host exec -T host-fusion python - 192.168.64.4 7447 <<< "$P")"
+for s in zenohd-pod fusion-node radar camera vehicle bridge-node recorder pod-bridge; do echo "apex-goat4 $s (Colima): $(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' apex-goat4-$s-1)"; done
+for s in host-fusion host-recorder; do echo "apex-goat4b $s (goathost): $(vmdocker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' apex-goat4b-$s-1)"; done
+```
+
+```text
+Mac (control) -> 192.168.64.5:22: CONNECTED
+goathost VM shell -> 192.168.64.5:22: cannot connect: OSError [Errno 113] No route to host
+goathost host-fusion container -> 192.168.64.5:22: cannot connect: OSError [Errno 113] No route to host
+goathost VM shell -> pod router 172.20.0.2:7447: cannot connect: OSError [Errno 101] Network is unreachable
+goathost host-fusion container -> pod router 172.20.0.2:7447: cannot connect: OSError [Errno 101] Network is unreachable
+goathost VM shell -> 192.168.64.5:7447: cannot connect: OSError [Errno 113] No route to host
+fusion-node container -> 192.168.64.4:7447: cannot connect: OSError [Errno 101] Network is unreachable
+radar container -> 192.168.64.4:7447: cannot connect: OSError [Errno 101] Network is unreachable
+pod-bridge container (expected: CONNECTED, it is the bridge) -> 192.168.64.4:7447: CONNECTED
+pod-bridge container -> goathost 192.168.64.6:22: cannot connect: OSError [Errno 113] No route to host
+Mac (control) -> goathost 192.168.64.6:22: CONNECTED
+Colima VM shell -> goathost 192.168.64.6:22: cannot connect: OSError [Errno 113] No route to host
+goathost VM shell (control) -> 192.168.64.4:7447: CONNECTED
+goathost host-fusion container (control) -> 192.168.64.4:7447: CONNECTED
+apex-goat4 zenohd-pod (Colima): apex-goat4_pod1
+apex-goat4 fusion-node (Colima): apex-goat4_pod1
+apex-goat4 radar (Colima): apex-goat4_pod1
+apex-goat4 camera (Colima): apex-goat4_pod1
+apex-goat4 vehicle (Colima): apex-goat4_pod1
+apex-goat4 bridge-node (Colima): apex-goat4_pod1
+apex-goat4 recorder (Colima): apex-goat4_pod1
+apex-goat4 pod-bridge (Colima): apex-goat4_mesh apex-goat4_pod1
+apex-goat4b host-fusion (goathost): apex-goat4b_host
+apex-goat4b host-recorder (goathost): apex-goat4b_host
+```
+
+`task-2-g4b-02.txt`. Only the pod bridge is on both of the pod's networks. No drop rule was needed: vzNAT on this Mac kept Colima and `goathost` apart, and nothing in this step adds a route between them.
+
+**4. Up (G4B-03).** Tracks, an alert and the registration at the host, and the host recorder's four counts. The recorder check is the script of step 4 of the step 4 section, with a line that counts the records of each anchor.
+
+```bash
+dg4b_host logs host-fusion | grep -c "<- detection_report"
+dg4b_host logs host-fusion | grep "<- alert"
+dg4b_pod logs fusion-node | grep registration_ack
+dg4b_host logs host-fusion | grep "<- registration "
+dg4b_host exec -T host-recorder sh -c 'cat /data/records/*.jsonl' < /dev/null | python3 -c '
+import collections, json, sys
+anchors, sensors = set(sys.argv[1:3]), set(sys.argv[3:6])
+rows = [json.loads(line) for line in sys.stdin if line.strip()]
+print("records:", len(rows))
+print("anchors seen:", dict(collections.Counter(r.get("anchor") for r in rows)))
+print("anchor not the pod or the host fusion node:", sum(r.get("anchor") not in anchors for r in rows))
+print("msg.node_id of the radar, camera or vehicle:", sum(r.get("msg", {}).get("node_id") in sensors for r in rows))
+def paths(x, at):
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield from paths(v, at + "." + k)
+    elif isinstance(x, list):
+        for v in x:
+            yield from paths(v, at + "[]")
+    elif isinstance(x, str) and any(s in x for s in sensors):
+        yield at
+print("records that did not decode:", sum("error" in r for r in rows))
+print("records with a sensor node ID anywhere:", sum(any(True for _ in paths(r, "")) for r in rows))
+' "$FABRIC_POD1_ID" "$FABRIC_HOST_FUSION_ID" "$POD1_RADAR_ID" "$POD1_CAMERA_ID" "$POD1_VEHICLE_ID"
+```
+
+```text
+99
+host-fusion-1  | 12:26:46 fusion: <- alert f0000001 ALERT_TYPE_INFORMATION "new track GG1X76"
+fusion-node-1  | 12:26:41 fusion: -> registration_ack f0000001 -> 1aef1b86 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 12:26:41 fusion: -> registration_ack f0000001 -> 86ca6000 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 12:26:41 fusion: -> registration_ack f0000001 -> 341b9172 acceptance=True ['Accepted by fake fusion node']
+fusion-node-1  | 12:26:46 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+host-fusion-1  | 12:26:46 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+records: 2406
+anchors seen: {'7a640b349ac2e03848531fce2000fc57': 1329, 'cd42939f9c6719ea485ed176909d6d64': 1077}
+anchor not the pod or the host fusion node: 0
+msg.node_id of the radar, camera or vehicle: 0
+records that did not decode: 0
+records with a sensor node ID anywhere: 0
+```
+
+`task-3-g4b-03.txt` (shortened: in that run the host services had been restarted once, so each log also held a second registration, at 12:31:14). The recorder's volume `apex-goat4b_host-records` keeps the records of every start, so its counts grow from run to run; the four counts must be 0.
+
+**5. A task, hop by hop (G4B-04).** One `look_at` task of the host is seen at five places, each by a different observer: (1) the host's send line, (2) the host recorder on the fabric, with its acknowledgement, (3) the bridge's `down` counter, (4) a subscriber on the pod router, and (5) the pod fusion node's receive line; then the host's acknowledgement. `pod_sub` runs `goat4b/pod_sub.py` in a one-off container of the `recorder` service, with the pod recorder's certificate on the pod router; it prints the key, the sender and receiver and the task ID of each sample, no payload. The host sends a task every 20 s, a status request and a `look_at` in turn.
+
+```bash
+pod_sub() { dg4b_pod run --rm --no-deps -T -e PYTHONPATH=/emulators -v "$PWD/goat4b/pod_sub.py:/w/pod_sub.py:ro" recorder python /w/pod_sub.py "$@" < /dev/null; }
+hostrec() { dg4b_host exec -T host-recorder sh -c 'cat /data/records/$(date -u +%Y-%m-%d).jsonl' < /dev/null; }
+T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+pod_sub 'h1/p1/fusion/down/**' 45 2>/dev/null | tee /tmp/g4b-sub.txt
+T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+for id in $(awk '/ task 01/ {print $NF}' /tmp/g4b-sub.txt); do s=${id: -6}; dg4b_host logs host-fusion | grep -q -- "-> task f0000002 -> f0000001 $s look_at" && break; done
+echo "task $id"
+dg4b_host logs host-fusion | grep -- "-> task f0000002 -> f0000001 $s " | cut -c1-120
+hostrec | python3 goat4b/readers.py follow $s
+dg4b_pod logs --since $T0 --until $T1 pod-bridge | grep forwarded
+dg4b_pod logs fusion-node | grep -- $s | cut -c1-140
+dg4b_host logs host-fusion | grep -- "<- task_ack .* $s "
+```
+
+```text
+12:57:51.572 h1/p1/fusion/down/task | from f0000002 to f0000001 | task 01M7SY51PBJHWAQ668ED7ZV12T
+12:58:11.587 h1/p1/fusion/down/task | from f0000002 to f0000001 | task 01M7SY5N7P5WM6JH2FNKR8YPX8
+pod sub: 2 samples on h1/p1/fusion/down/** in 45 s
+host-fusion-1  | 12:57:51 fusion: -> task f0000002 -> f0000001 7ZV12T look_at {"location_list": {"locations": [{"x": -1.
+2026-11-19T12:57:51.567+00:00 cd42939f9c6719ea485ed176909d6d64/task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001 | from f0000002 to f0000001 | task 01M7SY51PBJHWAQ668ED7ZV12T
+2026-11-19T12:57:51.577+00:00 7a640b349ac2e03848531fce2000fc57/ack/p1/sapient/v2/task_ack/f0000001-0000-4000-8000-000000000001 | from f0000001 to f0000002 | task_ack 01M7SY51PBJHWAQ668ED7ZV12T
+pod-bridge-1  | 12:57:43 pod-bridge: forwarded {'up': 2152, 'down': 88}; dropped {}
+pod-bridge-1  | 12:58:13 pod-bridge: forwarded {'up': 2188, 'down': 90}; dropped {}
+fusion-node-1  | 12:57:51 fusion: <- task f0000002 -> f0000001 7ZV12T look_at {"location_list": {"locations": [{"x": -1.81501552512151, "y":
+fusion-node-1  | 12:57:51 fusion: -> up task_ack f0000001 -> f0000002 7ZV12T TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+host-fusion-1  | 12:57:51 fusion: <- task_ack f0000001 -> f0000002 7ZV12T TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']
+```
+
+`task-3-g4b-04.txt`, the section run again after the interruption (the task run printed `task 01M7SY51PBJHWAQ668ED7ZV12T` as a heading of its own). The bridge logs its counters every 30 s, so the rise of `down` from 88 to 90 counts both tasks of the window, not this one task alone. In the README run (block 5 of `readme-run.txt`) the block also printed its own line `task <ID>` before the send line, and the bridge logged one counter line in the window, so no rise could be read from it.
+
+Then the control: the bridge stopped for 45 s, then started again for 45 s, with the same counts in each window.
+
+```bash
+counts() {
+  echo "host tasks sent (host-fusion '-> task f0000002'): $(dg4b_host logs --since $1 --until $2 host-fusion | grep -c -- '-> task f0000002')"
+  echo "seen on the pod router (pod_sub samples): $(grep -c ' | from ' /tmp/g4b-sub.txt)"
+  echo "received by the pod fusion node (fusion-node '<- task f0000002'): $(dg4b_pod logs --since $1 --until $2 fusion-node | grep -c '<- task f0000002')"
+  echo "acknowledged at the host (host-fusion '<- task_ack'): $(dg4b_host logs --since $1 --until $2 host-fusion | grep -c '<- task_ack')"
+  echo "the pod's own detection lines (fusion-node '<- detection_report'): $(dg4b_pod logs --since $1 --until $2 fusion-node | grep -c '<- detection_report')"
+}
+dg4b_pod stop pod-bridge
+T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+pod_sub 'h1/p1/fusion/down/**' 45 2>/dev/null | tee /tmp/g4b-sub.txt
+counts $T0 $(date -u +%Y-%m-%dT%H:%M:%SZ)
+dg4b_pod start pod-bridge
+T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+pod_sub 'h1/p1/fusion/down/**' 45 2>/dev/null | tee /tmp/g4b-sub.txt
+counts $T0 $(date -u +%Y-%m-%dT%H:%M:%SZ)
+dg4b_host logs --since 3m host-fusion | grep -E 'gone|removed|<- registration '
+```
+
+```text
+pod sub: 0 samples on h1/p1/fusion/down/** in 45 s
+host tasks sent (host-fusion '-> task f0000002'): 2
+seen on the pod router (pod_sub samples): 0
+received by the pod fusion node (fusion-node '<- task f0000002'): 0
+acknowledged at the host (host-fusion '<- task_ack'): 0
+the pod's own detection lines (fusion-node '<- detection_report'): 10
+12:59:31.614 h1/p1/fusion/down/task | from f0000002 to f0000001 | task 01M7SY83CNAT844HNY17P28XWD
+12:59:51.618 h1/p1/fusion/down/task | from f0000002 to f0000001 | task 01M7SY8PXR6HQVRNQE218JD8JQ
+pod sub: 2 samples on h1/p1/fusion/down/** in 45 s
+host tasks sent (host-fusion '-> task f0000002'): 2
+seen on the pod router (pod_sub samples): 2
+received by the pod fusion node (fusion-node '<- task f0000002'): 2
+acknowledged at the host (host-fusion '<- task_ack'): 2
+the pod's own detection lines (fusion-node '<- detection_report'): 8
+```
+
+`task-3-g4b-04.txt`. With the bridge stopped, the host's tasks reach nothing in the pod and none is acknowledged, while the pod goes on working; after the start all resume. The last line prints nothing: a stop of 45 s is shorter than the host's hold time of 120 s, so the host neither removes the pod fusion node nor asks it to register again. The last `grep` ends the block with exit status 1. In the README run (block 6 of `readme-run.txt`) the window with the bridge stopped held 3 host tasks, not 2, and none reached the pod; the other counts were 0, 0, 0, then 2, 2, 2, 2.
+
+**6. Clocks and latency (G4B-05, G4B-11).** Measurements, with no pass value. First the offset of each VM from the Mac, by the method of G4-13 (30 rounds; `_g4b_offset` of `goat4b/dg4b.sh`). Then, from the host recorder's file, the apparent age of each message of the pod (the time the host recorder received it, on the clock of `goathost`, minus the time in the message, set in Colima) and, for comparison, of the host fusion node's own messages; the rejections in both fusion nodes' logs; and for each task the time from the task on the fabric to its acknowledgement on the fabric. Run it after the rig has run for some minutes; it reads the last 5 minutes. It uses `hostrec` of step 5.
+
+```bash
+for vm in colima goatlite goathost; do
+  if [ $vm = colima ]; then cmd=(colima ssh -- date +%s.%N); else cmd=(limactl shell $vm date +%s.%N); fi
+  _g4b_offset 30 "${cmd[@]}" | awk -v vm=$vm '{ printf "%s: 30 rounds; rtt min %.1f ms, median %.1f ms, max %.1f ms; best round #%d: offset (VM - Mac) = %+.1f ms, bound = +/-%.1f ms; rounds with a reading: %d\n", vm, $3, $4, $5, $6, $1, $2, $7 }'
+done
+S=$(date -u -v-5M +%Y-%m-%dT%H:%M:%S+00:00)
+hostrec | python3 goat4b/readers.py ages --anchor $FABRIC_POD1_ID --since $S
+hostrec | python3 goat4b/readers.py ages --anchor $FABRIC_HOST_FUSION_ID --since $S
+dg4b_host logs --since 5m host-fusion | python3 goat4b/readers.py rejections
+dg4b_pod logs --since 5m fusion-node | python3 goat4b/readers.py rejections
+hostrec | python3 goat4b/readers.py latency --since $S
+g4b_state
+```
+
+```text
+colima: 30 rounds; rtt min 196.0 ms, median 215.8 ms, max 299.7 ms; best round #4: offset (VM - Mac) = +93.1 ms, bound = +/-98.0 ms; rounds with a reading: 30
+goatlite: 30 rounds; rtt min 61.2 ms, median 66.8 ms, max 86.8 ms; best round #1: offset (VM - Mac) = +31.8 ms, bound = +/-30.6 ms; rounds with a reading: 30
+goathost: 30 rounds; rtt min 53.1 ms, median 55.0 ms, max 56.7 ms; best round #18: offset (VM - Mac) = +20.4 ms, bound = +/-26.6 ms; rounds with a reading: 30
+apparent age (s): count 387 min -0.002 median 0.002 max 0.013 below_zero 41 outside_window 0
+apparent age (s): count 368 min 0.000 median 0.003 max 0.009 below_zero 0 outside_window 0
+lines with 'invalid message from': 0
+lines with 'invalid message from above dropped': 0
+lines with 'invalid message from': 0
+lines with 'invalid message from above dropped': 0
+task latency (ms): count 17 min 4.000 median 11.000 max 16.000 unacknowledged 0
+goathost time service (systemd-timesyncd): active
+goathost Lima time sync (lima-guestagent): active
+offset of goathost from the Mac (ms): +20 (bound +/-26, best of 5)
+offset of colima from the Mac (ms): +96 (bound +/-101, best of 5)
+route colima to 192.168.64.4: 192.168.64.4 via 192.168.64.1 dev col0 src 192.168.64.5 uid 501
+route goathost to 192.168.64.4: 192.168.64.4 via 192.168.64.1 dev lima0 src 192.168.64.6 uid 501
+```
+
+`task-3-g4b-05.txt` and `task-3-g4b-11.txt` (the task run's window was 5 min 19 s long; the latency is in `task-3-g4b-11.txt`). The validator of both fusion nodes accepts an apparent age from -0.1 to 0.9 s. The offsets through `ssh` are each close to their bound, so they say little; the ages of the pod's messages, a few milliseconds, show that the two clocks agree far better than the offsets can tell (`docs/acceptance-goat4b.md`, G4B-05). This block was not run in the README run.
+
+**7. Clock tolerance (G4B-06).** **Warning: this script changes the clock of `goathost`.** It stops `systemd-timesyncd` and Lima's guest agent in the VM (Lima's host agent sets the guest clock through it about every 10 s), steps the VM's clock to -0.05, -0.15, -0.30, +0.5, +0.8 and +1.2 s from where it was (negative: the host's clock behind), and reads 40 s of traffic at each offset. While it runs, the host rejects the pod's messages at some offsets and the pod rejects the host's tasks at others, and the Docker socket that Lima forwards is down (the script reaches the VM's engine through `limactl shell`). At the end, and in a trap on exit, interrupt or termination, it moves the clock back by the sum of its steps, starts both services, checks the offset, and prints `g4b_state`. It takes about 7 minutes. Run it with the rig up and `goat4b_ready` passing.
+
+```bash
+zsh -f goat4b/run_g4b_06.sh
+```
+
+```text
+SUMMARY base | up: ages 47 min 0.002 median 0.006 max 0.011 accepted 47 rejected 0 judge_step pass | down: messages 2 accepted 2 rejected 0 ages of the rejected - judge_step not judged
+SUMMARY -0.05 | up: ages 47 min -0.047 median -0.043 max -0.040 accepted 47 rejected 0 judge_step pass | down: messages 2 accepted 2 rejected 0 ages of the rejected - judge_step not judged
+SUMMARY -0.15 | up: ages 47 min -0.147 median -0.144 max -0.139 accepted 0 rejected 47 judge_step pass | down: messages 49 accepted 49 rejected 0 ages of the rejected - judge_step not judged (no age logged for an accepted message)
+SUMMARY -0.30 | up: ages 47 min -0.298 median -0.295 max -0.292 accepted 0 rejected 47 judge_step pass | down: messages 49 accepted 49 rejected 0 ages of the rejected - judge_step not judged (no age logged for an accepted message)
+SUMMARY +0.5 | up: ages 43 min 0.503 median 0.506 max 0.510 accepted 43 rejected 0 judge_step pass | down: messages 2 accepted 0 rejected 2 ages of the rejected -0.497,-0.493 judge_step not judged
+SUMMARY +0.8 | up: ages 43 min 0.803 median 0.806 max 0.808 accepted 43 rejected 0 judge_step pass | down: messages 2 accepted 0 rejected 2 ages of the rejected -0.792,-0.794 judge_step not judged
+g4b_clock_restore: moved the clock of goathost back by 1.2 s
+g4b_clock_restore: offset back after 0 s: 26.7 ms, before the step 25.4 ms (margin +/-30 ms); systemd-timesyncd active, lima-guestagent active
+clock back by the traffic: median age after the restore 0.006 s, base 0.006 s, difference -0.000 s: yes (within 0.05 s)
+StartedAt: unchanged for all 10 containers
+RUN-END exit=0
+```
+
+`task-4-g4b-06.txt` (shortened: the step to +1.2 s ends in a `SUMMARY +1.2` line with all 43 messages of the pod rejected and all 45 of the host's dropped at the pod, `judge_step pass` in both directions; each step also prints its window, its counts and the log lines). "up" is the pod's messages at the host; "down" is the host's messages at the pod, read from the pod fusion node's log, which logs no age for a message it accepts. The record says what each line shows and what it does not. If the script is killed, its trap restores the clock (`task-4-trap-demo.txt`); if the shell itself is gone, run `. goat4/dg4.sh; . goat4b/host-vm.sh; . goat4b/dg4b.sh; g4b_clock_restore`. This block was not run in the README run.
+
+**8. The pod's link cut (G4B-07).** **Warning: this script replaces the route in the Colima VM to `192.168.64.4` by a blackhole**, 30 s for `short` and 40 s for `long`, and then puts back exactly the line it read before; it refuses to start if that route is not the normal one. Other projects share the Colima VM; this route is the only state it touches there. `long` also recreates the two host services with a hold time of 20 s (`HOST_HOLD_SECONDS=20`), and at the end, and in its trap, recreates them with the default of 120 s.
+
+```bash
+zsh -f goat4b/run_g4b_07.sh short
+zsh -f goat4b/run_g4b_07.sh long
+```
+
+```text
+pod-bridge-1  | 13:29:46 pod-bridge: fabric router lost
+pod-bridge-1  | 13:30:13 pod-bridge: fabric router back
+host-fusion-1  | 13:32:33 fusion: node f0000001 gone for 20 s; removed
+host-fusion-1  | 13:32:48 fusion: -> task f0000002 -> f0000001 J0AN4A request "Registration"
+host-fusion-1  | 13:32:48 fusion: <- registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1  | 13:32:48 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node']
+```
+
+`task-4-g4b-07-short.txt` (the first two lines; the short cut also counts 0 lines with `lost` or `cannot reach` in the pod, the pod's own detection lines during the cut, the host's after it, and 0 new registrations) and `task-4-g4b-07-long.txt` (the other four). Each script prints the state at the end. These blocks were not run in the README run.
+
+**9. The host's link cut (G4B-08).** **Warning: this script replaces the route in `goathost` to `192.168.64.4` by a blackhole for 30 s**, then puts back the line it read before (the route file is not touched), in a trap as well. It passes when the host receives tracks again within 60 s of the restore with no restart of a service.
+
+```bash
+zsh -f goat4b/run_g4b_08.sh
+```
+
+```text
+13:33:45 fusion: Zenoh transport lost; holding every node
+13:34:11 fusion: Zenoh transport back; checking node tokens
+seconds from the restore to the first detection record: 0.9
+StartedAt unchanged: yes
+G4B-08: PASS (a detection line within 60 s of the restore, no restart)
+```
+
+`task-4-g4b-08.txt`. This block was not run in the README run.
+
+The three scripts of steps 7 to 9 source `.superpowers/sdd/2026-11-18-goat-step4-cuaslab/docker-env.sh`, the Docker environment of the agent session that ran them. That file is git-ignored; on a Mac without it zsh prints one `no such file or directory` line and the script goes on with the Docker environment of the shell.
+
+**10. Stop.**
+
+```bash
+dg4b_host down
+dg4b_pod down
+```
+
+Compose prints its `Stopping`, `Removed` lines (`task-5-down.txt`). The recordings stay in the volume `apex-goat4b_host-records` in `goathost` and in the volumes of `apex-goat4` in Colima.
+
+**11. No regression (G4B-09) and configuration only (G4B-10).** With both projects down: the unit suite and the tests of the helpers, then steps 2 to 5 of the step 4 section (the step 4 rig, all in Colima, with `dg4`) and `dg4 down`, then steps 1 to 3 of the step 1 section and `dg down`. Last, the diff of the branch against step 4.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.emulators.yml run --rm --no-deps radar python -m pytest -p no:cacheprovider -q -W error tests
+python3 -m unittest goat4/test_enroll.py goat4b/test_goat4b.py
+git diff goat-step4-cuaslab --diff-filter=MDR --stat -- emulators/ docker-compose.goat1.yml docker-compose.goat4.yml goat4/
+git diff goat-step4-cuaslab --name-status
+```
+
+```text
+454 passed in 15.74s
+Ran 79 tests in 27.775s
+OK
+```
+
+`task-5-unit-suite.txt`. The first `git diff` prints nothing: no file of step 1 or step 4 below `emulators/` or `goat4/`, and neither compose file of those steps, is modified, deleted or renamed. The second lists only added files (`task-5-g4b-10.txt`). The step 4 and step 1 rigs' outputs are in `task-5-step4-rig.txt` and `task-5-step1-rig.txt`. This block was not run in the README run.
+
+### Remove what step 4b made
+
+This was never run: the VM is still there. `g4b_vm_remove` with no argument prints what it would remove and changes nothing; with `--yes` it removes the route and the route file `/etc/netplan/92-goathost-route.yaml` on `goatlite`, then stops and deletes the VM `goathost` with its disk, and with it everything inside: `/opt/apex-host/` with the two host keys, the image, the volume `apex-goat4b_host-records` and the VM's route file. It changes nothing in Colima or on `cuaslab`.
+
+```bash
+. goat4/dg4.sh; . goat4b/host-vm.sh; . goat4b/dg4b.sh
+dg4b_host down
+g4b_vm_remove
+g4b_vm_remove --yes
+```
+
+The two lines it runs on `goatlite`, from `task-2-goatlite-change.txt`, are `limactl shell goatlite sudo ip route del 192.168.64.6/32` and `limactl shell goatlite sudo rm -f /etc/netplan/92-goathost-route.yaml`. `docs/acceptance-goat4b.md` lists what step 4b left on each machine.

@@ -1,6 +1,6 @@
 # Step 4b design: the host on its own machine
 
-Date: 2026-11-19. Branch: `goat-step4b-host-vm`, made from `goat-step4-cuaslab` at `311b304`. Status: designed.
+Date: 2026-11-19. Branch: `goat-step4b-host-vm`, made from `goat-step4-cuaslab` at `311b304`. Status: built on 2026-11-19; the record is `docs/acceptance-goat4b.md`.
 
 Read first: `docs/goat-roadmap.md`, `docs/goat-context.md` (sections 2.7, 4.1 and gap 14), `docs/acceptance-goat4.md`, and the step 4 design `docs/superpowers/specs/2026-11-18-goat-step4-cuaslab-design.md`. This document uses the words of those files and does not repeat them.
 

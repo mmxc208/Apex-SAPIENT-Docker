@@ -1,6 +1,6 @@
 # goat proof of concept: the six steps
 
-This file records the whole plan of work, so that a later session can continue from it. It holds what was decided, what is open, and how a step is started. It was written on 2026-11-11 and must be updated when a step ends. It was last updated on 2026-11-19, after the final fix wave of step 4 (branch `goat-step4-cuaslab`).
+This file records the whole plan of work, so that a later session can continue from it. It holds what was decided, what is open, and how a step is started. It was written on 2026-11-11 and must be updated when a step ends. It was last updated on 2026-11-19, after step 4b (branch `goat-step4b-host-vm`).
 
 Related files:
 
@@ -17,6 +17,10 @@ Related files:
 | `docs/superpowers/plans/2026-11-18-goat-step4-cuaslab.md` | The plan of step 4: 7 tasks, checks G4-01 to G4-13 |
 | `docs/acceptance-goat4.md` | The acceptance record of step 4: checks G4-01 to G4-13, what was not shown, the known limits, and what stays on `cuaslab` |
 | `docs/evidence/goat4/` | The saved outputs that the record of step 4 quotes, with an index and a quote checker that also searches for secrets |
+| `docs/superpowers/specs/2026-11-19-goat-step4b-host-vm-design.md` | The design of step 4b |
+| `docs/superpowers/plans/2026-11-19-goat-step4b-host-vm.md` | The plan of step 4b: 7 tasks, checks G4B-01 to G4B-11 |
+| `docs/acceptance-goat4b.md` | The acceptance record of step 4b: checks G4B-01 to G4B-11, the known limits, and what the step left on the machines |
+| `docs/evidence/goat4b/` | The saved outputs that the record of step 4b quotes, with an index and a quote checker that also searches for secrets |
 | `docs/acceptance.md` | The evidence of the earlier work, stages 1 to 4 |
 
 ## 1. End goal
@@ -31,7 +35,7 @@ goat is the open source project of United States Army Europe and Africa. Its sou
 
 ## 2. Rules for all steps
 
-- All steps use the branch `goat`. Nothing is pushed unless Richard says so. (One exception: step 4 uses its own branch, `goat-step4-cuaslab`, by Richard's decision of 2026-11-18; see section 6.)
+- All steps use the branch `goat`. Nothing is pushed unless Richard says so. (Exceptions: step 4 uses its own branch, `goat-step4-cuaslab`, by Richard's decision of 2026-11-18; step 4b uses the branch `goat-step4b-host-vm`, stacked on `goat-step4-cuaslab`, a designer's call of 2026-11-19; see section 6.)
 - Each step is its own project: one design, one plan, one acceptance file.
 - The earlier rigs must continue to work: the TCP-only rig and stages 1 to 4.
 - The key rules of goat are the most important part (Richard, 2026-11-11). Read `docs/goat-context.md` before each design.
@@ -43,12 +47,13 @@ goat is the open source project of United States Army Europe and Africa. Its sou
 
 ## 3. The steps
 
-| Step | Content | Host side | Status on 2026-11-18 |
+| Step | Content | Host side | Status on 2026-11-19 |
 |---|---|---|---|
 | 1 | Pod 1 to host | Our stand-in that follows goat's rules, on the Mac | Done. Checks G1-01 to G1-11 pass (G1-08 by unit test only). The record lists the known limits. |
 | 2 | Stone Soup in the fusion node | Same | Not started |
 | 3 | Billie adapter for a sensor with a vendor protocol | Same | Not started |
 | 4 | The host on a real goatnet | The goatlite `cuaslab`, in a Lima VM on the same Mac (not a cloud VM) | Done on 2026-11-18 to 19 UTC, on branch `goat-step4-cuaslab`, not merged. Checks G4-01 to G4-12 pass (G4-05's fabric part by absence at a subscriber, G4-08 by unit test only); G4-13 is a measurement with a bound wider than the plan asked. One portal setting of `cuaslab` was changed, by Richard's decision. The record lists what was not shown, and how to remove what the step left (not run). |
+| 4b | The host on its own machine | The host fusion node and the host recorder in a third Lima VM, `goathost`, on the same Mac; the goatnet `cuaslab` as in step 4 | Done on 2026-11-19 UTC, on branch `goat-step4b-host-vm`, stacked on `goat-step4-cuaslab`, not merged. Checks G4B-01 to G4B-04 and G4B-07 to G4B-10 pass; G4B-05 and G4B-11 are measurements; G4B-06 passes in the direction pod to host, and in the direction host to pod passes at one offset, is not judged at three and unknown at two. The one change on the `goatlite` box is a route file. The record lists what the step left and how to remove it (not run). |
 | 5 | Pod 2 | Real goatnet | Not started |
 | 6 | External host, the second sovereign | goat federation | Not started |
 
@@ -118,6 +123,15 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
   | 9 | Nothing revokes a slot certificate; scoped read | Unchanged. On this path there is no mesh revocation either, and `cuaslab` has the scoped read off: every TLS client may read `**`. |
 
   Also open: the pod bridge connects to the core router, and a goatlite has no ingress gateway (`docs/goat-context.md` gap 13). To read before step 5: goatcore's ADR 1251 and `docs/design/pod-carriage-and-provenance.md` (`docs/goat-context.md` gap 14).
+
+### Step 4b: the host on its own machine
+
+- **Why.** Step 4 ran the pod and the two host clients in one VM, so the two fusion nodes shared one clock, one Docker engine and one route to the router. A clock difference between pod and host, a cut of the real link, and a host that loses its own link were never tested.
+- **What changes.** The host fusion node and the host recorder run in a third Lima VM, `goathost`, with its own Docker engine. The pod stays in Colima and `cuaslab` in `goatlite`. Pod and host have no route to each other; everything crosses the fabric router. The same compose files define both sides; a new overlay changes only where the host services' bind mounts come from. No program, and no file of step 1 or step 4, changes.
+- **Results to show.** Eleven checks: placement, no path around the router, the rig up, one task followed hop by hop with a control, the clocks measured, the tolerance of the rig to a clock set off by hand, a cut of the pod's link (short and long) and of the host's link, no regression, configuration only, and the task latency.
+- **Details.** The design, the plan and the record named above, and the section "Goat step 4b" of `README-goat.md`.
+- **Result (2026-11-19 UTC).** The rig ran on three machines. Colima and `goathost` could not reach each other, so no drop rule was needed; that rests on how vzNAT behaves on this Mac (G4B-02). With no clock touched, the pod's messages reached the host with apparent ages of 1 to 22 ms and no message was rejected, so the clock of `goathost` was not disciplined (G4B-05). With the clock of `goathost` stepped by -0.05 to +1.2 s, the host accepted or rejected each message of the pod as the validator's window of -0.1 to 0.9 s predicts, at all six offsets; in the other direction only the step to +1.2 s could be judged, because the host sends few tasks and the pod logs no age for a message it accepts (G4B-06). A blackhole on the pod's route was noticed by the bridge after about 4 s; with a hold time of 20 s the host removed the pod fusion node and it registered again (G4B-07). A blackhole on the host's own route: the host's Zenoh session came back by itself, and tracks arrived 0.9 s after the restore (G4B-08). A task took a median of 11 ms from the fabric to its acknowledgement on the fabric (G4B-11). The README section was run as written through G4B-04 and the stop (`docs/evidence/goat4b/readme-run.txt`). `docs/acceptance-goat4b.md` has the evidence and what was not shown.
+- **The gaps of step 4 after step 4b.** Gap 6 (clocks): on this Mac the two clocks agreed to within a few milliseconds, and the window of the validator was measured from both sides for the pod's messages; a clock difference was only set by hand. Gap 8 (a lost link is noticed late): the bridge noticed a route cut after about 4 s, the host its own after about 5 s; messages sent during a cut were lost. The four points of `docs/goat-context.md` gap 14 where the rig does not conform to goat's ADRs are unchanged.
 
   **Open question: echelon.** No router enforces who may task whom. ADR 0844 (proposed) puts the echelon in a certificate URI-SAN and lets only command echelons at a site publish tasks there. ADR 1025 (proposed, what `cuaslab` runs) enforces only the anchor; site is a descriptive key segment and echelon is not checked. The "v2 namespace" design that is to reconcile the two is not written. Our rig enforces task authority only in the pod bridge's allowlist `FABRIC_HOST_ANCHORS`. Before a hierarchy of more than two levels, or a second host that may task the pod: do we wait for goat's v2 namespace, or keep authority in each level's fusion node? (`docs/goat-hierarchy.md` section 4.)
 
@@ -201,6 +215,16 @@ Environment notes:
 | 2026-11-18 | The probes reuse the three enrolled certificates; no fourth machine. | Designer |
 | 2026-11-18 | G4-10 uses the released `goat` 0.5.19 on the Mac with the founder's context, not a build from source. | Designer |
 | 2026-11-18 | After the first enrolment was refused: turn `portal_bundle_create_bin` off in `cuaslab`'s group_vars and redeploy the portal with goatbuilder. This changes a portal setting, which the design had named a non-goal. | Richard |
+| 2026-11-19 | Where the design of step 4b has an open question, take the designer's recommendation; do not stop to ask, except for sudo on the Mac or a write to `cuaslab` beyond one route file. | Richard |
+| 2026-11-19 | Step 4b: a third VM for the host (approach A), and the same compose files run on a second Docker engine (A1), not the host in the goatlite box or as processes on the Mac, and not a second compose file. | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | The host VM is the Lima VM `goathost`: Ubuntu 24.04 arm64, 2 CPUs, 4 GiB, 20 GiB, vzNAT; the MTU is set to 1400 only if the install cannot fetch (it could). | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | The two host certificates of step 4 are used again; nothing is asked of `cuaslab`. | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | No route between Colima and `goathost`; if they reach each other on-link, a drop rule in `goathost` (it was not needed). | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | `dg4b_host` reaches the VM's engine by the socket that Lima forwards, with `limactl shell` as the fallback (the socket worked). | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | The offsets of G4B-06: the host's clock behind by 0.05, 0.15 and 0.30 s and ahead by 0.5, 0.8 and 1.2 s; judged for each message by the validator's window, with a step of ages on both sides of a limit not judged. | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | A failing G4B-08 is recorded and not fixed in step 4b (it passed). | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | Step 4b uses the branch `goat-step4b-host-vm`, stacked on `goat-step4-cuaslab`. | Designer, under Richard's instruction of 2026-11-19 |
+| 2026-11-19 | If the natural clock difference already makes a fusion node reject messages, record it, then discipline the clock of `goathost` (it did not, and the clock was not disciplined); G4B-02 tries a control port that answers; the subscriber on the pod router uses the pod recorder's certificate. | Designer, under Richard's instruction of 2026-11-19 |
 
 ## 7. What was done, in order
 
@@ -215,3 +239,4 @@ Environment notes:
 | 2026-11-12 | Final review of the whole branch, one fix round (a site limit, the bridge's main loop, the recorder's error line, the generator), a second whole run at the new code, and one re-review. Evidence copied to `docs/evidence/goat1/`. `README-goat.md` made. An interactive explainer page for new team members added. Branch `goat` is made from `zenoh` (`0cca505`) and is not pushed. |
 | 2026-11-18 | Step 4 on branch `goat-step4-cuaslab`: design, plan, and seven tasks (the enrolment script, the enrolment on `cuaslab` with one portal change, the pairing probe, the overlay, the live checks, the regression checks, the record). Checks G4-01 to G4-12 pass and G4-13 is measured; `docs/acceptance-goat4.md`. Not merged, not pushed. |
 | 2026-11-19 | Step 4: the README run (`readme-run.txt`); a final review of the whole branch and one fix wave: `enroll.sh` and `goat4_ready` hardened, the README's start blocks gated on `goat4_ready`, the secret rule of the quote check widened, README run 2 up to G4-06 (`readme-run-2.txt`), and a part of the record on how to remove what the step left. |
+| 2026-11-19 | Step 4b on branch `goat-step4b-host-vm`, stacked on `goat-step4-cuaslab`: design, plan, and tasks with one implementer and one reviewer each: the VM definition, the overlay and the helpers; the VM `goathost` made and filled, G4B-01 and G4B-02; the readers and the pod subscriber, G4B-03, 04, 05 and 11 (the run was interrupted once by a restart of the controlling session and resumed); the clock tolerance and the link cuts, G4B-06 to 08, with committed scripts that restore in a trap; G4B-09 and G4B-10; the record, the README section and its run, and this file. `docs/acceptance-goat4b.md`. Not merged, not pushed. |
