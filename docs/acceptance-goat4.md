@@ -6,6 +6,8 @@ A ticked box means a run recorded the evidence named on that line. It doesn't me
 
 ## Runs and evidence
 
+**The evidence files are not in git.** On 2026-11-19, before the first push of this branch, Richard decided that evidence files are not kept in git. The `.txt` files of `docs/evidence/goat4/` were taken out of the history of the branch and git ignores them from now on (`.gitignore`). They stay on the machine that made the runs. One of them, `task-5-extra-missing-env.txt`, held the absolute path of the workspace. This record still names them and quotes from them. A clone of the repository holds the record, the index `docs/evidence/goat4/README.md` and the quote checker, but not the files, so the checker cannot run in a clone. Taking the files out changed the hash of every commit of the branch. The hashes in this record, in the README and in the files are the old ones; `docs/evidence/commit-map.md` gives the new hash of each, and says which commits held only evidence files and are gone.
+
 The evidence files are in `docs/evidence/goat4/`; its `README.md` says what each file is. Paths below are relative to that directory. All times are UTC. The commits were made at times of the form `-0500`; this record converts them.
 
 | Run | Date (UTC) | Made on top of | First commit that holds what ran | What it covered | Evidence files |

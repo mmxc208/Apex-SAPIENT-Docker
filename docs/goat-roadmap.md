@@ -37,7 +37,7 @@ goat is the open source project of United States Army Europe and Africa. Its sou
 - The key rules of goat are the most important part (Richard, 2026-11-11). Read `docs/goat-context.md` before each design.
 - Real goat software comes in where it helps and where the effort is manageable. Step 1 uses only goat's rules, goat's Zenoh version, goat's access list checker and the `goat` command line tool. The real goatnet comes in step 4.
 - A check that could not run is recorded as unknown. It is never recorded as a pass.
-- A quoted log line or output line, in a record or in a README, must be in a saved evidence file, character for character. The evidence files of a step go into `docs/evidence/<step>/`, with an index and a quote checker (rule made in step 1, after a record quoted lines that no file held).
+- A quoted log line or output line, in a record or in a README, must be in a saved evidence file, character for character. The evidence files of a step go into `docs/evidence/<step>/`, with an index and a quote checker (rule made in step 1, after a record quoted lines that no file held). From step 4 on, the evidence files themselves are not kept in git: they stay on the machine that made the runs, git ignores `docs/evidence/*/*.txt`, and only the index and the quote checker are committed (Richard, 2026-11-19; the files of step 1 were committed before this rule). So the quote check of such a step runs only on that machine.
 - A record says for each statement whether it was measured in a run, read from a trace, or taken from source code. It names, for each run, the commit it was made on top of and the first commit that holds what ran.
 - The run steps of each step go into `README-goat.md`, as commands that run as they are when pasted into zsh.
 

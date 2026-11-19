@@ -6,3 +6,6 @@ data-export/
 zenoh/pki/out/
 zenoh/goat1/
 zenoh/goat4/
+# Evidence files (the saved outputs of runs) are kept out of git from step 4 on (Richard, 2026-11-19).
+# The index and the quote checker of each step stay in git. Step 1's files were committed before this rule.
+docs/evidence/*/*.txt
