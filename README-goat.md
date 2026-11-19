@@ -15,7 +15,7 @@ goat is the open source network of United States Army Europe and Africa: a mesh,
 | 1 | Pod 1 to host, on a stand-in fabric that follows goat's rules | Done on 2026-11-12 (UTC). The section below has the drawings and the run steps. |
 | 2 | Stone Soup in the fusion node | Not started |
 | 3 | Billie adapter for a sensor with a vendor protocol | Not started |
-| 4 | The host on a real goatnet (a goatlite) | Done on 2026-11-18 (UTC) against the goatlite `cuaslab`, on branch `goat-step4-cuaslab`. The section "Goat step 4" below has the run steps. |
+| 4 | The host on a real goatnet (a goatlite) | Done on 2026-11-18 to 19 UTC against the goatlite `cuaslab`, on branch `goat-step4-cuaslab`. The section "Goat step 4" below has the run steps. |
 | 5 | Pod 2 | Not started |
 | 6 | External host, the second sovereign | Not started |
 
@@ -511,7 +511,19 @@ This step runs the rig of step 1 against a real goatnet, by configuration only. 
 - **The helper.** `goat4/dg4.sh` defines `dg4` (the `dg` of step 1 with the overlay and both env files) and `goat4_ready`, which checks the seven files and `goat4.env`, that each anchor is the common name of its certificate, that no anchor is a step 1 ID, that a container reaches the router, and that the step 1 rig is down.
 - **The pod side** is that of step 1: the generator `goat1/registry.toml`, the pod CA and the pod router. The step 1 rig and this rig run one at a time.
 
-All the checks of step 4 were run on 2026-11-18 (UTC; into 2026-11-19 for the later ones) against `cuaslab` as it was then: stood up from goatcore `e44e893d`, with the portal setting `portal_bundle_create_bin` turned off (see the enrolment below). The commands below are those of the runs, written out for zsh. The runs were made by scripts in the working directory of the plan; this section was not pasted into one zsh as a whole, as the step 1 section was. Below each block is what the runs printed, from the evidence files in `docs/evidence/goat4/` (the file is named with each block). The blocks are shortened. `docs/acceptance-goat4.md` records what passed and where each check falls short.
+All the checks of step 4 were run from 2026-11-18 to 19 UTC against `cuaslab` as it was then: stood up from goatcore `e44e893d`, with the portal setting `portal_bundle_create_bin` turned off (see the enrolment below). These task runs were made by scripts in the working directory of the plan, which are not kept. Below each block is what the task runs printed, from the evidence files in `docs/evidence/goat4/` (the file is named with each block). The blocks are shortened.
+
+The commands were written out for zsh after the task runs. Several blocks were rebuilt from the task runs' outputs and working scripts, not copied from a command that ran:
+
+- step 6: `fabprobe`, and the `dg4 stop` and `dg4 up -d` around the probes;
+- step 7: the probe and the two counts of the pod part of G4-05;
+- step 8: the pre-check of G4-06;
+- step 9: the sleeps of G4-07;
+- step 11: the commands of G4-09;
+- step 12: the path `../goatlite-test/env.sh`;
+- step 13: the clock script.
+
+Then the whole section was run as written, in the form it had in commit `5784f38`, on 2026-11-19 UTC (the README run). It was one `zsh -f` script with stdin at `/dev/null`, not a paste into an interactive shell, so a paste was not tested. Its transcript is `docs/evidence/goat4/readme-run.txt`; the blocks there are numbered 1 to 18 in the order of this section. Of the 18 blocks, 17 ran and one, the enrolment, was not run. 15 printed output of the form shown here (counts, times and IDs differ from run to run), 2 printed output of another form (steps 6 and 8, see the notes there), and none failed. The text beneath a block says where the README run differed. One block was changed after the README run (step 8); the note there says so. `docs/acceptance-goat4.md` records what passed and where each check falls short.
 
 ### The rig of step 4
 
@@ -545,7 +557,7 @@ The rig reaches `192.168.64.4` only through two routes and the Mac's forwarding.
 - The goatlite VM: `/etc/netplan/91-colima-route.yaml`, a route to `192.168.64.5` via `192.168.64.1`.
 - The Mac: `net.inet.ip.forwarding=1`.
 
-If Colima gets another address or the Mac stops forwarding, the path is lost. These three commands show the state. They are a reader's check and were not run for the record: the first should print the value 1, and the other two a route via `192.168.64.1`.
+If Colima gets another address or the Mac stops forwarding, the path is lost. These three commands show the state: the first should print the value 1, and the other two a route via `192.168.64.1`. They were not run in the task runs. The README run ran them (block 1 of `readme-run.txt`): the first printed `net.inet.ip.forwarding: 1`, and the other two a route via `192.168.64.1`.
 
 ```bash
 sysctl net.inet.ip.forwarding
@@ -559,7 +571,7 @@ An agent session that cannot read `~/.docker` sets `DOCKER_HOST=unix://$HOME/.co
 
 ### Enrolment: this writes to the goatnet
 
-**This command writes to `cuaslab`.** It sets a grant for the custodian `richard@cuaslab.lan` (quota 5, affiliation `cuaslab-lab`) if there is none, and enrols three machines, each of which takes one slot of the pool. An enrolment is undone only by a revoke, which the script does not do. In step 4 it was run once with Richard's consent, and it does not need to be run again: the three machines are enrolled. Run it again only if you mean to enrol on a goatnet with no such machines.
+**This command writes to `cuaslab`.** It sets a grant for the custodian `richard@cuaslab.lan` (quota 5, affiliation `cuaslab-lab`) if there is none, and enrols three machines, each of which takes one slot of the pool. An enrolment is undone only by a revoke, which the script does not do. In step 4 it was run twice. The first run was refused (below). The second, after Richard's decision to change a portal setting, enrolled the three machines (`task-2-enrol-refused.txt`, `task-2-decision-and-portal-change.txt`, `task-2-enrol.txt`). The README run did not run it. It does not need to be run again: the three machines are enrolled. Run it again only if you mean to enrol on a goatnet with no such machines.
 
 `goat4/enroll.sh` reads the operator key from the line `CUASLAB_PORTAL_OPERATOR_API_KEY=` of the secrets file that you name, and never prints or keeps it. It writes the certificates, the keys (mode 0600) and the root below `zenoh/goat4/pki/`, and the three anchors to `zenoh/goat4/goat4.env`; `zenoh/goat4/` is git-ignored. It keeps no API key and no bundle token. From its source, not run in step 4: a handle that the portal already holds is skipped if its files are present, and the script stops with nothing enrolled if they are missing.
 
@@ -630,7 +642,7 @@ zenohd-pod running
 0
 ```
 
-`task-4-start.txt`. Ten services: `zenohd-fabric` does not start. `goat4.env` is sourced after `goat1.env`, so its three anchors replace the step 1 ones in the shell, as they do in `dg4`.
+`task-4-start.txt`. Ten services: `zenohd-fabric` does not start. `goat4.env` is sourced after `goat1.env`, so its three anchors replace the step 1 ones in the shell, as they do in `dg4`. The block's exit status is 1, because its last `grep -c` counts 0, which is the expected output (block 4 of `readme-run.txt`). In a shell with `set -e` the block would stop there.
 
 **3. Registration (G4-03).**
 
@@ -709,7 +721,7 @@ host-fusion-1  | 23:51:31 fusion: <- task_ack f0000001 -> f0000002 CZ8V82 TASK_S
 0
 ```
 
-`task-4-g4-04.txt`. The last count looks for a message the host rejected for its time; there was none.
+`task-4-g4-04.txt`. The last count looks for a message the host rejected for its time; there was none. As in step 2, the block's exit status is 1 because the last count is 0, the expected output (block 7 of `readme-run.txt`).
 
 **6. Access on the fabric (G4-05, fabric part).** The `cuaslab` router logs no access decision, and we do not change its log level. So a refused write is shown by absence: a reader gets nothing below the foreign anchor, while a control write by the same certificate below its own anchor, in the same window, arrives. The rig's three fabric clients are stopped first, so no other traffic is below the two anchors. `fabprobe` runs `emulators/probe_access.py` in a one-off container with one of the three certificates of `zenoh/goat4/pki/`; the reader uses the certificate of `host-recorder`.
 
@@ -741,7 +753,7 @@ samples: 0 on cd42939f9c6719ea485ed176909d6d64/** in 20 s; from this probe: 0
 samples: 1 on 7a640b349ac2e03848531fce2000fc57/** in 20 s; from this probe: 1
 ```
 
-Direction 2, the host fusion node's certificate writes below the pod's anchor:
+Direction 2, the host fusion node's certificate writes below the pod's anchor (`task-5-g4-05-fabric.txt`):
 
 ```text
 put: 1 status report on 7a640b349ac2e03848531fce2000fc57/telemetry/sapient/p1/v2/alert/f0000001-0000-4000-8000-000000000001
@@ -751,6 +763,8 @@ samples: 1 on cd42939f9c6719ea485ed176909d6d64/** in 20 s; from this probe: 1
 ```
 
 In each direction the foreign anchor got 0 samples and the control 1, from this probe. `put` prints the same line whether the router took the write or dropped it: a denial is silent for the writer. On `cuaslab` every TLS client may subscribe to `**`, so the step 1 case "a subscription to `**` is refused" does not apply and is not run.
+
+The output above leaves lines out: the evidence file also holds each probe's `connected` line and an `e.g.` line with a key after each `samples: 1` line. In the task run each probe's output was saved apart. Run as the block is written, the probes print to one terminal and the readers run in the background, so the lines come mixed, in the order the probes print them. In the README run (block 8 of `readme-run.txt`) the output held the `connected` and `e.g.` lines, and in direction 1 the control's `samples` line came before the foreign anchor's. The counts were the same: 0 on the foreign anchor and 1 on the control, in both directions.
 
 **7. Access in the pod (G4-05, pod part).** Case 4 of step 1, with `dg4`: the radar's certificate puts on the camera's up key. Restart the pod router with the access-control trace, probe, count, and put the router back to `info`.
 
@@ -798,9 +812,10 @@ cannot connect: OSError(101, 'Network is unreachable')
 apex-goat4_mesh apex-goat4_pod1
 ```
 
-`task-5-g4-06-precheck.txt`. Then step 7 of the step 1 section, with the names of `apex-goat4`. The host's hold time is 120 s.
+`task-5-g4-06-precheck.txt`. Then step 7 of the step 1 section, with the names of `apex-goat4`. The host's hold time is 120 s. The block starts with a wait of 60 s, so that the pod has settled after step 7, which ends by recreating `zenohd-pod`.
 
 ```bash
+sleep 60
 docker network disconnect apex-goat4_mesh apex-goat4-pod-bridge-1
 sleep 30
 dg4 logs --since 30s radar camera vehicle fusion-node | grep -c -E "lost|cannot reach"
@@ -824,6 +839,8 @@ pod-bridge-1  | 00:00:06 pod-bridge: forwarded {'up': 175, 'down': 8}; dropped {
 ```
 
 `task-5-g4-06.txt`. The run printed the time `23:59:24` just before the disconnect and `23:59:54` just after the connect.
+
+The first line, `sleep 60`, was added after the README run, and the block with it was not run again. In the README run (block 11 of `readme-run.txt`) the block had no wait and followed step 7 and the pre-check at once. Its first count printed 1, not 0; the other counts were 6, 3 and 0. The bridge's log in that block begins with `pod-bridge-1  | 00:33:14 pod-bridge: pod router lost`, in the second in which the step 7 block, whose last command recreates `zenohd-pod`, ended (00:33:14 in the transcript). That the counted line came from this restart is inferred, not shown: the count prints no line, and the logs were gone when the cause was looked for. Whether 60 s is long enough was not tested.
 
 **9. Long outage (G4-07).** Step 8 of the step 1 section, with `dg4`, and `goat4_ready` before the start. The last line puts the hold time back to 120 s.
 
@@ -907,7 +924,7 @@ router not restarted
 0
 ```
 
-`task-5-g4-09.txt` (shortened: it also prints the router's `StartedAt` before and after, and its own headings). Take `radar2` out again and put the registry back as committed:
+`task-5-g4-09.txt` (shortened: it also prints the router's `StartedAt` before and after, and its own headings). As in step 2, the block's exit status is 1 because the last count is 0, the expected output (block 14 of `readme-run.txt`). Take `radar2` out again and put the registry back as committed:
 
 ```bash
 dg4 --profile join rm -s -f radar2
@@ -922,6 +939,8 @@ git status --short goat1/registry.toml
 router files unchanged
 exit 0
 ```
+
+`task-5-g4-09.txt`. The last command prints nothing when the registry is as committed.
 
 **12. goat's own client reads the pod's tracks (G4-10).** On the Mac, with the released `goat` 0.5.19 and its context `cuaslab`, which holds the founder's identity of the goatlite. `../goatlite-test/env.sh` sets goat's environment for that checkout; it is sourced in a subshell. `--keys-only` keeps the payload out of the output.
 
@@ -992,6 +1011,6 @@ git diff goat --name-status
 454 passed in 15.55s
 ```
 
-`task-6-unit-suite.txt`. The first `git diff` printed nothing: no existing file below `emulators/` is modified, deleted or renamed. The second listed only the overlay, `goat4/`, `emulators/probe_fabric_pairing.py`, `.gitignore` and files below `docs/` (`task-6-g4-12.txt`). The step 1 rig's output is in `task-6-step1-rig.txt` and `task-6-addendum.txt`.
+`task-6-unit-suite.txt`. The first `git diff` printed nothing: no existing file below `emulators/` is modified, deleted or renamed. The second, at `11a9db4`, listed `.gitignore` as modified, and as added the overlay, `goat4/dg4.sh`, `goat4/enroll.sh`, `goat4/test_enroll.py`, `emulators/probe_fabric_pairing.py` and files below `docs/` (`task-6-g4-12.txt`). In the README run, on top of `5784f38`, it also listed `README-goat.md` as modified, because that commit added this section, and more files below `docs/` (block 18 of `readme-run.txt`). The plan allows all of these: the overlay, `goat4/`, `emulators/probe_fabric_pairing.py`, `.gitignore`, and files below `docs/` and `README-goat.md`. The step 1 rig's output is in `task-6-step1-rig.txt` and `task-6-addendum.txt`. The README run also ran steps 1 to 3 of the step 1 section and `dg down`, after `apex-goat4` was down, at the end of `readme-run.txt`; they printed output of the form shown in the step 1 section.
 
 To stop the step, run `dg4 down`. The recordings stay in the volumes `apex-goat4_pod-records` and `apex-goat4_host-records`. The grant and the three machines stay on `cuaslab`; `docs/acceptance-goat4.md` lists them, so that they can be revoked later.
