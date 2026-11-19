@@ -187,16 +187,20 @@ goat4b_ready() {
   [ "$bad" -eq 0 ]
 }
 
-# Four lines: the time service of goathost, the offset of each VM from the Mac in ms, the
-# route from Colima and from goathost to 192.168.64.4. Reads only; "unknown" where it cannot.
+# Six lines: the time service of goathost and Lima's time sync in it (the guest agent, through
+# which Lima's host agent sets the guest clock about every 10 s), the offset of each VM from the
+# Mac in ms with its bound, the route from Colima and from goathost to 192.168.64.4.
+# Reads only; "unknown" where it cannot.
 g4b_state() {
   local v
 
   v=$(limactl shell goathost systemctl is-active systemd-timesyncd 2>/dev/null | head -n 1)
   echo "goathost time service (systemd-timesyncd): ${v:-unknown}"
+  v=$(limactl shell goathost systemctl is-active lima-guestagent 2>/dev/null | head -n 1)
+  echo "goathost Lima time sync (lima-guestagent): ${v:-unknown}"
 
-  echo "offset of goathost from the Mac (ms): $(_g4b_offset_ms limactl shell goathost date +%s.%N)"
-  echo "offset of colima from the Mac (ms): $(_g4b_offset_ms colima ssh -- date +%s.%N)"
+  echo "offset of goathost from the Mac (ms): $(_g4b_offset_text 5 limactl shell goathost date +%s.%N)"
+  echo "offset of colima from the Mac (ms): $(_g4b_offset_text 5 colima ssh -- date +%s.%N)"
 
   v=$(colima ssh -- ip route get 192.168.64.4 2>/dev/null | head -n 1 | tr -s ' ')
   echo "route colima to 192.168.64.4: ${v:-unknown}"
@@ -205,15 +209,42 @@ g4b_state() {
   return 0
 }
 
-# Offset of a VM's clock from the Mac's, in ms: the VM's time minus the midpoint of the Mac's
-# time before and after the call. Arguments: the command that prints the VM's epoch seconds.
-_g4b_offset_ms() {
-  local t0 t1 tv
-  t0=$(python3 -c 'import time; print(repr(time.time()))')
-  tv=$("$@" 2>/dev/null | head -n 1)
-  t1=$(python3 -c 'import time; print(repr(time.time()))')
-  case "$tv" in
-    ''|*[!0-9.]*) echo unknown; return 0 ;;
+# Offset of a VM's clock from the Mac's, by the method of G4-13: <rounds> times, the Mac's time,
+# the command that prints the VM's epoch seconds, the Mac's time; the round with the shortest
+# round trip; offset = VM time minus the middle of the two Mac readings; bound = half the round
+# trip. Prints "<offset ms> <bound ms> <rtt min> <rtt median> <rtt max> <best round> <rounds ok>"
+# (ms, one decimal), or "unknown" if no round gave a number.
+# Arguments: <rounds> <command...>
+_g4b_offset() {
+  python3 - "$@" <<'PY'
+import statistics, subprocess, sys, time
+n, cmd = int(sys.argv[1]), sys.argv[2:]
+rounds = []
+for i in range(1, n + 1):
+    a = time.time()
+    p = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    b = time.time()
+    try:
+        v = float(p.stdout.split()[0])
+    except (IndexError, ValueError):
+        continue
+    rounds.append((b - a, v - (a + b) / 2, i))
+if not rounds:
+    print("unknown")
+else:
+    rtt = [r[0] * 1000 for r in rounds]
+    best = min(rounds)
+    print("%.1f %.1f %.1f %.1f %.1f %d %d" % (best[1] * 1000, best[0] * 500, min(rtt),
+          statistics.median(rtt), max(rtt), best[2], len(rounds)))
+PY
+}
+
+# "<offset> (bound +/-<bound>, best of <rounds>)" in whole ms, or "unknown".
+_g4b_offset_text() {
+  local n=$1 out
+  out=$(_g4b_offset "$@")
+  case "$out" in
+    unknown|'') echo unknown ;;
+    *) printf '%s\n' "$out" | awk -v n="$n" '{ printf "%+.0f (bound +/-%.0f, best of %d)\n", $1, $2, n }' ;;
   esac
-  awk -v a="$t0" -v b="$t1" -v v="$tv" 'BEGIN { printf "%.0f\n", (v - (a + b) / 2) * 1000 }'
 }

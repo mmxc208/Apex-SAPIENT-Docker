@@ -41,7 +41,9 @@ case "$tool $*" in
     printf '%s\n' "${STUB_KEY_STAT:-600 root host-fusion.key}" "600 root host-recorder.key" ;;
   "limactl shell goathost sudo docker image inspect"*) echo sha256:aaa ;;
   "limactl shell goathost ip route show"*) echo "192.168.64.4 via 192.168.64.1 dev lima0" ;;
-  "limactl shell goathost systemctl"*) echo active ;;
+  "limactl shell goathost systemctl is-active lima-guestagent"*) echo "${STUB_GA:-active}" ;;
+  "limactl shell goathost systemctl"*) echo "${STUB_TS:-active}" ;;
+  "limactl shell goathost date"*) [ -n "${STUB_VM_DATE:-}" ] && echo "$STUB_VM_DATE" ;;
   "limactl shell goathost ip route get"*) echo "192.168.64.4 via 192.168.64.1 dev lima0 src 192.168.64.7" ;;
   "limactl shell goatlite ip route show"*) echo "${STUB_VM_ADDR:-192.168.64.7} via 192.168.64.1 dev lima0" ;;
   "limactl shell goatlite sudo cat"*)
@@ -322,15 +324,32 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("not running", out)
 
-    def test_state_prints_four_lines_and_changes_nothing(self):
+    def test_state_prints_six_lines_and_changes_nothing(self):
         rc, out = self.sh.run("g4b_state")
         self.assertEqual(rc, 0, out)
         lines = [l for l in out.splitlines() if l.strip()]
-        self.assertEqual(len(lines), 5)  # time service, two offsets, two routes
+        # time service, Lima's time sync, two offsets, two routes
+        self.assertEqual(len(lines), 6, out)
         self.assertIn("active", lines[0])
         for c in self.sh.calls():
             for bad in ("sudo", "date -s", "route add", "route replace", " stop", "restart", "delete"):
                 self.assertNotIn(bad, c)
+
+    def test_state_shows_time_service_and_lima_sync(self):
+        rc, out = self.sh.run("g4b_state", STUB_TS="inactive", STUB_GA="inactive")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("goathost time service (systemd-timesyncd): inactive", out)
+        self.assertIn("goathost Lima time sync (lima-guestagent): inactive", out)
+        rc, out = self.sh.run("g4b_state")
+        self.assertIn("goathost Lima time sync (lima-guestagent): active", out)
+
+    def test_state_offset_has_a_bound(self):
+        rc, out = self.sh.run("g4b_state", STUB_VM_DATE="1000.5")
+        self.assertEqual(rc, 0, out)
+        line = [l for l in out.splitlines() if l.startswith("offset of goathost")][0]
+        self.assertRegex(line, r"^offset of goathost from the Mac \(ms\): [-+]\d+ \(bound \+/-\d+, best of \d+\)$")
+        # no answer: unknown, not a number
+        self.assertIn("offset of colima from the Mac (ms): unknown", out)
 
     def test_vm_addr_prints_only_the_address(self):
         rc, out = self.sh.run("g4b_vm_addr", STUB_VM_ADDR="192.168.64.12")
@@ -373,6 +392,126 @@ class OverlayTests(unittest.TestCase):
         # pod services still mount from the Mac's repository
         self.assertTrue(any(v["source"].startswith(ROOT)
                             for v in services["pod-bridge"]["volumes"] if v["type"] == "bind"))
+
+
+# ------------------------------------------------------------------ readers.py (no rig needed)
+import sys
+sys.path.insert(0, HERE)
+import readers  # noqa: E402
+
+POD = "7a640b349ac2e03848531fce2000fc57"
+HOSTA = "cd42939f9c6719ea485ed176909d6d64"
+
+
+def rec(t, kind, ts=None, task_id=None, frm="f0000002-x", to="f0000001-x", anchor=POD):
+    """A recorder record: t is HH:MM:SS.fff on 2026-11-19; ts the message time, same form."""
+    msg = {"timestamp": "2026-11-19T%sZ" % (ts or t), "node_id": frm, "destination_id": to}
+    if kind == "task":
+        msg["task"] = {"task_id": task_id, "task_name": "x"}
+    elif kind == "task_ack":
+        msg["task_ack"] = {"task_id": task_id, "task_status": "TASK_STATUS_ACCEPTED"}
+    else:
+        msg[kind] = {"report_id": "r"}
+    return {"t": "2026-11-19T%s+00:00" % t, "key": "%s/x/%s" % (anchor, kind), "kind": kind,
+            "node_id": to, "anchor": anchor, "site": "p1", "msg": msg}
+
+
+class ReaderTests(unittest.TestCase):
+    def test_follow_task_finds_task_and_ack_by_suffix(self):
+        rows = [rec("12:00:00.000", "task", task_id="01M7SWAAAAAAAAAAAAAAN5KW8C", anchor=HOSTA),
+                rec("12:00:00.010", "detection_report"),
+                rec("12:00:00.020", "task_ack", task_id="01M7SWAAAAAAAAAAAAAAN5KW8C",
+                    frm="f0000001-x", to="f0000002-x"),
+                rec("12:00:20.000", "task", task_id="01M7SWBBBBBBBBBBBBBBZZZZZZ", anchor=HOSTA)]
+        got = readers.follow_task(rows, "N5KW8C")
+        self.assertEqual([g["content"] for g in got], ["task", "task_ack"])
+        self.assertEqual(got[0]["task_id"], "01M7SWAAAAAAAAAAAAAAN5KW8C")
+        self.assertEqual((got[0]["from"], got[0]["to"]), ("f0000002-x", "f0000001-x"))
+        self.assertEqual((got[1]["from"], got[1]["to"]), ("f0000001-x", "f0000002-x"))
+        self.assertEqual(got[1]["t"], "2026-11-19T12:00:00.020+00:00")
+        self.assertTrue(got[0]["key"].startswith(HOSTA))
+
+    def test_apparent_ages(self):
+        rows = [rec("12:00:00.000", "detection_report", ts="12:00:00.050"),   # -0.05
+                rec("12:00:01.000", "detection_report", ts="12:00:00.800"),   # 0.2
+                rec("12:00:03.000", "status_report", ts="12:00:02.000")]      # 1.0
+        a = readers.apparent_ages(rows)
+        self.assertEqual(a["count"], 3)
+        self.assertAlmostEqual(a["min"], -0.05)
+        self.assertAlmostEqual(a["median"], 0.2)
+        self.assertAlmostEqual(a["max"], 1.0)
+        self.assertEqual((a["below_zero"], a["outside_window"]), (1, 1))
+
+    def test_apparent_ages_since_until_and_kinds(self):
+        rows = [rec("12:00:00.000", "detection_report", ts="11:59:59.900"),
+                rec("12:00:01.000", "status_report", ts="12:00:00.700"),
+                rec("12:00:02.000", "detection_report", ts="12:00:01.000")]
+        a = readers.apparent_ages(rows, since="2026-11-19T12:00:00.500+00:00")
+        self.assertEqual(a["count"], 2)
+        a = readers.apparent_ages(rows, until="2026-11-19T12:00:01.500+00:00")
+        self.assertEqual(a["count"], 2)
+        a = readers.apparent_ages(rows, kinds=["detection_report"])
+        self.assertEqual(a["count"], 2)
+        self.assertAlmostEqual(a["max"], 1.0)
+        self.assertEqual(readers.apparent_ages([])["count"], 0)
+
+    def test_apparent_ages_skips_undecoded_records(self):
+        rows = [rec("12:00:00.000", "detection_report", ts="11:59:59.900"),
+                {"t": "2026-11-19T12:00:00.100+00:00", "key": "k", "error": "decode", "payload_b64": ""}]
+        self.assertEqual(readers.apparent_ages(rows)["count"], 1)
+
+    def test_task_latency(self):
+        rows = [rec("12:00:00.000", "task", task_id="A1", anchor=HOSTA),
+                rec("12:00:00.007", "task_ack", task_id="A1"),
+                rec("12:00:20.000", "task", task_id="B2", anchor=HOSTA)]
+        lat = readers.task_latency(rows)
+        self.assertEqual(lat["count"], 1)
+        self.assertAlmostEqual(lat["median"], 7)
+        self.assertAlmostEqual(lat["min"], 7)
+        self.assertAlmostEqual(lat["max"], 7)
+        self.assertEqual(lat["unacknowledged"], 1)
+
+    def test_rejections_counts_both_forms_and_honours_since(self):
+        lines = [
+            "host-fusion-1  | 12:00:01 fusion: invalid message from 'f0000001' dropped: too old",
+            "host-fusion-1  | 12:00:05 fusion: <- detection_report f0000001",
+            "fusion-node-1  | 12:00:09 fusion: invalid message from above dropped: too old",
+            "fusion-node-1  | 12:00:12 fusion: invalid message from above dropped: too new",
+        ]
+        r = readers.rejections(lines)
+        self.assertEqual(r["invalid message from"], 3)
+        self.assertEqual(r["invalid message from above dropped"], 2)
+        r = readers.rejections(lines, since="12:00:05")
+        self.assertEqual(r["invalid message from"], 2)
+        self.assertEqual(r["invalid message from above dropped"], 2)
+        r = readers.rejections(lines, since="12:00:05", until="12:00:10")
+        self.assertEqual(r["invalid message from above dropped"], 1)
+
+    def test_judge_step(self):
+        inside = {"count": 40, "min": 0.1, "median": 0.3, "max": 0.5}
+        outside = {"count": 40, "min": 1.0, "median": 1.2, "max": 1.4}
+        both = {"count": 40, "min": 0.5, "median": 0.9, "max": 1.3}
+        self.assertEqual(readers.judge_step(inside, accepted=40, rejected=0), "pass")
+        self.assertEqual(readers.judge_step(inside, accepted=37, rejected=3), "fail")
+        self.assertEqual(readers.judge_step(outside, accepted=0, rejected=40), "pass")
+        self.assertEqual(readers.judge_step(outside, accepted=5, rejected=35), "fail")
+        self.assertEqual(readers.judge_step(both, accepted=20, rejected=20), "not judged")
+        few = dict(inside, count=5)
+        self.assertEqual(readers.judge_step(few, accepted=5, rejected=0), "not judged")
+        future = {"count": 40, "min": -0.4, "median": -0.3, "max": -0.2}
+        self.assertEqual(readers.judge_step(future, accepted=0, rejected=40), "pass")
+        straddle_low = {"count": 40, "min": -0.2, "median": 0.0, "max": 0.1}
+        self.assertEqual(readers.judge_step(straddle_low, accepted=30, rejected=10), "not judged")
+
+    def test_main_ages_by_anchor_from_stdin(self):
+        rows = [rec("12:00:00.300", "detection_report", ts="12:00:00.000"),
+                rec("12:00:00.300", "detection_report", ts="12:00:00.300", anchor=HOSTA)]
+        p = subprocess.run([sys.executable, os.path.join(HERE, "readers.py"), "ages", "--anchor", POD],
+                           input="\n".join(json.dumps(r) for r in rows) + "\n",
+                           capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("count 1", p.stdout)
+        self.assertIn("median 0.300", p.stdout)
 
 
 if __name__ == "__main__":
