@@ -11,6 +11,7 @@
 # DOCKER_HOST is set only inside a function's own subshell; DOCKER_CONFIG is left as the caller
 # has it.
 
+# Default socket: Task 2 measured that the forwarded socket works from the agent's shell.
 : "${G4B_ENGINE:=socket}"
 
 G4B_POD_SERVICES="zenohd-pod fusion-node radar camera vehicle bridge-node recorder pod-bridge"
@@ -156,6 +157,13 @@ goat4b_ready() {
   for f in $(_g4b_w "$want"); do
     printf '%s\n' "$ls_out" | grep -qxF -- "$f" || { echo "goat4b_ready: /opt/apex-host/pki/$f is missing in goathost (g4b_vm_sync)"; bad=1; }
   done
+  # each key file in /opt/apex-host/pki: mode 0600, owner root
+  out=$(limactl shell goathost sudo sh -c 'stat -c "%a %U %n" /opt/apex-host/pki/*.key' 2>/dev/null \
+    | while read -r m o n; do
+        [ "$m" = 600 ] && [ "$o" = root ] \
+          || echo "goat4b_ready: ${n##*/} is mode $m owner $o in goathost; must be 600 root (g4b_vm_sync)"
+      done)
+  [ -z "$out" ] || { printf '%s\n' "$out"; bad=1; }
   out=$(limactl shell goathost sudo find /opt/apex-host -name 'pod1*' 2>/dev/null)
   if [ -n "$out" ] || printf '%s\n' "$ls_out" | grep -q '^pod1'; then
     echo "goat4b_ready: a pod1 file is in goathost: the pod's key must never be there"; bad=1

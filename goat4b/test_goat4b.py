@@ -20,9 +20,11 @@ HOST_SERVICES = ["host-fusion", "host-recorder"]
 FIVE = ["ca.pem", "host-fusion.pem", "host-fusion.key", "host-recorder.pem", "host-recorder.key"]
 
 STUB = r'''#!/bin/sh
-# Records "<tool> <args>  DOCKER_HOST=<..> HOLD=<..>" and answers from environment variables.
+# Records "<tool> <args>  DOCKER_HOST=<..> HOLD=<..> CONFIG=<..>" and answers from environment
+# variables. Standard input, if any is piped, is appended to "$STUB_LOG.stdin".
 tool=$(basename "$0")
-echo "$tool $* DOCKER_HOST=${DOCKER_HOST-unset} HOLD=${HOST_HOLD_SECONDS-unset}" >> "$STUB_LOG"
+echo "$tool $* DOCKER_HOST=${DOCKER_HOST-unset} HOLD=${HOST_HOLD_SECONDS-unset} CONFIG=${DOCKER_CONFIG-unset}" >> "$STUB_LOG"
+[ -t 0 ] || cat >> "$STUB_LOG.stdin"
 case "$tool $*" in
   "docker image inspect"*) echo sha256:aaa ;;
   "docker ps"*) ;;
@@ -34,6 +36,8 @@ case "$tool $*" in
   "limactl shell goathost sudo ls -1 /opt/apex-host/pki"*)
     printf '%s\n' ${STUB_PKI_LS:-ca.pem host-fusion.pem host-fusion.key host-recorder.pem host-recorder.key} ;;
   "limactl shell goathost sudo find"*) printf '%s\n' ${STUB_FIND:-} ;;
+  "limactl shell goathost sudo sh -c stat"*)
+    printf '%s\n' "${STUB_KEY_STAT:-600 root host-fusion.key}" "600 root host-recorder.key" ;;
   "limactl shell goathost sudo docker image inspect"*) echo sha256:aaa ;;
   "limactl shell goathost ip route show"*) echo "192.168.64.4 via 192.168.64.1 dev lima0" ;;
   "limactl shell goathost systemctl"*) echo active ;;
@@ -65,8 +69,10 @@ class Shell:
                   "goat4_ready() { return 0; }; " + body)
         e = dict(os.environ, STUB_LOG=self.log, PATH=self.bin + os.pathsep + os.environ["PATH"])
         e.pop("HOST_HOLD_SECONDS", None)
+        e.pop("G4B_ENGINE", None)
         e.update(env)
-        p = subprocess.run(["zsh", "-fc", script], cwd=ROOT, env=e, capture_output=True, text=True)
+        p = subprocess.run(["zsh", "-fc", script], cwd=ROOT, env=e, stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True)
         return p.returncode, p.stdout + p.stderr
 
     def calls(self):
@@ -129,7 +135,7 @@ class HelperTests(unittest.TestCase):
         (call,) = self.sh.calls()
         words = call.split()
         self.assertEqual(words[words.index("up"):words.index("up") + 2], ["up", "-d"])
-        tail = words[words.index("-d") + 1:-2]  # drop DOCKER_HOST= and HOLD=
+        tail = words[words.index("-d") + 1:-3]  # drop DOCKER_HOST=, HOLD= and CONFIG=
         self.assertEqual(sorted(tail), sorted(POD_SERVICES))
         self.assertNotIn("host-recorder", words)
 
@@ -159,7 +165,7 @@ class HelperTests(unittest.TestCase):
     def test_dg4b_host_passes_hold_seconds(self):
         rc, _ = self.sh.run("dg4b_host up -d host-fusion", HOST_HOLD_SECONDS="45")
         self.assertEqual(rc, 0)
-        self.assertTrue(self.sh.calls()[0].endswith("HOLD=45"))
+        self.assertIn(" HOLD=45 ", self.sh.calls()[0])
         # shell engine: passed through sudo env
         self.sh = Shell(self)
         rc, _ = self.sh.run("G4B_ENGINE=shell; dg4b_host up -d host-fusion", HOST_HOLD_SECONDS="45")
@@ -183,8 +189,64 @@ class HelperTests(unittest.TestCase):
         self.assertIn("after=unix:///caller.sock", out)
 
     def test_docker_config_of_caller_is_kept(self):
-        self.sh.run("dg4b_host ps", DOCKER_CONFIG="/x")  # stub does not print it; must not fail
-        self.assertEqual(len(self.sh.calls()), 1)
+        rc, out = self.sh.run("dg4b_pod ps; dg4b_host ps", DOCKER_CONFIG="/x/cfg")
+        self.assertEqual(rc, 0, out)
+        pod, host = self.sh.calls()
+        self.assertTrue(pod.endswith(" CONFIG=/x/cfg"), pod)
+        self.assertTrue(host.endswith(" CONFIG=/x/cfg"), host)
+
+    def test_key_files_are_written_under_umask_077(self):
+        rc, out = self.sh.run("g4b_vm_sync")
+        self.assertEqual(rc, 0, out)
+        keys = [c for c in self.sh.calls() if ".key" in c and "cat >" in c]
+        self.assertEqual(len(keys), 2, keys)
+        for c in keys:
+            self.assertIn("umask 077", c)
+            self.assertLess(c.index("umask 077"), c.index("cat >"), c)
+
+    def test_sync_tar_stream_holds_no_mac_metadata(self):
+        # GNU tar in the VM warns once per file on macOS extended headers (seen live)
+        rc, out = self.sh.run("g4b_vm_sync")
+        self.assertEqual(rc, 0, out)
+        with open(self.sh.log + ".stdin", "rb") as f:
+            stream = f.read()
+        self.assertIn(b"fake_fusion_node.py", stream)
+        self.assertFalse(b"LIBARCHIVE.xattr" in stream or b"SCHILY.xattr" in stream,
+                         "the tar stream carries macOS extended attributes")
+
+    def test_load_image_uses_colima_engine_not_callers(self):
+        rc, out = self.sh.run("g4b_vm_load_image", DOCKER_HOST="unix:///caller.sock")
+        self.assertEqual(rc, 0, out)
+        colima = "DOCKER_HOST=unix://%s/.colima/default/docker.sock" % os.environ["HOME"]
+        docker_calls = [c for c in self.sh.calls() if c.startswith("docker ")]
+        self.assertEqual([c.split()[1] for c in docker_calls], ["save", "image"])
+        for c in docker_calls:
+            self.assertIn(colima, c)
+
+    def test_routes_up_writes_the_vm_route_file_and_reads_goatlite_back(self):
+        rc, out = self.sh.run("g4b_routes_up", STUB_VM_ADDR="192.168.64.7", STUB_GL_ADDR="192.168.64.7")
+        self.assertEqual(rc, 0, out)
+        calls = "\n".join(self.sh.calls())
+        self.assertIn("limactl shell goathost sudo sh -c", calls)
+        self.assertIn("/etc/netplan/90-cuaslab-route.yaml", calls)
+        with open(self.sh.log + ".stdin") as f:
+            written = f.read()
+        self.assertIn("- to: 192.168.64.4/32", written)
+        self.assertIn("- to: 192.168.64.7/32", written)
+
+    def test_routes_up_fails_when_goatlite_file_does_not_read_back(self):
+        rc, out = self.sh.run("g4b_routes_up", STUB_VM_ADDR="192.168.64.7", STUB_GL_ADDR="192.168.64.9")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("192.168.64.9", out)
+
+    def test_engine_default_is_socket(self):
+        # Task 2 measured that the forwarded socket works from the agent's shell
+        rc, out = self.sh.run('dg4b_host ps; echo "engine=$G4B_ENGINE"')
+        self.assertEqual(rc, 0, out)
+        self.assertIn("engine=socket", out)
+        (call,) = self.sh.calls()
+        self.assertTrue(call.startswith("docker compose -p apex-goat4b "), call)
+        self.assertIn("DOCKER_HOST=unix://%s/.lima/goathost/sock/docker.sock" % os.environ["HOME"], call)
 
     def test_bad_engine_is_refused(self):
         rc, out = self.sh.run("G4B_ENGINE=bogus; dg4b_host ps")
@@ -212,6 +274,16 @@ class HelperTests(unittest.TestCase):
                               STUB_FIND="/opt/apex-host/pki/pod1.key")
         self.assertEqual(rc, 1)
         self.assertIn("pod1 file is in goathost", out)
+
+    def test_ready_fails_on_key_not_0600(self):
+        rc, out = self.sh.run("goat4b_ready", STUB_KEY_STAT="644 root host-fusion.key")
+        self.assertEqual(rc, 1)
+        self.assertIn("host-fusion.key is mode 644 owner root", out)
+
+    def test_ready_fails_on_key_not_owned_by_root(self):
+        rc, out = self.sh.run("goat4b_ready", STUB_KEY_STAT="600 lima host-fusion.key")
+        self.assertEqual(rc, 1)
+        self.assertIn("host-fusion.key is mode 600 owner lima", out)
 
     def test_ready_fails_on_missing_identity_file(self):
         rc, out = self.sh.run("goat4b_ready", STUB_PKI_LS="ca.pem")

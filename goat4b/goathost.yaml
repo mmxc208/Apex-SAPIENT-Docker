@@ -36,7 +36,7 @@ provision:
     #!/bin/bash
     set -eux -o pipefail
     command -v docker >/dev/null 2>&1 || curl -fsSL https://get.docker.com | sh
-    usermod -aG docker "${LIMA_CIDATA_USER}"
+    usermod -aG docker "{{.User}}"
     systemctl enable --now docker
     install -d -m 0755 /opt/apex-host /opt/apex-host/pki /opt/apex-host/compose
 # The route to the cuaslab router goes through the Mac (vzNAT isolates VMs at L2). It is a netplan

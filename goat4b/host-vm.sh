@@ -10,6 +10,7 @@ G4B_PKI_DIR=zenoh/goat4/pki
 G4B_GATEWAY=192.168.64.1
 G4B_ROUTER_IP=192.168.64.4
 G4B_ROUTE_FILE=/etc/netplan/92-goathost-route.yaml
+G4B_VM_ROUTE_FILE=/etc/netplan/90-cuaslab-route.yaml
 
 # The five files of the host's identity. Never pod1.pem or pod1.key.
 G4B_HOST_FILES=(ca.pem host-fusion.pem host-fusion.key host-recorder.pem host-recorder.key)
@@ -40,10 +41,12 @@ g4b_vm_addr() {
 
 # Saves the image from Colima's engine, loads it in the VM, prints both image IDs.
 # Exit 1 if they differ.
+# Colima's engine is used in a subshell of its own, whatever DOCKER_HOST the caller has.
 g4b_vm_load_image() {
-  local id_c id_v
-  docker save "$G4B_IMAGE" | limactl shell "$G4B_VM" sudo docker load >/dev/null || return 1
-  id_c=$(docker image inspect -f '{{.Id}}' "$G4B_IMAGE")
+  local id_c id_v colima="${G4B_COLIMA_SOCK:-unix://$HOME/.colima/default/docker.sock}"
+  ( export DOCKER_HOST="$colima"; docker save "$G4B_IMAGE" ) \
+    | limactl shell "$G4B_VM" sudo docker load >/dev/null || return 1
+  id_c=$( export DOCKER_HOST="$colima"; docker image inspect -f '{{.Id}}' "$G4B_IMAGE" )
   id_v=$(limactl shell "$G4B_VM" sudo docker image inspect -f '{{.Id}}' "$G4B_IMAGE")
   echo "colima:   $id_c"
   echo "$G4B_VM: $id_v"
@@ -56,12 +59,14 @@ g4b_vm_sync() {
   local f base mode
   limactl shell "$G4B_VM" sudo install -d -m 0755 /opt/apex-host /opt/apex-host/pki /opt/apex-host/compose || return 1
   limactl shell "$G4B_VM" sudo rm -rf /opt/apex-host/emulators || return 1
-  COPYFILE_DISABLE=1 tar -cf - --exclude __pycache__ --exclude '*.pyc' emulators \
+  # no macOS metadata in the stream: GNU tar in the VM warns once per file on such headers
+  COPYFILE_DISABLE=1 tar -cf - --no-xattrs --no-mac-metadata --exclude __pycache__ --exclude '*.pyc' emulators \
     | limactl shell "$G4B_VM" sudo tar -C /opt/apex-host --no-same-owner -xf - || return 1
   for f in "${G4B_HOST_FILES[@]}"; do
     base=$f
+    # umask 077 first: a key file is never readable by others, not even before the chmod
     case "$base" in *.key) mode=0600 ;; *) mode=0644 ;; esac
-    limactl shell "$G4B_VM" sudo sh -c "cat > /opt/apex-host/pki/$base && chmod $mode /opt/apex-host/pki/$base && chown root:root /opt/apex-host/pki/$base" \
+    limactl shell "$G4B_VM" sudo sh -c "umask 077; cat > /opt/apex-host/pki/$base && chmod $mode /opt/apex-host/pki/$base && chown root:root /opt/apex-host/pki/$base" \
       < "$G4B_PKI_DIR/$f" || return 1
   done
   for f in "${G4B_COMPOSE_FILES[@]}"; do
@@ -84,8 +89,15 @@ g4b_routes_up() {
   local addr old
   addr=$(g4b_vm_addr) || { echo "g4b_routes_up: the VM $G4B_VM has no 192.168.64.x address" >&2; return 1; }
 
+  # the VM's file is written here too (same content as the provision script), so it exists
+  # whatever the provision did
+  printf '%s\n' \
+    "# goathost: the cuaslab router ($G4B_ROUTER_IP) is reached via the Mac; vzNAT isolates VMs at L2" \
+    "network:" "  version: 2" "  ethernets:" "    lima0:" "      routes:" \
+    "        - to: $G4B_ROUTER_IP/32" "          via: $G4B_GATEWAY" \
+    | limactl shell "$G4B_VM" sudo sh -c "umask 077; cat > $G4B_VM_ROUTE_FILE && chmod 0600 $G4B_VM_ROUTE_FILE" || return 1
+  echo "wrote $G4B_VM_ROUTE_FILE in $G4B_VM: $G4B_ROUTER_IP/32 via $G4B_GATEWAY"
   limactl shell "$G4B_VM" sudo ip route replace "$G4B_ROUTER_IP/32" via "$G4B_GATEWAY" || return 1
-  echo "route in $G4B_VM: $G4B_ROUTER_IP/32 via $G4B_GATEWAY (file /etc/netplan/90-cuaslab-route.yaml, from provision)"
 
   old=$(_g4b_goatlite_route_addr)
   if [ -n "$old" ] && [ "$old" != "$addr" ]; then
@@ -96,6 +108,11 @@ g4b_routes_up() {
     "network:" "  version: 2" "  ethernets:" "    lima0:" "      routes:" \
     "        - to: $addr/32" "          via: $G4B_GATEWAY" \
     | limactl shell goatlite sudo sh -c "cat > $G4B_ROUTE_FILE && chmod 0600 $G4B_ROUTE_FILE" || return 1
+  old=$(_g4b_goatlite_route_addr)
+  if [ "$old" != "$addr" ]; then
+    echo "g4b_routes_up: $G4B_ROUTE_FILE on goatlite reads back ${old:-nothing}, not $addr" >&2
+    return 1
+  fi
   echo "wrote $G4B_ROUTE_FILE on goatlite: $addr/32 via $G4B_GATEWAY"
   limactl shell goatlite sudo ip route replace "$addr/32" via "$G4B_GATEWAY" || return 1
 }
