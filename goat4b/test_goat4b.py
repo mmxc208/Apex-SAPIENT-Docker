@@ -559,6 +559,18 @@ class ReaderTests(unittest.TestCase):
         self.assertIn("count 1", p.stdout)
         self.assertIn("median 0.300", p.stdout)
 
+    def test_main_latency_honours_since(self):
+        rows = [rec("12:00:00.000", "task", task_id="A1", anchor=HOSTA),
+                rec("12:00:00.007", "task_ack", task_id="A1"),
+                rec("12:00:20.000", "task", task_id="B2", anchor=HOSTA),
+                rec("12:00:20.012", "task_ack", task_id="B2")]
+        p = subprocess.run([sys.executable, os.path.join(HERE, "readers.py"), "latency",
+                            "--since", "2026-11-19T12:00:10+00:00"],
+                           input="\n".join(json.dumps(r) for r in rows) + "\n",
+                           capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("count 1 min 12.000 median 12.000", p.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

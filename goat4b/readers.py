@@ -8,7 +8,7 @@ no rig. Apparent age of a message = the recorder's receive time `t` minus the me
 
     python3 goat4b/readers.py ages [--anchor A] [--since T] [--until T] [--kinds k,k] [file]
     python3 goat4b/readers.py follow <task id suffix> [file]
-    python3 goat4b/readers.py latency [file]
+    python3 goat4b/readers.py latency [--since T] [--until T] [file]
     python3 goat4b/readers.py rejections [--since HH:MM:SS] [--until HH:MM:SS] [file]
 
 A file of records or log lines is read from the path, or from stdin when none is given.
@@ -165,11 +165,13 @@ def main(argv: list[str]) -> int:
     a.add_argument("--kinds")
     f = sub.add_parser("follow")
     f.add_argument("suffix")
-    sub.add_parser("latency")
+    lat = sub.add_parser("latency")
+    lat.add_argument("--since")
+    lat.add_argument("--until")
     r = sub.add_parser("rejections")
     r.add_argument("--since")
     r.add_argument("--until")
-    for p in (a, f, sub.choices["latency"], r):
+    for p in (a, f, lat, r):
         p.add_argument("file", nargs="?")
     args = ap.parse_args(argv)
     src = open(args.file, encoding="utf-8") if args.file else sys.stdin
@@ -192,6 +194,7 @@ def main(argv: list[str]) -> int:
             print(f"{x['t']} {x['key']} | from {(x['from'] or '-')[:8]} to {(x['to'] or '-')[:8]} | "
                   f"{x['content']} {x['task_id']}")
     elif args.cmd == "latency":
+        rows = [x for x in rows if "t" in x and _in_range(parse_time(x["t"]), args.since, args.until)]
         g = task_latency(rows)
         print(f"task latency (ms): count {g['count']} min {_fmt(g['min'])} median {_fmt(g['median'])} "
               f"max {_fmt(g['max'])} unacknowledged {g['unacknowledged']}")
