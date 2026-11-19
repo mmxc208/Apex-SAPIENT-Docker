@@ -26,6 +26,7 @@ goat is the open source network of United States Army Europe and Africa: a mesh,
 |---|---|
 | `docs/explainers/goat-step1/index.html` | An interactive page for a new team member: the background, the end goal, the rig of step 1 and its message flows |
 | `docs/explainers/goat-step4/index.html` | An interactive page on step 4: goatlite and the goatnet `cuaslab`, the rig on it, what was tested and what was learned |
+| `docs/explainers/goat-step4b/index.html` | An interactive page on step 4b: the host on its own VM, the three machines, a task hop by hop, the clocks, the link cuts, what was tested and what was left |
 | `docs/explainers/goatcore/` | Two background pages on goat: one in plain language, one technical |
 | `docs/goat-roadmap.md` | The six steps: what is decided, what is open, and how a step is started |
 | `docs/goat-context.md` | The goat rules that this work follows, with a source for each rule |

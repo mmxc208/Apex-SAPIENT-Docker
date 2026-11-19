@@ -11,6 +11,7 @@ These pages give the background of the work in this repository. Each one is an H
 | [`goatcore/architecture.html`](goatcore/architecture.html) | goatcore: the technical note on its architecture | 2026-11-11 |
 | [`goat-step1/index.html`](goat-step1/index.html) | Step 1 of the goat work, for a new team member. It is interactive. | 2026-11-12 |
 | [`goat-step4/index.html`](goat-step4/index.html) | Step 4 of the goat work: what goatlite is and how the goatnet `cuaslab` was stood up with it, the step 1 rig on that goatnet, what was tested, and what was learned. It is interactive. | 2026-11-19 |
+| [`goat-step4b/index.html`](goat-step4b/index.html) | Step 4b of the goat work: the host on its own VM, so pod, goatnet and host are on three machines; a task hop by hop, the clock difference set on purpose, the link cuts, what was tested, the fit with goat's ADRs and what was left. Its numbers come from `docs/acceptance-goat4b.md`. It is interactive. | 2026-11-19 |
 | [`goat-hierarchy/index.html`](goat-hierarchy/index.html) | Hierarchy, echelon and how step 4b fits goat's ADRs: mesh peer and fabric identity, a level-by-level hierarchy, ADRs 1165 and 1205, echelon and slot, and the ingress gateway and edge router. It is interactive. | 2026-11-19 |
 
 ## How to read them

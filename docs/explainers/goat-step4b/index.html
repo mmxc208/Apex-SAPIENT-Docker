@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goat step 4b explained: the host on its own machine</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#fff; --ink:#1b2430; --dim:#5d6b7c; --line:#d8dee6;
+  --fabric:#0b7a75; --mesh:#7a4fd0; --pod:#b8660b; --bad:#b3261e; --ok:#1d7a3a; --hl:#fff3c4;
+  --node:#eef2f6; --code:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#12161c; --panel:#1a2029; --ink:#e6ebf2; --dim:#9aa8ba; --line:#2e3846;
+    --fabric:#3fc7bf; --mesh:#b095f5; --pod:#f0a94a; --bad:#ff8a80; --ok:#6fd08c; --hl:#4a3f12;
+    --node:#232c38; --code:#232c38; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+header{padding:22px 28px 8px;max-width:1120px;margin:0 auto}
+h1{margin:0 0 4px;font-size:24px}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:16px 0 6px}
+.sub{color:var(--dim)}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav .in{max-width:1120px;margin:0 auto;padding:8px 28px;display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--dim)}
+button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+main{max-width:1120px;margin:0 auto;padding:18px 28px 60px}
+section{display:none}
+section.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.stat b{display:block;font-size:26px;line-height:1.1}
+.stat span{color:var(--dim);font-size:13px}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+code{background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:13px}
+.pill{display:inline-block;border-radius:99px;padding:1px 9px;font-size:12px;border:1px solid currentColor;white-space:nowrap}
+.p-ok{color:var(--ok)} .p-warn{color:var(--pod)} .p-bad{color:var(--bad)} .p-unk{color:var(--dim)}
+.p-fab{color:var(--fabric)} .p-mesh{color:var(--mesh)} .p-pod{color:var(--pod)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:12px -apple-system,Helvetica,Arial,sans-serif}
+svg .zone{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 4}
+svg .zl{fill:var(--dim);font-size:12px}
+svg .n rect{fill:var(--node);stroke:var(--line);stroke-width:1.5;rx:7}
+svg .n{cursor:pointer}
+svg .n:hover rect{stroke:var(--dim)}
+svg .n.sel rect{stroke:var(--ink);stroke-width:2.5}
+svg .n.dimmed{opacity:.28}
+svg .n.hl rect{stroke:var(--fabric);stroke-width:2.5}
+svg .n.hlbad rect{stroke:var(--bad);stroke-width:2.5}
+svg .n.step rect{fill:var(--hl);stroke:var(--ink);stroke-width:2.5}
+svg .n.vm rect{fill:var(--panel)}
+svg .n.vm text{font-weight:600}
+svg .e{stroke:var(--dim);stroke-width:1.5;fill:none}
+svg .e.tls{stroke:var(--fabric);stroke-width:2}
+svg .e.rt{stroke:var(--mesh);stroke-width:2;stroke-dasharray:6 4}
+svg .e.none{stroke:var(--bad);stroke-width:2;stroke-dasharray:3 4}
+svg .e.dimmed,svg text.dimmed{opacity:.2}
+svg .e.thick{stroke-width:4}
+svg .x{stroke:var(--bad);stroke-width:3}
+svg .win{fill:var(--ok);opacity:.14}
+svg .winl{stroke:var(--ok);stroke-width:1.5}
+svg .ax{stroke:var(--dim);stroke-width:1}
+svg .bar-ok{fill:var(--ok)}
+svg .bar-bad{fill:var(--bad)}
+svg .cut{fill:var(--bad);opacity:.12}
+svg .ev{stroke:var(--ink);stroke-width:1.5}
+svg .evd{fill:var(--ink)}
+svg .evh{fill:var(--fabric)}
+svg .evp{fill:var(--pod)}
+svg .small{font-size:11px;fill:var(--dim)}
+#info{min-height:120px}
+#offBody td:nth-child(2),#offBody td:nth-child(3){white-space:nowrap}
+details{border-bottom:1px solid var(--line);padding:9px 0}
+details:last-child{border-bottom:0}
+summary{cursor:pointer;font-weight:600}
+details p,details ul{margin:8px 0 2px}
+ul{padding-left:20px;margin:6px 0}
+.note{border-left:3px solid var(--pod);padding:6px 12px;background:var(--code);border-radius:0 6px 6px 0;margin:10px 0}
+.def{border-left:3px solid var(--fabric);padding:6px 12px;background:var(--code);border-radius:0 6px 6px 0;margin:10px 0}
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--code);border-radius:6px;padding:8px 10px;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+footer{color:var(--dim);font-size:13px;margin-top:24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Goat step 4b: the host on its own machine</h1>
+  <div class="sub">Work of 2026-11-19 on branch <code>goat-step4b-host-vm</code>. The host fusion node and the host recorder moved to a VM of their own, and eleven checks were run on three machines. Every number on this page comes from <code>docs/acceptance-goat4b.md</code> or from the evidence files it names in <code>docs/evidence/goat4b/</code>. All times are UTC. One file, no network needed.</div>
+</header>
+<nav><div class="in" id="tabs"></div></nav>
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<section id="overview">
+  <div class="card">
+    <h2>Why step 4b</h2>
+    <p>Step 4 put the step 1 rig on the real goatnet <code>cuaslab</code>. It ran the pod, the host fusion node and the host recorder in one VM, Colima. So the two fusion nodes shared one clock, one Docker engine and one route to the fabric router.</p>
+    <p>Three things could not be tested that way. The first is a clock difference between the pod and the host. The second is a cut of the real network link. The third is a host that loses its own link.</p>
+    <p>Step 4b moved the host fusion node and the host recorder to a new VM, <code>goathost</code>. The pod stayed in Colima. The goatnet stayed in its own VM, <code>goatlite</code>. Now pod, goatnet and host are on three machines, as in a deployment. Then eleven checks, G4B-01 to G4B-11, were run.</p>
+    <p class="sub">The programs did not change. Step 4b added a compose overlay, helper scripts and documents (check G4B-10).</p>
+  </div>
+  <div class="grid g4">
+    <div class="card stat"><b>8 / 11</b><span>checks pass; none fails</span></div>
+    <div class="card stat"><b>2</b><span>are measurements with no pass value: clocks (G4B-05) and latency (G4B-11)</span></div>
+    <div class="card stat"><b>1</b><span>passes in part: clock tolerance (G4B-06)</span></div>
+    <div class="card stat"><b>11 ms</b><span>median time from a host task to the pod's acknowledgement, over 17 tasks</span></div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>The main results</h2>
+      <ul>
+        <li><b>Placement.</b> The two host services run only in <code>goathost</code>. The pod's key is not there.</li>
+        <li><b>No direct path.</b> Colima and <code>goathost</code> could not reach each other. Everything between pod and host crosses the fabric router. This rests on how the Mac's virtual network behaves, not on a rule of the rig.</li>
+        <li><b>A task, hop by hop.</b> One host task was seen at every hop to the pod fusion node and back. With the bridge stopped, none reached the pod.</li>
+        <li><b>Clocks.</b> With no clock touched, the pod's messages reached the host a few milliseconds old, and nothing was rejected.</li>
+        <li><b>Clock tolerance.</b> The host's clock was set off by hand. The host rejects everything from the pod once its clock is more than 0.1 s behind the pod's, and once it is more than 0.9 s ahead.</li>
+        <li><b>Link cuts.</b> With its link cut, the pod went on working. After a long cut the host removed the pod and accepted it again. When the host's own link was cut, its connection came back by itself, with no restart.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>What was not run, or is unknown</h2>
+      <ul>
+        <li>The removal of the VM was never run.</li>
+        <li>The README was run block by block, but not every block. Its own record of which blocks ran is in the "Left over" tab.</li>
+        <li>In G4B-06, two cells are unknown: the host's messages at the pod at -0.15 and -0.30 s. Three more are not judged.</li>
+        <li>Only the host's clock was stepped, never the pod's.</li>
+        <li>Each check ran once, for minutes, on one Mac.</li>
+      </ul>
+      <p class="sub">The "What was tested" tab gives each check with what it measured and where it falls short.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Three words used on this page</h2>
+    <p class="def"><b>Apparent age.</b> The receiver's clock when a message arrives, minus the time the sender wrote into the message. It is the time in transit plus the difference between the two clocks. The two parts cannot be told apart from the age alone.</p>
+    <p class="def"><b>The window.</b> Each fusion node checks every message it receives. It accepts the message only if its apparent age is between -0.1 s and 0.9 s. Otherwise it drops the message and logs <code>invalid message from ... dropped</code>. The limits are read from the source, <code>emulators/fake_fusion_node.py</code>.</p>
+    <p class="def"><b>Blackhole route.</b> A route that tells a machine's kernel to drop every packet to one address, without an answer. The link cuts of this step replaced the normal route to the fabric router by one.</p>
+  </div>
+</section>
+
+<!-- ============ MACHINES ============ -->
+<section id="machines">
+  <div class="card">
+    <h2>The three machines, and the Mac between them</h2>
+    <div class="row">
+      <span class="sub">Highlight:</span>
+      <button data-hl="none" class="on">Everything</button>
+      <button data-hl="data">The data path</button>
+      <button data-hl="nopath">No direct path</button>
+      <span class="sub">&nbsp;Click a box for details.</span>
+    </div>
+    <svg viewBox="0 0 960 480" id="dia" role="img" aria-label="Step 4b: three VMs on one Mac">
+      <rect class="zone" x="10" y="10" width="330" height="320" rx="10"/>
+      <rect class="zone" x="360" y="10" width="240" height="320" rx="10"/>
+      <rect class="zone" x="620" y="10" width="330" height="320" rx="10"/>
+      <rect class="zone" x="10" y="380" width="940" height="90" rx="10"/>
+
+      <path class="e" id="e-sen" d="M160 93 L190 128"/>
+      <path class="e" id="e-fus" d="M160 173 L190 140" data-p="data"/>
+      <path class="e" id="e-rec" d="M160 260 L190 150"/>
+      <path class="e" id="e-pr" d="M255 156 L255 230" data-p="data"/>
+      <path class="e tls" id="e-up" d="M320 255 L385 230" data-p="data"/>
+      <path class="e tls" id="e-hf" d="M575 215 L680 135" data-p="data"/>
+      <path class="e tls" id="e-hr" d="M575 240 L680 245" data-p="data"/>
+      <path class="e rt" id="r-col" d="M100 330 L100 380" data-p="data"/>
+      <path class="e rt" id="r-lite" d="M480 330 L480 380" data-p="data"/>
+      <path class="e rt" id="r-host" d="M860 330 L860 380" data-p="data"/>
+      <path class="e none" id="e-none" d="M150 330 L150 356 L810 356 L810 330" data-p="nopath"/>
+      <g id="xmark" data-p="nopath"><line class="x" x1="640" y1="346" x2="660" y2="366"/><line class="x" x1="660" y1="346" x2="640" y2="366"/></g>
+      <text id="t-none" x="300" y="351" text-anchor="middle" data-p="nopath">no path: Colima ↔ goathost</text>
+
+      <g class="n vm" data-id="colima" transform="translate(20,20)"><rect width="310" height="30"/><text x="155" y="20" text-anchor="middle">Pod VM: Colima, 192.168.64.5</text></g>
+      <g class="n vm" data-id="goatlite" transform="translate(370,20)"><rect width="220" height="30"/><text x="110" y="20" text-anchor="middle">Goatnet VM: goatlite, 192.168.64.4</text></g>
+      <g class="n vm" data-id="goathost" transform="translate(630,20)"><rect width="310" height="30"/><text x="155" y="20" text-anchor="middle">Host VM: goathost, 192.168.64.6 (new)</text></g>
+
+      <g class="n" data-id="sensors" transform="translate(25,70)"><rect width="135" height="46"/><text x="67" y="20" text-anchor="middle">radar, camera,</text><text x="67" y="36" text-anchor="middle">vehicle</text></g>
+      <g class="n" data-id="podfusion" data-p="data" transform="translate(25,150)"><rect width="135" height="46"/><text x="67" y="20" text-anchor="middle">pod fusion node</text><text x="67" y="36" text-anchor="middle" class="zl">f0000001</text></g>
+      <g class="n" data-id="podrec" transform="translate(25,240)"><rect width="135" height="40"/><text x="67" y="25" text-anchor="middle">pod recorder</text></g>
+      <g class="n" data-id="podrouter" data-p="data" transform="translate(190,110)"><rect width="130" height="46"/><text x="65" y="20" text-anchor="middle">pod router</text><text x="65" y="36" text-anchor="middle" class="zl">zenohd-pod</text></g>
+      <g class="n" data-id="bridge" data-p="data" transform="translate(190,230)"><rect width="130" height="50"/><text x="65" y="30" text-anchor="middle">pod-bridge</text></g>
+
+      <g class="n" data-id="other" transform="translate(385,90)"><rect width="190" height="50"/><text x="95" y="21" text-anchor="middle">portal, authority,</text><text x="95" y="38" text-anchor="middle">NetBird and the rest</text></g>
+      <g class="n" data-id="router" data-p="data" transform="translate(385,200)"><rect width="190" height="60"/><text x="95" y="25" text-anchor="middle">fabric router of cuaslab</text><text x="95" y="43" text-anchor="middle" class="zl">tls :7447, mutual TLS</text></g>
+
+      <g class="n" data-id="hostfusion" data-p="data" transform="translate(680,110)"><rect width="200" height="50"/><text x="100" y="21" text-anchor="middle">host-fusion</text><text x="100" y="38" text-anchor="middle" class="zl">f0000002</text></g>
+      <g class="n" data-id="hostrec" data-p="data" transform="translate(680,220)"><rect width="200" height="50"/><text x="100" y="30" text-anchor="middle">host-recorder</text></g>
+
+      <g class="n vm" data-id="mac" data-p="data" transform="translate(330,400)"><rect width="300" height="50"/><text x="150" y="21" text-anchor="middle">The Mac: runs the three VMs</text><text x="150" y="38" text-anchor="middle" class="zl">routes between them at 192.168.64.1</text></g>
+    </svg>
+    <div class="row" style="margin-top:8px">
+      <span class="pill p-fab">fabric: TLS with a client certificate</span>
+      <span class="pill p-mesh">a route through the Mac</span>
+      <span class="pill p-bad">no path: "No route to host"</span>
+      <span class="pill p-unk">inside the pod: plain Zenoh</span>
+    </div>
+  </div>
+  <div class="card" id="info"><span class="sub">Click a box in the diagram, or a highlight button.</span></div>
+</section>
+
+<!-- ============ TASK ============ -->
+<section id="task">
+  <div class="card">
+    <h2>A task from the host to the pod, hop by hop (G4B-04)</h2>
+    <p class="sub">The host fusion node sends a <code>look_at</code> task now and then. The check followed one of them, task <code>01M7SY51PBJHWAQ668ED7ZV12T</code>, on 2026-11-19 at 12:57:51. Each step shows the line that saw it. The lines are from <code>task-3-g4b-04.txt</code>, the section run again after the interruption of Task 3.</p>
+    <div class="row">
+      <button id="prev">◀ Back</button><button id="next">Next ▶</button>
+      <span class="sub" id="stepNo"></span>
+    </div>
+    <svg viewBox="0 0 940 130" id="flowDia" role="img" aria-label="Task path">
+      <path class="e tls" d="M150 60 L225 60 M335 60 L410 60"/><path class="e" d="M520 60 L595 60 M705 60 L780 60"/>
+      <text class="small" x="40" y="112">goathost</text><text class="small" x="225" y="112">goatlite</text><text class="small" x="410" y="112">Colima</text><text class="small" x="595" y="112">Colima</text><text class="small" x="780" y="112">Colima</text>
+      <g class="n" data-f="0" transform="translate(40,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">host-fusion</text></g>
+      <g class="n" data-f="1" transform="translate(225,35)"><rect width="110" height="50"/><text x="55" y="22" text-anchor="middle">fabric router</text><text x="55" y="38" text-anchor="middle" class="zl">host recorder reads</text></g>
+      <g class="n" data-f="2" transform="translate(410,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">pod-bridge</text></g>
+      <g class="n" data-f="3" transform="translate(595,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">pod router</text></g>
+      <g class="n" data-f="4" transform="translate(780,35)"><rect width="120" height="50"/><text x="60" y="30" text-anchor="middle">pod fusion node</text></g>
+    </svg>
+    <div id="stepBody" style="min-height:150px"></div>
+  </div>
+  <div class="card">
+    <h2>The control: the same with the bridge stopped</h2>
+    <p>A check that only shows a task arriving does not show that it came through the bridge. So the bridge was stopped for 45 s (12:58:32 to 12:59:18), and the same counts were made. Then it was started and counted again (12:59:20 to 13:00:05).</p>
+    <table>
+      <tr><th>Count</th><th>Bridge stopped</th><th>Bridge running again</th></tr>
+      <tr><td>Host tasks sent</td><td>2</td><td>2</td></tr>
+      <tr><td>Seen on the pod router</td><td>0</td><td>2</td></tr>
+      <tr><td>Received by the pod fusion node</td><td>0</td><td>2</td></tr>
+      <tr><td>Acknowledged at the host</td><td>0</td><td>2</td></tr>
+      <tr><td>The pod's own detection lines</td><td>10</td><td>8</td></tr>
+    </table>
+    <p>The pod went on working while the bridge was stopped. The host logged no removed node and no new registration in that time.</p>
+    <p class="sub">The README run followed a second task, <code>01M7T1K67X055M6MHXR5FH2PM3</code>, through the same hops. Its control counted 3 sent and 0 seen, received and acknowledged with the bridge stopped; after the start, 2 of each.</p>
+  </div>
+  <div class="card">
+    <h2>Where it falls short</h2>
+    <ul>
+      <li>One task in one run, and one more in the README run.</li>
+      <li>The bridge logs its counters every 30 s. The rise of <code>down</code> from 88 to 90 counts both tasks of that window, so it cannot be tied to this one task.</li>
+      <li>The subscriber on the pod router used the pod recorder's certificate in a one-off container. So it was a second session with that certificate.</li>
+      <li><code>goat4b/pod_sub.py</code> has no unit test.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ CLOCKS ============ -->
+<section id="clocks">
+  <div class="card">
+    <h2>Two clocks</h2>
+    <p>In step 4 both fusion nodes ran in one VM and read one clock. In step 4b the pod reads Colima's clock and the host reads the clock of <code>goathost</code>. Each fusion node checks the <b>apparent age</b> of every message it receives against <b>the window</b>, -0.1 s to 0.9 s. So a difference between the two clocks can make one side drop the other's messages.</p>
+    <p class="def"><b>Apparent age</b> is the receiver's clock on arrival minus the sender's time in the message. A negative age means the message looks as if it came from the future.</p>
+  </div>
+  <div class="card">
+    <h2>The natural difference (G4B-05)</h2>
+    <p>First, no clock was touched. Each VM kept its own time, through its own time services. The host recorder logs, for each message of the pod, the time it arrived. So the apparent age of every pod message at the host could be read.</p>
+    <div class="grid g3">
+      <div class="stat"><b>712</b><span>pod messages since <code>host-fusion</code> started, read at 12:41</span></div>
+      <div class="stat"><b>0.007 s</b><span>their median apparent age; the largest was 0.022 s</span></div>
+      <div class="stat"><b>0</b><span>outside the window, and 0 rejections in both fusion nodes' logs</span></div>
+    </div>
+    <p>A later window, 12:59:25 to 13:04:44, after more than 5 minutes of traffic: 387 pod messages, ages from -0.002 to 0.013 s, median 0.002 s. 41 of them looked as if from the future, by up to 2 ms. The host's own messages, made and recorded on one clock, had a median of 0.003 s. Again 0 rejections.</p>
+    <p><b>What it shows.</b> In that window the two clocks agreed to within a few milliseconds, transit included. The ages cannot separate a clock difference from the time in transit.</p>
+    <p class="sub">The VMs' offsets from the Mac were also read through <code>ssh</code>, 30 rounds each. Each offset lies close to its bound (for example <code>goathost</code> +20.4 ms, bound ±26.6 ms), so they say little. One Mac gives all three VMs their clock source, which is not the case in a deployment.</p>
+  </div>
+  <div class="card">
+    <h2>The clock set on purpose (G4B-06)</h2>
+    <p>The script stopped the two time services of <code>goathost</code>. Then it stepped the VM's clock to each offset in turn, waited 5 s and read a window of 40 s.</p>
+    <p class="note"><b>The sign.</b> A negative offset means the host's clock is behind, so the pod's messages look as if from the future at the host.</p>
+    <p>Each step is judged by a rule: it passes when every age is inside the window and none was rejected, or every age is outside and none was accepted. With ages on both sides, or with fewer than 20 messages, the step is not judged.</p>
+    <div class="row" id="offBtns"><span class="sub">Offset of the host's clock:</span></div>
+    <svg viewBox="0 0 940 190" id="strip" role="img" aria-label="Apparent ages against the window"></svg>
+    <div id="offBody"></div>
+  </div>
+  <div class="card">
+    <h2>What it means for a deployment</h2>
+    <p>The host rejects everything from the pod once its clock is more than 0.1 s behind the pod's. It also rejects everything once its clock is more than 0.9 s ahead. With no clock touched, on these three VMs, nothing was rejected.</p>
+    <p>The steps measured this on both sides of each limit. The host accepted the pod's messages at -0.05 s and at +0.8 s. It rejected all of them at -0.15 s and at +1.2 s.</p>
+    <p>The other direction has its own limit. The pod drops the host's messages once they look as if from the future by more than 0.1 s, that is once the host's clock is more than 0.1 s ahead (from the window). This was seen at +0.5, +0.8 and +1.2 s: the pod dropped the host's tasks, and at +0.5 and +0.8 s 2 tasks were sent and 0 acknowledged. So a host whose clock is ahead by 0.5 or 0.8 s still accepted the pod's messages but could not task it.</p>
+    <p>The ages in the steps are the offset plus a base age of about 0.006 s, measured before the first step.</p>
+  </div>
+  <div class="card">
+    <h2>Back to normal</h2>
+    <p>After the last step the script moved the clock back by 1.2 s and started both time services again. The offset was 26.7 ms after the restore against 25.4 ms before the step. In the next 60 s the host accepted 70 of 70 pod messages, with a median age of 0.006 s, as at the base. No container was restarted: <code>StartedAt: unchanged for all 10 containers</code>.</p>
+    <p>Before the run, the script was killed on purpose during the step to -0.15 s. Its trap put the clock back and the gate passed afterwards (<code>task-4-trap-demo.txt</code>).</p>
+    <h3>Where it falls short</h3>
+    <ul>
+      <li>One run, 40 s per offset.</li>
+      <li>The down direction is judged at one offset of six. The host sends only two tasks in 40 s. The pod logs no age for a message it accepts.</li>
+      <li>Most of the down traffic at -0.15, -0.30 and +1.2 s was the host's Errors. They exist only because the host rejected the pod's messages.</li>
+      <li>Only the clock of <code>goathost</code> was stepped, never the pod's.</li>
+      <li>The run scripts have no unit tests.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ CUTS ============ -->
+<section id="cuts">
+  <div class="card">
+    <h2>Cutting the real link</h2>
+    <p>In step 4 a cut took the bridge's container off a Docker network. In step 4b a cut is a <b>blackhole route</b>: the route to the fabric router, <code>192.168.64.4</code>, is replaced by one that drops every packet. Each script read the route first, refused to run unless it was the normal one, and put back exactly the line it read.</p>
+    <p class="sub">Times are as logged, in whole seconds unless shown. On each line, orange marks are the pod's, teal marks the host's and dark marks the route's. The shaded band is the cut.</p>
+  </div>
+  <div class="card">
+    <h2>G4B-07, short: the pod's link cut for about 30 s</h2>
+    <svg viewBox="0 0 940 150" id="tl1" role="img" aria-label="Timeline of the short cut"></svg>
+    <ul>
+      <li>During the cut the pod logged 0 lines with <code>lost</code> or <code>cannot reach</code>. Its fusion node logged 6 detection lines: the pod went on working.</li>
+      <li>In the 25 s after, the host logged 2 detection lines and 0 new registrations.</li>
+      <li>The route was back as before: <code>192.168.64.4 via 192.168.64.1 dev col0</code>.</li>
+    </ul>
+    <p class="sub">Falls short: one cut of 30 s. The bridge noticed the loss about 4 s after the time printed before the cut. Whether what it forwarded before it noticed arrived was not checked. Evidence: <code>task-4-g4b-07-short.txt</code>.</p>
+  </div>
+  <div class="card">
+    <h2>G4B-07, long: the pod's link cut for 40 s, host hold time 20 s</h2>
+    <p>The host forgets a node it has not heard from for its hold time. The hold time is 120 s by default. For this cut the host services were made again with a hold time of 20 s, so that a cut of 40 s would pass it.</p>
+    <svg viewBox="0 0 940 150" id="tl2" role="img" aria-label="Timeline of the long cut"></svg>
+    <div class="log">host-fusion-1  | 13:32:33 fusion: node f0000001 gone for 20 s; removed
+host-fusion-1  | 13:32:48 fusion: -&gt; task f0000002 -&gt; f0000001 J0AN4A request "Registration"
+host-fusion-1  | 13:32:48 fusion: &lt;- registration f0000001 "fake fusion node" [FUSION_NODE]
+fusion-node-1  | 13:32:48 fusion: &lt;- registration_ack f0000002 -&gt; f0000001 acceptance=True ['Accepted by fake fusion node']</div>
+    <p class="sub">Falls short: one cut. The long cut ran with new host containers. Afterwards the host services were made again with the default hold time. The acknowledgement of the first registration said <code>(re-registration)</code> and the one after the cut did not; in step 4 it was the other way round. Why was not looked at. Evidence: <code>task-4-g4b-07-long.txt</code>.</p>
+  </div>
+  <div class="card">
+    <h2>G4B-08: the host's own link cut for 30 s</h2>
+    <p>Here the route in <code>goathost</code> was cut, not the pod's. Before this run it was not known what the host would do.</p>
+    <svg viewBox="0 0 940 150" id="tl3" role="img" aria-label="Timeline of the host's cut"></svg>
+    <ul>
+      <li>The host recorder held 0 records of the pod from shortly after the cut until the restore. The first came 0.9 s after the restore.</li>
+      <li>The first logged detection line came 7 s after the restore (the host logs every 10th).</li>
+      <li>No new registration. Both host containers kept their start time: <code>StartedAt unchanged: yes</code>.</li>
+    </ul>
+    <p class="sub">Falls short: one cut of 30 s. After the restore the pod's records came back at the normal rate, with no burst. So the messages of the cut were lost, not delivered later. This is read from counts by 5 s, not message by message. Evidence: <code>task-4-g4b-08.txt</code>.</p>
+  </div>
+</section>
+
+<!-- ============ CHECKS ============ -->
+<section id="checks">
+  <div class="card">
+    <h2>How step 4b was validated</h2>
+    <p>Eleven checks, G4B-01 to G4B-11. Each was recorded in one task run on the live rig. Then the README's commands for G4B-01 to G4B-04 were run as written, and reproduced their results. A check passes only on evidence saved to a file. Each entry says where the evidence falls short.</p>
+    <div class="grid g4">
+      <div class="stat"><b>8</b><span>checks pass</span></div>
+      <div class="stat"><b>2</b><span>measurements with no pass value (G4B-05, G4B-11)</span></div>
+      <div class="stat"><b>1</b><span>in part (G4B-06): one direction passes, the other has pass, not judged and unknown cells</span></div>
+      <div class="stat"><b>0</b><span>fail</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>The checks</h2>
+    <div class="row" id="chkFilter">
+      <button data-f="all" class="on">All 11</button><button data-f="place">Placement and paths</button><button data-f="data">Data over the link</button><button data-f="clock">Clocks</button><button data-f="cut">Link cuts</button><button data-f="repo">Repository</button><button data-f="notpass">Not a plain pass</button>
+      <button id="chkOpen">Open all</button>
+    </div>
+    <p class="sub" id="chkCount"></p>
+    <div id="chkList"></div>
+  </div>
+  <div class="card">
+    <h2>The runs</h2>
+    <table>
+      <tr><th>Run (UTC, 2026-11-19)</th><th>Covered</th></tr>
+      <tr><td>Task 2, 12:20 to 12:35</td><td>Making and filling the VM, the gate <code>goat4b_ready</code>, G4B-01, G4B-02</td></tr>
+      <tr><td>Task 3, 12:41 to 13:05, interrupted from about 12:50 to 12:57</td><td>G4B-03, G4B-04, G4B-05, G4B-11; a trial of the clock step</td></tr>
+      <tr><td>Task 4, 13:19 to 13:35</td><td>G4B-06, G4B-07, G4B-08; a demonstration of the trap</td></tr>
+      <tr><td>Task 5, 13:39 to 13:45</td><td>G4B-09, G4B-10; the rig started again</td></tr>
+      <tr><td>The README run, 13:55 to 14:01</td><td>Steps 1 to 5 and the stop of the README section: 7 of its 14 command blocks</td></tr>
+      <tr><td>The README run of step 6, 14:14 to 14:15</td><td>Step 6 (G4B-05, G4B-11), read only</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============ ADR ============ -->
+<section id="adr">
+  <div class="card">
+    <h2>How step 4b fits goat's ADRs</h2>
+    <p>Step 4b is about how real the test is. It does not make the rig conform to more of goat's architecture decisions (ADRs). <b>It changes none of the four points where the rig does not conform.</b></p>
+    <table>
+      <tr><th>Verdict</th><th>What</th></tr>
+      <tr><td><span class="pill p-ok">meets</span></td><td>The host programs connect directly to the fabric router. Each has its own slot, that is its own fabric identity. A slot writes only below its own anchor.</td></tr>
+      <tr><td><span class="pill p-warn">partly</span></td><td>Task authority: who may task the pod is decided only by the bridge's allowlist, not by the router.</td></tr>
+      <tr><td><span class="pill p-unk">not used</span></td><td>Neither the ingress gateway (ADR 1020) nor the edge router (ADR 1157). The pod is enrolled in this goatnet with its authority and connects to the router as a client. The edge router is the case of step 6, the external host.</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>The four points that do not conform</h2>
+    <table>
+      <tr><th>Point</th><th>ADR</th><th>Changed by 4b?</th></tr>
+      <tr><td>The pod's machine is not a mesh peer.</td><td>1092</td><td>No</td></tr>
+      <tr><td>Nothing can cut a machine off.</td><td>1025, 1031</td><td>No</td></tr>
+      <tr><td>The sensors and the pod fusion node have no fabric identity.</td><td>1122</td><td>No</td></tr>
+      <tr><td>Every source appears as the pod.</td><td>1251</td><td>No</td></tr>
+    </table>
+    <h3>Why the first two cannot be met on a goatlite</h3>
+    <p>On a goatlite the router listens on the LAN, and the box is not a mesh peer. So the pod reaches the router over the LAN, not over the mesh.</p>
+    <p>goat cuts a machine off by removing it from the mesh, because Zenoh has no list of revoked certificates. A machine that is not on the mesh cannot be cut off that way.</p>
+    <p class="sub">The last two need the carriage rules of ADR 1251, which are proposed and not built. More: <code>docs/goat-context.md</code> gap 14 and sections 2.7 and 4.1, and the page <code>docs/explainers/goat-hierarchy/index.html</code>.</p>
+  </div>
+</section>
+
+<!-- ============ LEFT OVER ============ -->
+<section id="left">
+  <div class="card">
+    <h2>What step 4b left on the machines</h2>
+    <table>
+      <tr><th>Machine</th><th>What</th></tr>
+      <tr><td>The Mac</td><td>The Lima VM <code>goathost</code> (<code>192.168.64.6</code>), its directory <code>~/.lima/goathost</code> with its disk (2 CPUs, 4 GiB, 20 GiB)</td></tr>
+      <tr><td><code>goathost</code></td><td><code>/etc/netplan/90-cuaslab-route.yaml</code> (mode 0600) and its route <code>192.168.64.4 via 192.168.64.1 dev lima0</code></td></tr>
+      <tr><td><code>goathost</code></td><td><code>/opt/apex-host/</code>: <code>emulators/</code>, <code>pki/</code> (the root, the two host certificates and their keys, mode 0600, owner root), <code>compose/</code> (three compose files and two env files)</td></tr>
+      <tr><td><code>goathost</code></td><td>Docker 29.10.0, the image <code>apex-sapient:4.2.0</code>, and the volumes of project <code>apex-goat4b</code></td></tr>
+      <tr><td><code>goathost</code></td><td>No firewall or drop rule: none was added</td></tr>
+      <tr><td><code>goatlite</code></td><td><code>/etc/netplan/92-goathost-route.yaml</code> (mode 0600) and the live route <code>192.168.64.6 via 192.168.64.1 dev lima0</code></td></tr>
+      <tr><td>Colima</td><td>Nothing new. The route to <code>192.168.64.4</code> was blackholed twice and put back exactly.</td></tr>
+      <tr><td><code>cuaslab</code></td><td>Nothing: no call to the portal, no change to the router</td></tr>
+      <tr><td>The Mac, <code>/tmp</code></td><td>Scratch files of Tasks 3 and 4 and of the README run; not evidence</td></tr>
+    </table>
+    <p>The rig was left running after the README run: the eight pod services on Colima and the two host services in <code>goathost</code>, with the gate passing.</p>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>How to remove it</h2>
+      <p class="note"><b>None of this was run.</b> It is read from the source of <code>goat4b/host-vm.sh</code>.</p>
+      <ol>
+        <li>From the repository root: <code>. goat4/dg4.sh; . goat4b/host-vm.sh; . goat4b/dg4b.sh</code></li>
+        <li><code>dg4b_host down</code> and <code>dg4b_pod down</code></li>
+        <li><code>g4b_vm_remove --yes</code>. It removes the route and the route file on <code>goatlite</code>, then stops and deletes <code>goathost</code> with its disk. Without <code>--yes</code> it prints what it would remove and changes nothing.</li>
+      </ol>
+      <p class="sub">Nothing needs to be removed from Colima or from <code>cuaslab</code>. The record also gives the steps by hand.</p>
+    </div>
+    <div class="card">
+      <h2>Not run, or unknown</h2>
+      <ul>
+        <li><b>The VM's removal</b>, <code>g4b_vm_remove --yes</code>, was never run.</li>
+        <li><b>The README section</b> has 14 command blocks. The README run ran 7: blocks 1 to 6 and 11 of "Run it" (steps 1 to 5 and the stop). The block of step 6 was run once as written afterwards, on its own. The block that makes and fills the VM ran in Task 2, not in the README run. The block that removes it was never run. Steps 7 to 9 and 11 ran only in the task runs, in the forms the evidence files print.</li>
+        <li><b>G4B-06, two unknown cells:</b> the host's messages at the pod at -0.15 and -0.30 s. The pod accepted all 49 each time, but logs no age for an accepted message.</li>
+        <li><b>The pod's clock</b> was never stepped, only the host's.</li>
+        <li><b>The fallback engine path</b> (<code>G4B_ENGINE=shell</code>) was never used in a run.</li>
+        <li><b>The traps that restore a route</b> were not shown by an interrupted run. The clock trap was.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Known limits that stay</h2>
+    <ul>
+      <li><b>One Mac.</b> The three VMs share its clock source and its network stack, and it routes every packet between them.</li>
+      <li><b>The closed path between pod and host comes from the Mac's virtual network, not from the rig.</b> A route added through the Mac would open it, and nothing checks that it stays closed.</li>
+      <li><b>The keys.</b> The Mac holds all three keys. Step 4b keeps the pod's key out of <code>goathost</code>; the two host keys are now on the Mac and on the disk of <code>goathost</code>.</li>
+      <li><b>Reading is not limited on <code>cuaslab</code></b>, and every limit of step 4 that concerns the programs remains.</li>
+      <li><b>Two helpers, one project.</b> <code>dg4</code> of step 4 and <code>dg4b_pod</code> act on the same project. Nothing stops <code>dg4 up -d</code> while the step 4b rig runs.</li>
+    </ul>
+  </div>
+  <footer>Self-contained file; no network requests. No key, token or certificate body is recorded here. Source: <code>docs/acceptance-goat4b.md</code> and <code>docs/evidence/goat4b/</code>.</footer>
+</section>
+</main>
+
+<script>
+const TABS=[["overview","Overview"],["machines","The three machines"],["task","A task hop by hop"],["clocks","Clocks"],["cuts","Link cuts"],["checks","What was tested"],["adr","ADR fit"],["left","Left over"]];
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const tabs=$("#tabs");
+function show(id){$$("section").forEach(s=>s.classList.toggle("on",s.id===id));$$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===id));history.replaceState(null,"","#"+id);window.scrollTo(0,0);}
+TABS.forEach(([id,label])=>{const b=document.createElement("button");b.textContent=label;b.dataset.t=id;b.onclick=()=>show(id);tabs.appendChild(b);});
+/* The hash selects a tab, and may carry a state after a "/": #clocks/-0.15, #checks/clock, #machines/nopath. */
+const HASH=location.hash.slice(1).split("/"), HTAB=HASH[0], HARG=HASH[1];
+
+/* ---------- the three machines ---------- */
+const INFO={
+ colima:["Pod VM: Colima, 192.168.64.5","<p><b>Runs</b> the eight pod services of step 4, project <code>apex-goat4</code>, among them the sensors, the pod router, the pod fusion node, the pod recorder and the pod bridge.</p><p><b>What 4b changed:</b> nothing new is left here. The host services no longer run here: on Colima they counted 0 (G4B-01). The route to the fabric router was replaced by a blackhole twice for G4B-07, and put back exactly.</p>"],
+ goatlite:["Goatnet VM: goatlite, 192.168.64.4","<p><b>Runs</b> the goatnet <code>cuaslab</code>: the fabric router on <code>tls/192.168.64.4:7447</code>, the portal and the rest, as in step 4.</p><p><b>What 4b changed:</b> one route file, <code>/etc/netplan/92-goathost-route.yaml</code> (mode 0600), and its route <code>192.168.64.6 via 192.168.64.1 dev lima0</code>, so that the router can answer <code>goathost</code>. No call to the portal and no change to the router.</p>"],
+ goathost:["Host VM: goathost, 192.168.64.6 (new)","<p><b>New in 4b.</b> A Lima VM: Ubuntu 24.04, 2 CPUs, <code>aarch64</code>, Docker 29.10.0, with a disk of 20 GiB. It holds the image <code>apex-sapient:4.2.0</code> with the same ID as on Colima.</p><p><b>Runs</b> only <code>host-fusion</code> and <code>host-recorder</code>, project <code>apex-goat4b</code>. Every container on its engine was one of these two (G4B-01).</p><p><b>Files</b> in <code>/opt/apex-host/</code>: the programs, the compose files, the root certificate and the two host certificates and keys. The keys are mode 600, owner root. Files named for the pod there: 0.</p><p><b>Route</b> to the fabric router through the Mac: <code>192.168.64.4 via 192.168.64.1 dev lima0</code>. No route to Colima through the Mac, and no firewall rule. Its only route to Colima is the direct one on its own interface, on which the Mac's virtual network carried nothing (G4B-02).</p>"],
+ mac:["The Mac","<p><b>Runs</b> the three VMs on one virtual network (vzNAT). vzNAT keeps the VMs apart from each other at layer 2. So each pair that must talk has a route through the Mac at <code>192.168.64.1</code> on both VMs.</p><p>The pairs: Colima and <code>goatlite</code> (the routes of step 4), and <code>goathost</code> and <code>goatlite</code> (new). Colima and <code>goathost</code> have no route through the Mac, and could not reach each other.</p><p><b>What 4b changed:</b> the new VM <code>goathost</code> and its disk. The three VMs share the Mac's clock source, so a clock difference had to be set by hand.</p>"],
+ sensors:["Radar, camera, vehicle (emulated sensors)","<p>Inside the pod. They speak plain Zenoh to the pod router and have no fabric identity. The host never sees their IDs: their count in the host's records was 0 (G4B-03).</p><p><b>What 4b changed:</b> nothing.</p>"],
+ podfusion:["Pod fusion node f0000001","<p>Fuses the sensors' detections into tracks, sends them up and acts on the host's tasks. It checks every message from above against the window, on Colima's clock.</p><p><b>What 4b changed:</b> nothing in the program. Its clock and the host's are now two clocks.</p>"],
+ podrec:["Pod recorder","<p>Keeps every message of the pod locally. It does not record the down key, so the pod side of G4B-06 is read from the pod fusion node's log.</p>"],
+ podrouter:["Pod router (zenohd-pod)","<p>The pod's own router. Because of it the pod keeps working when its link is cut (G4B-07). A subscriber on it saw the host's task in G4B-04.</p>"],
+ bridge:["pod-bridge","<p>The pod's only fabric identity. One side sits on the pod router, the other connects to the fabric router with the pod's certificate. The bridge could reach the fabric router; the pod fusion node and the radar could not, with <code>Network is unreachable</code> (G4B-02).</p>"],
+ other:["The rest of cuaslab","<p>The portal, the certificate authority, NetBird and the supporting services. Step 4b made no call to the portal and enrolled nothing new; the host uses the two identities enrolled in step 4.</p>"],
+ router:["The fabric router of cuaslab","<p>Zenoh with mutual TLS on port 7447. Every message between pod and host crosses it. A slot may write only below its own anchor.</p><p><b>What 4b changed:</b> nothing on the router.</p>"],
+ hostfusion:["host-fusion f0000002","<p>The host fusion node. Reads the pod's tracks and alerts, and sends tasks to the pod. It checks the pod's messages against the window, on the clock of <code>goathost</code>.</p><p><b>What 4b changed:</b> it runs in <code>goathost</code> on its own engine. When its own link was cut, its Zenoh session came back by itself (G4B-08).</p>"],
+ hostrec:["host-recorder","<p>Records what arrives at the host, with the time of arrival. Its file is the source of the apparent ages (G4B-05, G4B-06) and of the task latency (G4B-11).</p>"]
+};
+const HL={
+ none:"",
+ data:"<h2>The data path</h2><p>Everything between pod and host goes: pod fusion node → pod router → pod bridge → fabric router → host-fusion and host-recorder. The bridge connects to <code>tls/192.168.64.4:7447</code>; the host services connect to the same address.</p><p>On the wire, both legs cross the Mac: Colima reaches <code>goatlite</code> through a route via <code>192.168.64.1</code>, and so does <code>goathost</code>. The task of G4B-04 was seen at each hop; with the bridge stopped, none reached the pod.</p>",
+ nopath:"<h2>No direct path</h2><p>Each probe was one TCP connection with a timeout of 5 s (G4B-02). The controls connected, for example from <code>goathost</code> to <code>192.168.64.4:7447</code>.</p><div class=\"log\">goathost VM shell -&gt; 192.168.64.5:22: cannot connect: OSError [Errno 113] No route to host\nColima VM shell -&gt; goathost 192.168.64.6:22: cannot connect: OSError [Errno 113] No route to host\npod-bridge container -&gt; goathost 192.168.64.6:22: cannot connect: OSError [Errno 113] No route to host\ngoathost VM shell -&gt; pod router 172.20.0.2:7447: cannot connect: OSError [Errno 101] Network is unreachable</div><p>No drop rule was needed, and none was added. The path is closed by how vzNAT behaves on this Mac, not by a rule of the rig. A route through the Mac, added by anyone, would open it, and nothing checks that it stays closed. Only TCP on ports 22 and 7447 was tried.</p>"
+};
+function pick(id){
+  $$("#dia .n").forEach(x=>x.classList.toggle("sel",x.dataset.id===id));
+  const [t,body]=INFO[id];
+  $("#info").innerHTML=`<h2>${t}</h2>${body}`;
+}
+$$("#dia .n").forEach(n=>n.onclick=()=>pick(n.dataset.id));
+function highlight(L){
+  $$("button[data-hl]").forEach(x=>x.classList.toggle("on",x.dataset.hl===L));
+  $$("#dia .n").forEach(n=>{n.classList.remove("hl","hlbad","dimmed","sel");
+    if(L==="none")return;
+    if(L==="data"){n.classList.add(n.dataset.p==="data"?"hl":"dimmed");}
+    if(L==="nopath"){n.classList.add(n.dataset.id==="colima"||n.dataset.id==="goathost"?"hlbad":"dimmed");}
+  });
+  $$("#dia .e, #dia #xmark, #dia #t-none").forEach(e=>{
+    const on=L==="none"||e.dataset.p===L;
+    e.classList.toggle("dimmed",!on);
+    e.classList.toggle("thick",L!=="none"&&on);
+  });
+  $("#info").innerHTML=L==="none"?'<span class="sub">Click a box in the diagram, or a highlight button.</span>':HL[L];
+}
+$$("button[data-hl]").forEach(b=>b.onclick=()=>highlight(b.dataset.hl));
+
+/* ---------- a task, hop by hop ---------- */
+const STEPS=[
+ [0,"1. The host sends the task","<p>The host fusion node in <code>goathost</code> sends a <code>look_at</code> to the pod fusion node <code>f0000001</code>.</p><div class=\"log\">host-fusion-1  | 12:57:51 fusion: -&gt; task f0000002 -&gt; f0000001 7ZV12T look_at ...</div>"],
+ [1,"2. On the fabric","<p>The host recorder reads the fabric. It saw the task at <code>2026-11-19T12:57:51.567+00:00</code>, below the host's anchor, on the key <code>.../task/p1/sapient/v2/task/f0000001-0000-4000-8000-000000000001</code>. It saw the pod's acknowledgement, below the pod's anchor, at <code>2026-11-19T12:57:51.577+00:00</code>.</p>"],
+ [2,"3. Through the bridge","<p>The bridge logs counters every 30 s. Its count of messages sent <code>down</code> rose from 88 to 90 across the task.</p><div class=\"log\">pod-bridge-1  | 12:57:43 pod-bridge: forwarded {'up': 2152, 'down': 88}; dropped {}\npod-bridge-1  | 12:58:13 pod-bridge: forwarded {'up': 2188, 'down': 90}; dropped {}</div><p class=\"sub\">The window held two tasks, so the rise cannot be tied to this one.</p>"],
+ [3,"4. Inside the pod","<p>A subscriber on the pod router saw the task on the pod's down key.</p><div class=\"log\">12:57:51.572 h1/p1/fusion/down/task | from f0000002 to f0000001 | task 01M7SY51PBJHWAQ668ED7ZV12T</div>"],
+ [4,"5. The pod fusion node receives it","<p>The pod fusion node logged the task, then sent its acknowledgement up.</p><div class=\"log\">fusion-node-1  | 12:57:51 fusion: &lt;- task f0000002 -&gt; f0000001 7ZV12T look_at ...</div>"],
+ [0,"6. The acknowledgement arrives at the host","<p>The acknowledgement went back the same way, and the host logged it. The pod fusion node had sent the <code>look_at</code> on to 2 nodes of the pod.</p><div class=\"log\">host-fusion-1  | 12:57:51 fusion: &lt;- task_ack f0000001 -&gt; f0000002 7ZV12T TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']</div>"]
+];
+let si=0;
+function step(){const [hl,t,b]=STEPS[si];$("#stepNo").textContent=`Step ${si+1} of ${STEPS.length}`;
+  $("#stepBody").innerHTML=`<h3>${t}</h3>${b}`;
+  $$("#flowDia .n").forEach(n=>n.classList.toggle("step",+n.dataset.f===hl));}
+$("#prev").onclick=()=>{si=(si+STEPS.length-1)%STEPS.length;step();};
+$("#next").onclick=()=>{si=(si+1)%STEPS.length;step();};step();
+
+/* ---------- clocks: the offset strip (G4B-06) ---------- */
+/* up: the pod's messages at the host (ages from the host recorder). down: the host's messages at the pod
+   (the pod logs an age only for a message it rejects). Numbers from docs/acceptance-goat4b.md, G4B-06,
+   and the SUMMARY lines of task-4-g4b-06.txt. */
+const OFF=[
+ {k:"-0.30",up:{n:47,lo:-0.298,hi:-0.292,acc:0,rej:47,v:"pass",why:"Every age is outside the window, from the future, and every message was rejected."},
+  dn:{n:49,lo:null,hi:null,acc:49,rej:0,v:"unknown",why:"An accepted message logs no age at the pod, so the ages could not be measured. The host's clock was 0.30 s behind, so they would look 0.30 s old, inside the window, and none was dropped. That is consistent with the window, but it is not a measurement."},
+  tasks:"2 sent, 0 acknowledged. The pod accepted the tasks; the host rejected the acknowledgements, which looked as if from the future (inferred from the up direction). Of the 49 down messages, 47 were the host's Errors, sent for each pod message it rejected, and 2 were tasks."},
+ {k:"-0.15",up:{n:47,lo:-0.147,hi:-0.139,acc:0,rej:47,v:"pass",why:"Every age is outside the window, from the future, and every message was rejected."},
+  dn:{n:49,lo:null,hi:null,acc:49,rej:0,v:"unknown",why:"An accepted message logs no age at the pod, so the ages could not be measured. The host's clock was 0.15 s behind, so they would look 0.15 s old, inside the window, and none was dropped. That is consistent with the window, but it is not a measurement."},
+  tasks:"2 sent, 0 acknowledged. The pod accepted the tasks; the host rejected the acknowledgements, which looked as if from the future (inferred from the up direction). Of the 49 down messages, 47 were the host's Errors and 2 were tasks.",
+  log:"13:23:14 fusion: invalid message from 'f0000001' dropped: (root) (message timestamp reasonable): Timestamp delta 0:00:00.142628 > 0:00:00.100000"},
+ {k:"-0.05",up:{n:47,lo:-0.047,hi:-0.040,acc:47,rej:0,v:"pass",why:"Every age is inside the window and none was rejected."},
+  dn:{n:2,lo:null,hi:null,acc:2,rej:0,v:"not judged",why:"Fewer than 20 messages: the two tasks of the window."},
+  tasks:"2 sent, 2 acknowledged."},
+ {k:"0",base:true,up:{n:47,lo:0.002,hi:0.011,acc:47,rej:0,v:"pass",why:"The base, before any step: every age is inside the window and none was rejected. The base is not one of the six steps."},
+  dn:{n:2,lo:null,hi:null,acc:2,rej:0,v:"not judged",why:"Fewer than 20 messages."},
+  tasks:"2 sent, 2 acknowledged."},
+ {k:"+0.5",up:{n:43,lo:0.503,hi:0.510,acc:43,rej:0,v:"pass",why:"Every age is inside the window and none was rejected."},
+  dn:{n:2,lo:-0.497,hi:-0.493,acc:0,rej:2,v:"not judged",why:"Fewer than 20 messages. Both were dropped, as the window predicts for messages that look as if from the future."},
+  tasks:"2 sent, 0 acknowledged: the pod dropped both tasks."},
+ {k:"+0.8",up:{n:43,lo:0.803,hi:0.808,acc:43,rej:0,v:"pass",why:"Every age is inside the window, 0.09 s from its upper limit, and none was rejected."},
+  dn:{n:2,lo:-0.794,hi:-0.792,acc:0,rej:2,v:"not judged",why:"Fewer than 20 messages. Both were dropped, as the window predicts for messages that look as if from the future."},
+  tasks:"2 sent, 0 acknowledged: the pod dropped both tasks."},
+ {k:"+1.2",up:{n:43,lo:1.203,hi:1.212,acc:0,rej:43,v:"pass",why:"Every age is outside the window, too old, and every message was rejected."},
+  dn:{n:45,lo:-1.198,hi:-1.180,acc:0,rej:45,v:"pass",why:"All 45 messages were dropped, and every age is outside the window, from the future. 43 are taken to be the host's Errors, since 2 tasks were sent (inferred)."},
+  tasks:"2 sent, 0 acknowledged.",
+  log:"13:26:20 fusion: invalid message from above dropped: (root) (message timestamp reasonable): Timestamp delta 0:00:01.193962 > 0:00:00.100000"}
+];
+const X0=110,X1=910,VMIN=-1.3,VMAX=1.3;
+const sx=v=>X0+(v-VMIN)/(VMAX-VMIN)*(X1-X0);
+const fmt=v=>v.toFixed(3);
+function pillFor(v){return v==="pass"?"p-ok":v==="not judged"?"p-warn":"p-unk";}
+function drawStrip(o){
+  let s=`<rect class="win" x="${sx(-0.1)}" y="20" width="${sx(0.9)-sx(-0.1)}" height="130"/>`;
+  s+=`<line class="winl" x1="${sx(-0.1)}" y1="20" x2="${sx(-0.1)}" y2="150"/><line class="winl" x1="${sx(0.9)}" y1="20" x2="${sx(0.9)}" y2="150"/>`;
+  s+=`<text x="${(sx(-0.1)+sx(0.9))/2}" y="15" text-anchor="middle" class="small">the window: accepted from -0.1 to 0.9 s</text>`;
+  s+=`<line class="ax" x1="${X0}" y1="150" x2="${X1}" y2="150"/>`;
+  [-1.2,-0.9,-0.6,-0.3,0,0.3,0.6,0.9,1.2].forEach(t=>{s+=`<line class="ax" x1="${sx(t)}" y1="150" x2="${sx(t)}" y2="155"/><text x="${sx(t)}" y="168" text-anchor="middle" class="small">${t>0?"+":""}${t.toFixed(1)}</text>`;});
+  s+=`<text x="${X0}" y="185" class="small">from the future ◀</text><text x="${X1}" y="185" text-anchor="end" class="small">▶ older</text><text x="${(X0+X1)/2}" y="185" text-anchor="middle" class="small">apparent age (s)</text>`;
+  const row=(y,label1,label2,d)=>{
+    s+=`<text x="8" y="${y-2}">${label1}</text><text x="8" y="${y+13}" class="small">${label2}</text>`;
+    if(d.lo===null){s+=`<text x="${sx(-0.6)}" y="${y+5}" text-anchor="middle" class="small">no age logged: ${d.acc} accepted, ${d.rej} rejected</text>`;return;}
+    const a=sx(d.lo),b=Math.max(sx(d.hi),a+5),cls=d.rej>0&&d.acc===0?"bar-bad":"bar-ok";
+    s+=`<rect class="${cls}" x="${a}" y="${y-8}" width="${b-a}" height="16" rx="3"/>`;
+    const c=(a+b)/2, an=c>X1-100?"end":c<X0+100?"start":"middle", lx=an==="end"?b+20:an==="start"?a-20:c;
+    s+=`<text x="${lx}" y="${y-13}" text-anchor="${an}">${fmt(d.lo)} to ${fmt(d.hi)} s, ${d.n} msgs</text>`;
+  };
+  row(65,"up","pod → host",o.up);
+  row(125,"down","host → pod",o.dn);
+  $("#strip").innerHTML=s;
+}
+function offset(k){
+  const o=OFF.find(x=>x.k===k)||OFF[3];
+  $$("#offBtns button").forEach(b=>b.classList.toggle("on",b.dataset.k===o.k));
+  drawStrip(o);
+  const r=(dir,d,where)=>`<tr><td><b>${dir}</b><br><span class="sub">${where}</span></td><td>${d.lo===null?"not measured":fmt(d.lo)+" to "+fmt(d.hi)+" s"}<br><span class="sub">${d.n} messages</span></td><td>${d.acc} / ${d.rej}</td><td><span class="pill ${pillFor(d.v)}">${d.v}</span></td><td>${d.why}</td></tr>`;
+  $("#offBody").innerHTML=`<h3>${o.base?"Offset 0: the base, no clock touched":"The host's clock stepped by "+o.k+" s"}</h3>
+   <table><tr><th>Direction</th><th>Apparent ages</th><th>Accepted / rejected</th><th>Verdict</th><th>Why</th></tr>
+   ${r("Up",o.up,"the pod's messages at the host")}${r("Down",o.dn,"the host's messages at the pod")}</table>
+   <p><b>Host tasks:</b> ${o.tasks}</p>${o.log?`<div class="log">${o.log.replace(/>/g,"&gt;")}</div>`:""}`;
+}
+OFF.forEach(o=>{const b=document.createElement("button");b.textContent=(o.k==="0"?"0 (base)":o.k+" s");b.dataset.k=o.k;b.onclick=()=>offset(o.k);$("#offBtns").appendChild(b);});
+offset("0");
+
+/* ---------- link cuts: timelines ---------- */
+/* Each event: [seconds after the cut, who ("p" pod, "h" host, "d" route), row (negative above the line, positive below), label, "end" to put the label left of its mark]. */
+function timeline(sel,span,cut,ev){
+  const L=40,R=900,x=t=>L+(t-span[0])/(span[1]-span[0])*(R-L),A=61;
+  let s=`<rect class="cut" x="${x(cut[0])}" y="8" width="${x(cut[1])-x(cut[0])}" height="118"/>`;
+  s+=`<text x="${(x(cut[0])+x(cut[1]))/2}" y="142" text-anchor="middle" class="small">${cut[2]}</text>`;
+  s+=`<line class="ax" x1="${L}" y1="${A}" x2="${R}" y2="${A}"/>`;
+  ev.forEach(([t,who,pos,label,anchor])=>{
+    const y=pos<0?A-12-(-pos-1)*17:A+20+(pos-1)*17, cls=who==="p"?"evp":who==="h"?"evh":"evd";
+    s+=`<line class="ev" x1="${x(t)}" y1="${A}" x2="${x(t)}" y2="${pos<0?y+4:y-12}"/><circle class="${cls}" cx="${x(t)}" cy="${A}" r="4"/>`;
+    const end=anchor==="end"||x(t)+6.4*label.length>935;
+    s+=`<text x="${x(t)+(end?-4:4)}" y="${y}" text-anchor="${end?"end":"start"}">${label}</text>`;
+  });
+  $(sel).innerHTML=s;
+}
+timeline("#tl1",[-6,40],[0,31,"the cut: route blackholed in Colima"],[
+ [0,"d",-2,"13:29:42 route to 192.168.64.4 blackholed in Colima"],
+ [4,"p",-1,"13:29:46 bridge: fabric router lost"],
+ [31,"p",-3,"13:30:13 route put back; bridge: fabric router back","end"],
+ [31,"h",1,"after: host logs 2 detection lines in 25 s, 0 new registrations","end"]
+]);
+timeline("#tl2",[-6,50],[0,40,"the cut: route blackholed in Colima for 40 s"],[
+ [0,"d",-2,"13:32:03 route blackholed in Colima"],
+ [5,"p",-1,"13:32:08 bridge: fabric router lost"],
+ [30,"h",1,"13:32:33 host: node f0000001 gone for 20 s; removed","end"],
+ [40,"d",-1,"route put back","end"],
+ [42,"p",-2,"13:32:45 bridge: fabric router back","end"],
+ [45,"h",2,"13:32:48 host asks for a registration; the pod registers, accepted","end"]
+]);
+timeline("#tl3",[-6,40],[0,30.34,"the cut: route blackholed in goathost"],[
+ [0,"d",-1,"13:33:40.316 route blackholed in goathost"],
+ [4.684,"h",1,"13:33:45 host: Zenoh transport lost; holding every node"],
+ [30.34,"d",-1,"13:34:10.656 route put back","end"],
+ [30.684,"h",2,"13:34:11 transport back; new track A3BNZQ","end"],
+ [31.235,"h",3,"13:34:11.551 first record of the pod (0.9 s after the restore)","end"]
+]);
+
+/* ---------- checks ---------- */
+/* [id, title, area, result, measured, evidence, falls short] */
+const CHK=[
+ ["G4B-01","Placement","place","pass",
+  "On Colima's engine, project <code>apex-goat4</code>, the eight pod services ran. On the engine of <code>goathost</code>, project <code>apex-goat4b</code>, only <code>host-fusion</code> and <code>host-recorder</code> ran, and every container on that engine was one of them. Pod services in <code>goathost</code>: 0 each. Host services on Colima: 0 each. The two host keys are mode 600, owner root, in <code>/opt/apex-host/pki</code>. Files named for the pod there: 0. The host services logged their connection to <code>tls/192.168.64.4:7447</code> and the registration. The README run printed the same placement.",
+  "task-2-g4b-01.txt, readme-run.txt",
+  "Some log lines are from the instances before a restart at 12:31; a later section has those of the running instances. The task run and the README run counted with different commands. The host's keys are now on the disk of <code>goathost</code> as well as on the Mac."],
+ ["G4B-02","No path around the router","place","pass",
+  "Each probe was one TCP connection with a timeout of 5 s. The controls connected: the Mac to both VMs, and <code>goathost</code> and its <code>host-fusion</code> container to the fabric router. From <code>goathost</code> to Colima: <code>No route to host</code>, on ports 22 and 7447. From <code>goathost</code> to the pod router's container address: <code>Network is unreachable</code>. From the pod's fusion node and radar to the fabric router: <code>Network is unreachable</code>; the bridge connected. From the bridge and from Colima's own shell to <code>goathost</code>: <code>No route to host</code>. No drop rule was added: none was needed.",
+  "task-2-g4b-02.txt, readme-run.txt",
+  "The pass rests on how vzNAT behaves on this Mac, with this macOS and Lima 2.3.0, not on a rule of the rig. A route through the Mac, added by anyone, would open the path, and nothing checks that it stays closed. Only TCP on ports 22 and 7447 was tried; no UDP and no ICMP."],
+ ["G4B-03","Up: the pod's output reaches the host","data","pass",
+  "The host fusion node logged 99 detection lines (it logs every 10th) and an alert, <code>new track GG1X76</code>. The pod fusion node registered with the host and got <code>acceptance=True</code>. The host recorder held 2406 records, under the pod's anchor and the host fusion node's. Four counts were 0: another anchor, a sender ID of a sensor, records that did not decode, and a sensor ID anywhere in a record. The README run: 11047 records, each count 0.",
+  "task-3-g4b-03.txt, readme-run.txt",
+  "The alert and the first registration lines are of the container's first run; it was restarted at 12:31, and the recorder's file holds both runs. The exact text of the script that made the four counts was not saved. One alert."],
+ ["G4B-04","A task, hop by hop","data","pass",
+  "The task <code>01M7SY51PBJHWAQ668ED7ZV12T</code> was seen in the host's send line, by the host recorder on the fabric, by a subscriber on the pod router, in the pod fusion node's receive line, and as an acknowledgement at the host, <code>TASK_STATUS_ACCEPTED</code>. With the bridge stopped for 45 s: 2 sent, 0 seen in the pod, 0 acknowledged, while the pod logged 10 of its own detection lines. After the start: 2 of each. The tab \"A task hop by hop\" steps through it.",
+  "task-3-g4b-04.txt (the section run again after the interruption), readme-run.txt",
+  "One task in one run, one more in the README run. The bridge's counter cannot be tied to one task. The pod-router subscriber is a second session with the pod recorder's certificate. <code>goat4b/pod_sub.py</code> has no unit test. A first, partial attempt stays in the file and is not evidence."],
+ ["G4B-05","Clocks, measured","clock","measured",
+  "The apparent ages of the pod's messages at the host. With no clock touched: 712 messages since <code>host-fusion</code> started, median 0.007 s, largest 0.022 s, 0 outside the window. From 12:59:25 to 13:04:44: 387 messages, from -0.002 to 0.013 s, median 0.002 s, 41 below zero; the host's own messages had a median of 0.003 s. 0 rejections in both fusion nodes' logs. The offsets of the VMs from the Mac were also read through <code>ssh</code>: Colima +93.1 ms (bound ±98.0), <code>goatlite</code> +31.8 ms (bound ±30.6), <code>goathost</code> +20.4 ms (bound ±26.6).",
+  "task-3-g4b-05-natural.txt, task-3-g4b-05.txt",
+  "No pass value. Each offset lies close to its bound, and that of <code>goatlite</code> just outside, so the offsets say little. The ages cannot separate a clock difference from transit, and they measure only the pair Colima and <code>goathost</code>. Minutes, not hours: drift was not measured. One Mac gives all three VMs their clock source."],
+ ["G4B-06","Clock tolerance","clock","part",
+  "The clock of <code>goathost</code> was stepped to -0.30, -0.15, -0.05, +0.5, +0.8 and +1.2 s, 40 s each. <b>Up</b> (pod to host): pass at all six offsets. Accepted at -0.05, +0.5 and +0.8 s; all rejected at -0.15, -0.30 and +1.2 s. <b>Down</b> (host to pod): pass at +1.2 s only (all 45 dropped). Not judged at -0.05, +0.5 and +0.8 s: fewer than 20 messages. Unknown at -0.15 and -0.30 s: an accepted message logs no age, so its age could not be measured. After the restore the host accepted the pod's traffic again with no restart. The tab \"Clocks\" lets you pick each offset.",
+  "task-4-g4b-06.txt, task-4-trap-demo.txt, task-3-clock-step-trial.txt",
+  "One run, 40 s per offset. The down direction is judged at one offset of six. Most down traffic at -0.15, -0.30 and +1.2 s was the host's Errors. Only the host's clock was stepped. The ages are the offset plus a base of about 0.006 s. The run scripts have no unit tests."],
+ ["G4B-07","The pod's link cut, short and long","cut","pass",
+  "Short: the route in Colima to the fabric router was blackholed from 13:29:42 and put back at 13:30:13. The pod logged 0 loss lines, and its fusion node 6 detection lines; the host logged 2 detection lines in the 25 s after and 0 new registrations. Long: with the host's hold time at 20 s, a cut of 40 s. The host removed the pod's node, then asked for a registration, and the pod registered again. The routes were put back exactly.",
+  "task-4-g4b-07-short.txt, task-4-g4b-07-long.txt",
+  "One cut of each length. The bridge noticed the loss about 4 s after the time printed before the cut. Whether what it forwarded before it noticed arrived was not checked. The long cut ran with new host containers."],
+ ["G4B-08","The host's link cut","cut","pass",
+  "The route in <code>goathost</code> to the fabric router was blackholed for 30 s. The host logged <code>Zenoh transport lost; holding every node</code>, then <code>Zenoh transport back</code> after the restore. The first record of the pod came 0.9 s after the restore. No new registration, and the two host containers kept their start time.",
+  "task-4-g4b-08.txt",
+  "One cut of 30 s. The messages of the cut were lost, not delivered later (read from counts by 5 s). The host noticed the loss after about 5 s."],
+ ["G4B-09","No regression","repo","pass",
+  "The unit suite: <code>454 passed</code>, with warnings as errors. The tests of the helpers and the enrolment script: 79, OK. The step 4 rig, all in Colima: 10 services, registration, detections and an alert at the host, 212 records with 0 for each count. The step 1 rig with its own commands: 11 services, registration, detections and an alert, 98 records with 0 for each count.",
+  "task-5-unit-suite.txt, task-5-step4-rig.txt, task-5-step1-rig.txt",
+  "The split of the 79 tests between their two files is not in the evidence. The volumes of both rigs held records of earlier runs. The generator's output was not saved."],
+ ["G4B-10","Configuration only","repo","pass",
+  "<code>git diff goat-step4-cuaslab</code> on the programs, the step 1 and step 4 compose files and <code>goat4/</code> printed nothing. The full diff listed only added files: the new overlay, the files below <code>goat4b/</code>, the design, the plan and the evidence.",
+  "task-5-g4b-10.txt",
+  "The list is that of one commit; later commits added documents only."],
+ ["G4B-11","Latency, measured","clock","measured",
+  "For each host task, the time from the task on the fabric to the pod's acknowledgement on the fabric, both read on the host recorder's clock. In the window of G4B-05: 17 tasks, from 4 to 16 ms, median 11 ms, 0 unacknowledged. Since <code>host-fusion</code> started at 12:31: 96 tasks, median 11.5 ms, 6 unacknowledged.",
+  "task-3-g4b-11.txt",
+  "No pass value. 17 tasks in one window. The 6 unacknowledged tasks are taken to be 4 dropped in the clock trial and 2 sent while the bridge was stopped (inferred). The time covers the whole path both ways."]
+];
+const RES={pass:["pass","p-ok"],measured:["measured","p-warn"],part:["in part","p-warn"]};
+function chk(f){
+  $$("#chkFilter button[data-f]").forEach(b=>b.classList.toggle("on",b.dataset.f===f));
+  const list=CHK.filter(c=>f==="all"||c[2]===f||(f==="notpass"&&c[3]!=="pass"));
+  $("#chkCount").textContent=`Showing ${list.length} of ${CHK.length}: ${list.map(c=>c[0]).join(", ")}`;
+  $("#chkList").innerHTML=list.map(c=>
+   `<details><summary><span class="mono">${c[0]}</span> ${c[1]} <span class="pill ${RES[c[3]][1]}">${RES[c[3]][0]}</span></summary>
+    <p><b>What was measured.</b> ${c[4]}</p><p><b>Where it falls short.</b> ${c[6]}</p><p class="sub">Evidence: <span class="mono">docs/evidence/goat4b/</span> ${c[5]}</p></details>`).join("");}
+$$("#chkFilter button[data-f]").forEach(b=>b.onclick=()=>chk(b.dataset.f));
+$("#chkOpen").onclick=()=>{const all=$$("#chkList details");const open=all.some(d=>!d.open);all.forEach(d=>d.open=open);};
+
+/* ---------- start ---------- */
+show(TABS.some(t=>t[0]===HTAB)?HTAB:"overview");
+if(HTAB==="clocks"&&HARG!==undefined)offset(HARG.replace(/^ /,"+"));
+chk(HTAB==="checks"&&HARG?HARG:"all");
+if(HTAB==="machines"&&HARG){if(HL[HARG]!==undefined)highlight(HARG);else if(INFO[HARG])pick(HARG);}
+/* A hash that names a section makes the browser scroll to it; start at the top instead. */
+addEventListener("load",()=>setTimeout(()=>window.scrollTo(0,0),0));
+</script>
+</body>
+</html>
