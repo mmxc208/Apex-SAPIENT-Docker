@@ -10,10 +10,11 @@ These pages give the background of the work in this repository. Each one is an H
 | [`goatcore/overview.html`](goatcore/overview.html) | goat in plain language: what the goat network is | 2026-11-11 |
 | [`goatcore/architecture.html`](goatcore/architecture.html) | goatcore: the technical note on its architecture | 2026-11-11 |
 | [`goat-step1/index.html`](goat-step1/index.html) | Step 1 of the goat work, for a new team member. It is interactive. | 2026-11-12 |
+| [`goat-step4/index.html`](goat-step4/index.html) | Step 4 of the goat work: what goatlite is and how the goatnet `cuaslab` was stood up with it, the step 1 rig on that goatnet, what was tested, and what was learned. It is interactive. | 2026-11-19 |
 
 ## How to read them
 
 - **The first five pages are studies.** They were written before the work that they describe was built, from the standard and from source code. `README.md`, `README-goat.md` and the acceptance records say what was built and measured later. Where a study and a record disagree, the record is right.
-- **The last page describes finished work.** Its numbers come from `docs/acceptance-goat1.md`.
+- **The last two pages describe finished work.** The numbers of the step 1 page come from `docs/acceptance-goat1.md`. Those of the step 4 page come from `docs/acceptance-goat4.md`; its goatlite part comes from the stand-up session of 2026-11-18, which has no record in this repository.
 - **No video.** The originals of the first five pages have narrated videos. The videos are large and are not in this repository. The pages here are complete without them. The files that only exist to make the videos (slides, narration text, posters and the build script) are not here either.
 - **The pictures** of the Zenoh and goatcore pages are the `.svg` files beside them.

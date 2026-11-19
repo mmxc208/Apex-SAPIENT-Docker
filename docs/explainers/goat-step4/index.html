@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goat step 4 explained: a goatlite goatnet, and the step 1 rig on it</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#fff; --ink:#1b2430; --dim:#5d6b7c; --line:#d8dee6;
+  --fabric:#0b7a75; --mesh:#7a4fd0; --pod:#b8660b; --bad:#b3261e; --ok:#1d7a3a; --hl:#fff3c4;
+  --node:#eef2f6; --code:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#12161c; --panel:#1a2029; --ink:#e6ebf2; --dim:#9aa8ba; --line:#2e3846;
+    --fabric:#3fc7bf; --mesh:#b095f5; --pod:#f0a94a; --bad:#ff8a80; --ok:#6fd08c; --hl:#4a3f12;
+    --node:#232c38; --code:#232c38; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+header{padding:22px 28px 8px;max-width:1120px;margin:0 auto}
+h1{margin:0 0 4px;font-size:24px}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:16px 0 6px}
+.sub{color:var(--dim)}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav .in{max-width:1120px;margin:0 auto;padding:8px 28px;display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--dim)}
+button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+main{max-width:1120px;margin:0 auto;padding:18px 28px 60px}
+section{display:none}
+section.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.stat b{display:block;font-size:26px;line-height:1.1}
+.stat span{color:var(--dim);font-size:13px}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:13px}
+.pill{display:inline-block;border-radius:99px;padding:1px 9px;font-size:12px;border:1px solid currentColor}
+.p-ok{color:var(--ok)} .p-warn{color:var(--pod)} .p-bad{color:var(--bad)}
+.p-fab{color:var(--fabric)} .p-mesh{color:var(--mesh)} .p-pod{color:var(--pod)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:12px -apple-system,Helvetica,Arial,sans-serif}
+svg .zone{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 4}
+svg .zl{fill:var(--dim);font-size:12px}
+svg .n rect{fill:var(--node);stroke:var(--line);stroke-width:1.5;rx:7}
+svg .n{cursor:pointer}
+svg .n:hover rect{stroke:var(--dim)}
+svg .n.sel rect{stroke:var(--ink);stroke-width:2.5}
+svg .n.dimmed{opacity:.28}
+svg .n.fab rect{stroke:var(--fabric);stroke-width:2.5}
+svg .n.mesh rect{stroke:var(--mesh);stroke-width:2.5}
+svg .n.podl rect{stroke:var(--pod);stroke-width:2.5}
+svg .n.step rect{fill:var(--hl);stroke:var(--ink);stroke-width:2.5}
+svg .e{stroke:var(--dim);stroke-width:1.5;fill:none}
+svg .e.tls{stroke:var(--fabric);stroke-width:2}
+svg .e.wg{stroke:var(--mesh);stroke-width:2;stroke-dasharray:6 4}
+svg .e.dimmed{opacity:.2}
+#info{min-height:120px}
+details{border-bottom:1px solid var(--line);padding:9px 0}
+details:last-child{border-bottom:0}
+summary{cursor:pointer;font-weight:600}
+details p,details ul{margin:8px 0 2px}
+ul{padding-left:20px;margin:6px 0}
+.q{color:var(--dim);font-style:italic}
+.stay td{opacity:1}
+.hide-stay .stay{display:none}
+.note{border-left:3px solid var(--pod);padding:6px 12px;background:var(--code);border-radius:0 6px 6px 0;margin:10px 0}
+footer{color:var(--dim);font-size:13px;margin-top:24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Goat step 4: a goatlite goatnet, and the step 1 rig on it</h1>
+  <div class="sub">Two pieces of work from 2026-11-18 and 19: standing up the goatnet <code>cuaslab</code> with goatlite, then moving the step 1 rig onto it (branch <code>goat-step4-cuaslab</code>). The numbers come from <code>docs/acceptance-goat4.md</code> and from the goatlite assay. Written 2026-11-19. One file, no network needed.</div>
+</header>
+<nav><div class="in" id="tabs"></div></nav>
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<section id="overview">
+  <div class="card">
+    <h2>What was done</h2>
+    <p><b>First, a goatnet.</b> goatlite is goat's way to stand up a whole goatnet on one host. We used it to build <code>cuaslab</code> in a virtual machine on a Mac, and its acceptance suite passed. The "goatlite" tab has the details.</p>
+    <p><b>Then, step 4.</b></p>
+    <p>Step 1 ran pod 1 and the host against a <b>stand-in</b> fabric router with a test certificate authority. Step 4 moved the same rig, unchanged, onto the real goatlite goatnet <code>cuaslab</code>: the real router, real enrolment through the portal, and real certificates from the goatnet's authority.</p>
+    <p>The scope the user chose was "move it as it is", done with one overlay compose file. No existing file under <code>emulators/</code> changed.</p>
+  </div>
+  <div class="grid g4">
+    <div class="card stat"><b>23 / 23</b><span>goatlite assay rows that applied passed; gate PASS</span></div>
+    <div class="card stat"><b>12 / 13</b><span>checks pass; G4-13 (clocks) is a measurement with no pass value</span></div>
+    <div class="card stat"><b>3</b><span>fabric identities enrolled: one for the pod, two for the host</span></div>
+    <div class="card stat"><b>0</b><span>host records that carry a sensor's ID (of 192 recorded)</span></div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>Three things worth remembering</h2>
+      <ul>
+        <li><b>Mesh and fabric are two different memberships.</b> A mesh peer is a network address. A fabric slot is a certificate and a key prefix. Step 4 used the fabric and not the mesh.</li>
+        <li><b>Step 4 is "shape C".</b> The whole pod appears on the fabric as one identity, the bridge. ADR 1251 lists this shape as a rejected alternative for the long term.</li>
+        <li><b>The host does not see the sensors.</b> Only what the pod fusion node produces crosses the bridge.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Open decisions</h2>
+      <ul>
+        <li><b>The branch:</b> merge into <code>goat</code> locally, push and open a pull request, or keep it as it is. Not decided.</li>
+        <li><b>Upstream issues:</b> five gaps were found in goat. None is filed.</li>
+        <li><b>Next step:</b> carry sensor registration and status up through the bridge (cheap), or follow ADR 1251 (proper).</li>
+      </ul>
+      <p class="sub">See the "Left over" tab for the full list.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============ GOATLITE ============ -->
+<section id="goatlite">
+  <div class="card">
+    <h2>What goatlite is</h2>
+    <p>goatlite is tutorial 0 of goatcore (<code>docs/tutorials/00-goatlite.md</code>). It stands up a complete goatnet on <b>one host</b> from <b>one file</b>, <code>goatlite.yaml</code>. The tool <code>goatbuilder standup</code> renders the full configuration from that file and then runs the same numbered phases as a real deployment. So a goatlite is a real goatnet, only small: one box, a private certificate authority, and a LAN instead of the internet.</p>
+    <div class="grid g2">
+      <div><h3>What one box then runs</h3>
+        <ul>
+          <li><span class="pill p-mesh">mesh</span> NetBird: management, signal, dashboard, mesh DNS</li>
+          <li>Ory (Kratos and Hydra): people's sign-in and OIDC</li>
+          <li>A private certificate authority; leaf certificates for each service</li>
+          <li><span class="pill p-fab">fabric</span> The Zenoh router, mutual TLS on port 7447, with a pool of 1000 slots</li>
+          <li>The portal: registry, certificate minting, grants, enrolment</li>
+          <li>Supporting services: grant-keyd, the onboarding front desk and runner, peer-health, Postgres with backups</li>
+        </ul></div>
+      <div><h3>What we built</h3>
+        <table>
+          <tr><td>Goatnet</td><td><code>cuaslab</code>, zone <code>cuaslab.lan</code></td></tr>
+          <tr><td>Box</td><td>Lima VM <code>goatlite</code>: Ubuntu 24.04 arm64, 4 CPUs, 16 GB, address 192.168.64.4; 100 GB disk, no folder shared with the Mac, reached over SSH</td></tr>
+          <tr><td>Laptop side</td><td>The Mac runs goatbuilder and Ansible. Release binaries of goatbuilder 0.7.3 and goat 0.5.19, checksums verified</td></tr>
+          <tr><td>Source</td><td>goatcore <code>main</code> at <code>e44e893d</code>: release v0.7.3 plus 7 commits (the tag itself is refused, see below)</td></tr>
+          <tr><td>On the box</td><td>11 images, 17 containers running; 22 leaf certificates from the new authority</td></tr>
+          <tr><td>Result</td><td>Assay gate PASS: 23 pass, 0 fail, 0 unknown, 4 skipped, 55 not applicable, across 21 layers</td></tr>
+          <tr><td>First use</td><td><code>goat status</code> healthy; <code>goat hello</code> round trip in 89 ms; a first message published, received and confirmed stored by the router</td></tr>
+          <tr><td>Mesh</td><td>Three groups and six policies as declared, with no All-to-All rule. After the stand-up: 0 peers. Later the Mac joined (NetBird 0.83.1, profile <code>cuaslab</code>); mesh DNS serves the zone</td></tr>
+        </table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The stand-up, phase by phase</h2>
+    <p class="sub">Click a phase. The list is the phases that appear in our stand-up logs; it took six runs of <code>goatbuilder standup</code> to get through them, because of the problems in "What we learned" below. A dry rehearsal with mock data (goatcore's checkpoint 1) was run first and matched. Phases 1 to 10 took about 13 minutes of run time in all.</p>
+    <div class="row" id="phaseBtns"></div>
+    <div id="phaseBody" style="min-height:70px"></div>
+  </div>
+
+  <div class="card">
+    <h2>The assay: what the acceptance suite proved</h2>
+    <p>Phase 13 runs goat's acceptance suite ("assay") against the live goatnet. Each row is one fact, checked from outside. Rows that need parts a goatlite does not have are marked not applicable.</p>
+    <div class="row" id="assayBtns"></div>
+    <table id="assayTable"></table>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h2>How the pieces sit after the stand-up</h2>
+      <ul>
+        <li><b>The box is not a mesh peer.</b> A goatlite box only hosts the services. They are served on its LAN address, and the laptop reaches them there.</li>
+        <li><b>The laptop has a fabric identity first.</b> The founder's certificate lets <code>goat</code> publish and subscribe before any machine is on the mesh. Joining the mesh adds the network identity.</li>
+        <li><b>Names.</b> Before the mesh join, one line in <code>/etc/hosts</code>; after it, the mesh DNS answers for the zone.</li>
+        <li><b>Trust.</b> The goatnet has its own root, <code>cuaslab goatlite CA</code>. Each tool must be told to trust it, and each tool reads trust from a different place.</li>
+        <li><b>No health beats.</b> <code>goat health</code> reports none. A goatlite deploys no health publisher; this is expected.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>What the stand-up changed outside goatbuilder</h2>
+      <table>
+        <tr><th>Where</th><th>Change</th></tr>
+        <tr><td>Mac</td><td>One <code>/etc/hosts</code> line for the goatnet's names</td></tr>
+        <tr><td>Mac</td><td>The goatnet's root trusted in the system keychain</td></tr>
+        <tr><td>Mac</td><td>Local Network permission for Chrome</td></tr>
+        <tr><td>Mac</td><td>goat's local state and the authority's key, written by goatbuilder</td></tr>
+        <tr><td>Box</td><td>A netplan file that sets the MTU to 1400</td></tr>
+        <tr><td>Box</td><td>The peer-health certificate, copied by hand</td></tr>
+      </table>
+      <p class="sub">Steps that need <code>sudo</code> or a browser sign-in were done by the owner, not by the agent. No key, token or password is recorded on this page.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What we learned standing it up on a Mac</h2>
+    <div id="liteLessons"></div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="arch">
+  <div class="card">
+    <h2>The rig</h2>
+    <div class="row">
+      <span class="sub">Highlight:</span>
+      <button data-layer="none" class="on">Everything</button>
+      <button data-layer="fab">On the data fabric</button>
+      <button data-layer="mesh">On the mesh</button>
+      <button data-layer="podl">Pod-local only</button>
+      <span class="sub">&nbsp;Click a box for details.</span>
+    </div>
+    <svg viewBox="0 0 940 430" id="dia" role="img" aria-label="Step 4 rig diagram">
+      <rect class="zone" x="10" y="30" width="390" height="290" rx="10"/><text class="zl" x="20" y="22">Pod 1: Docker network pod1 (internal: true)</text>
+      <rect class="zone" x="420" y="30" width="230" height="290" rx="10"/><text class="zl" x="430" y="22">cuaslab goatnet: Lima VM 192.168.64.4</text>
+      <rect class="zone" x="670" y="30" width="260" height="290" rx="10"/><text class="zl" x="680" y="22">Host side</text>
+      <rect class="zone" x="10" y="345" width="920" height="75" rx="10"/><text class="zl" x="20" y="362">Mac mini (runs both VMs; Colima VM 192.168.64.5 holds every rig container)</text>
+
+      <path class="e" id="e-s1" d="M120 70 L190 150"/><path class="e" id="e-s2" d="M120 130 L190 160"/><path class="e" id="e-s3" d="M120 190 L190 170"/>
+      <path class="e" id="e-rec" d="M120 260 L190 185"/>
+      <path class="e" id="e-fus" d="M240 185 L240 240"/>
+      <path class="e" id="e-br" d="M290 165 L325 165"/>
+      <path class="e tls" id="e-up" d="M395 165 L470 165"/>
+      <path class="e tls" id="e-hf" d="M600 150 L710 95"/>
+      <path class="e tls" id="e-hr" d="M600 180 L710 205"/>
+      <path class="e wg" id="e-mesh" d="M535 345 L535 290"/>
+
+      <g class="n" data-id="radar" data-k="podl" transform="translate(30,50)"><rect width="90" height="40"/><text x="45" y="25" text-anchor="middle">radar</text></g>
+      <g class="n" data-id="camera" data-k="podl" transform="translate(30,110)"><rect width="90" height="40"/><text x="45" y="25" text-anchor="middle">camera</text></g>
+      <g class="n" data-id="vehicle" data-k="podl" transform="translate(30,170)"><rect width="90" height="40"/><text x="45" y="25" text-anchor="middle">vehicle</text></g>
+      <g class="n" data-id="podrec" data-k="podl" transform="translate(30,240)"><rect width="90" height="40"/><text x="45" y="25" text-anchor="middle">pod recorder</text></g>
+      <g class="n" data-id="podrouter" data-k="podl" transform="translate(190,140)"><rect width="100" height="46"/><text x="50" y="28" text-anchor="middle">zenohd-pod</text></g>
+      <g class="n" data-id="podfusion" data-k="podl" transform="translate(180,240)"><rect width="120" height="46"/><text x="60" y="20" text-anchor="middle">pod fusion node</text><text x="60" y="36" text-anchor="middle" class="zl">f0000001</text></g>
+      <g class="n" data-id="bridge" data-k="fab" transform="translate(325,140)"><rect width="70" height="50"/><text x="35" y="22" text-anchor="middle">pod-</text><text x="35" y="38" text-anchor="middle">bridge</text></g>
+
+      <g class="n" data-id="router" data-k="fab" transform="translate(470,135)"><rect width="130" height="60"/><text x="65" y="25" text-anchor="middle">Zenoh router</text><text x="65" y="43" text-anchor="middle" class="zl">tls :7447, mTLS</text></g>
+      <g class="n" data-id="portal" data-k="ctl" transform="translate(440,55)"><rect width="90" height="40"/><text x="45" y="25" text-anchor="middle">portal</text></g>
+      <g class="n" data-id="ca" data-k="ctl" transform="translate(545,55)"><rect width="90" height="40"/><text x="45" y="25" text-anchor="middle">CA + identity</text></g>
+      <g class="n" data-id="netbird" data-k="mesh" transform="translate(470,250)"><rect width="130" height="40"/><text x="65" y="25" text-anchor="middle">NetBird (mesh)</text></g>
+
+      <g class="n" data-id="hostfusion" data-k="fab" transform="translate(710,70)"><rect width="150" height="50"/><text x="75" y="30" text-anchor="middle">host-fusion</text></g>
+      <g class="n" data-id="hostrec" data-k="fab" transform="translate(710,180)"><rect width="150" height="50"/><text x="75" y="30" text-anchor="middle">host-recorder</text></g>
+
+      <g class="n" data-id="mac" data-k="mesh" transform="translate(455,372)"><rect width="160" height="38"/><text x="80" y="24" text-anchor="middle">Mac: the only mesh peer</text></g>
+      <g class="n" data-id="route" data-k="net" transform="translate(180,372)"><rect width="230" height="38"/><text x="115" y="24" text-anchor="middle">routes .5 ↔ .4 via the Mac (.1)</text></g>
+    </svg>
+    <div class="row" style="margin-top:8px">
+      <span class="pill p-fab">fabric: TLS with client certificate</span>
+      <span class="pill p-mesh">mesh: WireGuard</span>
+      <span class="pill p-pod">pod-local: plain Zenoh inside the pod</span>
+    </div>
+  </div>
+  <div class="card" id="info"><span class="sub">Click a box in the diagram.</span></div>
+</section>
+
+<!-- ============ CONCEPTS ============ -->
+<section id="concepts">
+  <div class="card">
+    <h2>Mesh and data fabric</h2>
+    <table>
+      <tr><th></th><th><span class="pill p-mesh">Mesh</span></th><th><span class="pill p-fab">Data fabric</span></th></tr>
+      <tr><td>Technology</td><td>NetBird over WireGuard</td><td>Zenoh over mutual TLS</td></tr>
+      <tr><td>What a member is</td><td>A peer: a machine with a mesh address</td><td>A slot: a certificate whose common name is the <code>slot_id</code></td></tr>
+      <tr><td>What it grants</td><td>Network reachability, shaped by groups</td><td>The right to write below <code>&lt;slot_id&gt;/**</code>, and to read everything</td></tr>
+      <tr><td>How one joins</td><td>A setup key, then <code>netbird up</code></td><td>The portal: a grant, then enrolment, then a bundle with certificate and key</td></tr>
+      <tr><td>In step 4</td><td>Only the Mac is a peer</td><td>Bridge, host fusion and host recorder each hold a slot</td></tr>
+    </table>
+    <p class="note">The rig containers reach the router at <code>192.168.64.4:7447</code> over the Mac's own virtual network, not over the mesh. Zenoh TLS runs on any IP path. On a real deployment that path would normally be the mesh.</p>
+  </div>
+
+  <div class="card">
+    <h2>Three ways to attach a pod</h2>
+    <div class="row" id="shapeBtns">
+      <button data-s="A">Shape A</button><button data-s="B">Shape B</button><button data-s="C" class="on">Shape C (step 4)</button>
+    </div>
+    <div id="shapeBody"></div>
+  </div>
+
+  <div class="card">
+    <h2>ADRs read, and what each says for a pod</h2>
+    <div id="adrs"></div>
+  </div>
+</section>
+
+<!-- ============ FLOWS ============ -->
+<section id="flows">
+  <div class="card">
+    <h2>A task from the host to the pod</h2>
+    <div class="row">
+      <button id="prev">◀ Back</button><button id="next">Next ▶</button>
+      <span class="sub" id="stepNo"></span>
+    </div>
+    <div id="stepBody" style="min-height:110px"></div>
+    <svg viewBox="0 0 940 120" id="flowDia" role="img" aria-label="Task path">
+      <path class="e" d="M150 60 L225 60 M335 60 L410 60 M520 60 L595 60 M705 60 L780 60"/>
+      <g class="n" data-f="0" transform="translate(40,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">host-fusion</text></g>
+      <g class="n" data-f="1" transform="translate(225,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">cuaslab router</text></g>
+      <g class="n" data-f="2" transform="translate(410,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">pod-bridge</text></g>
+      <g class="n" data-f="3" transform="translate(595,35)"><rect width="110" height="50"/><text x="55" y="30" text-anchor="middle">pod fusion</text></g>
+      <g class="n" data-f="4" transform="translate(780,35)"><rect width="120" height="50"/><text x="60" y="30" text-anchor="middle">radar, camera</text></g>
+    </svg>
+    <p class="note"><b>Which sensors get the task?</b> Today the pod fusion node sends <code>look_at</code> to every registered node that is not mobile. It does not pick by which sensor saw the target. Sensor selection is step 2 work (Stone Soup in the fusion node). No goat ADR covers it; goat's ADRs are about the network and identity, not fusion logic.</p>
+  </div>
+
+  <div class="card">
+    <h2>What crosses the bridge</h2>
+    <div class="row"><button id="hostView">Show only what the host sees</button></div>
+    <table id="cross">
+      <tr><th>Data</th><th>Stays in the pod</th><th>Goes to the host</th></tr>
+      <tr class="stay"><td>Radar, camera, vehicle: detection reports</td><td>✓</td><td></td></tr>
+      <tr class="stay"><td>Radar, camera, vehicle: registration and status</td><td>✓</td><td></td></tr>
+      <tr class="stay"><td>Sensors' task acknowledgements</td><td>✓</td><td></td></tr>
+      <tr><td>Pod fusion node: fused tracks (sent as <code>detection_report</code> from <code>f0000001</code>)</td><td></td><td>✓</td></tr>
+      <tr><td>Pod fusion node: alerts, one for each new track</td><td></td><td>✓</td></tr>
+      <tr><td>Pod fusion node: its own registration and status</td><td></td><td>✓</td></tr>
+      <tr><td>Pod fusion node: acknowledgement of a host task</td><td></td><td>✓</td></tr>
+    </table>
+    <p>The bridge subscribes inside the pod only to the fusion node's upward keys, so a sensor's message never reaches it. Check G4-02 measured the result: 192 host records, none with a sensor's ID as sender or in the content. The pod recorder keeps the sensor data locally.</p>
+    <div class="grid g2">
+      <div><h3>Why it was built this way</h3><ul><li>Raw detections are many, fused tracks are few, and an edge link may be narrow.</li><li>goat wants the number of keys on the fabric to stay bounded.</li><li>In SAPIENT a higher fusion node deals with a child fusion node, not with that node's sensors.</li></ul></div>
+      <div><h3>What it costs</h3><ul><li>The host cannot fuse again from raw data.</li><li>The host cannot check why the pod made a track.</li><li>The host does not know which sensors exist or whether they are healthy.</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Enrolment: how the three identities were made</h2>
+    <ol>
+      <li><code>goat4/enroll.sh</code> checks every target path first and stops before any portal write if one is not a regular file.</li>
+      <li>It asks the portal for a machine grant for the custodian (quota 5, affiliation <code>cuaslab-lab</code>).</li>
+      <li>It enrols three machines: <code>pod1-bridge</code> (class POD), <code>host-fusion</code> and <code>host-recorder</code> (class FUSION). The portal answers 201 with a slot ID and a one-time bundle link.</li>
+      <li>It downloads each bundle, picks the root certificate by parsing and verifying X.509 (not by file name), and checks that all three bundles share one root.</li>
+      <li>It writes certificates and keys to <code>zenoh/goat4/pki/</code> and the three slot IDs to <code>zenoh/goat4/goat4.env</code>. Both are git-ignored.</li>
+    </ol>
+    <p class="sub">The classes PROCESSOR, SENSOR and EFFECTOR were refused by the portal. 26 tests cover the script against a fake portal on 127.0.0.1.</p>
+  </div>
+</section>
+
+<!-- ============ CHECKS ============ -->
+<section id="checks">
+  <div class="card">
+    <h2>How step 4 was validated</h2>
+    <p>Thirteen checks, G4-01 to G4-13, each recorded in one task run on the live rig. Then the README's commands were run as written, twice, to see that a reader gets the same results. A check passes only on evidence saved to a file; each entry below also says where the evidence falls short.</p>
+    <div class="grid g4">
+      <div class="stat"><b>12</b><span>checks pass</span></div>
+      <div class="stat"><b>1</b><span>measurement with no pass value (clocks)</span></div>
+      <div class="stat"><b>0</b><span>fail or unknown</span></div>
+      <div class="stat"><b>202</b><span>quoted output lines traced to an evidence file; 0 missing, 0 secrets</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>The checks</h2>
+    <div class="row" id="chkFilter">
+      <button data-f="all" class="on">All 13</button><button data-f="fabric">Touches cuaslab</button><button data-f="pod">Inside the pod</button><button data-f="repo">Repository</button><button data-f="note">With a caveat</button>
+      <button id="chkOpen">Open all</button>
+    </div>
+    <div id="chkList"></div>
+  </div>
+  <div class="card">
+    <h2>The runs</h2>
+    <table>
+      <tr><th>Run (UTC)</th><th>Covered</th><th>Outcome</th></tr>
+      <tr><td>Enrolment 1, 11-18 23:37</td><td>Grant and three enrolments</td><td><span class="pill p-bad">refused</span> HTTP 500, code <code>mint</code></td></tr>
+      <tr><td>Portal change and enrolment 2, 23:44 to 23:46</td><td>bundle-create off, portal redeployed, script run again</td><td><span class="pill p-ok">ok</span> three machines, certificates verify against one root</td></tr>
+      <tr><td>Pairing probe, 23:47</td><td>G4-01</td><td><span class="pill p-ok">pass</span></td></tr>
+      <tr><td>The rig on cuaslab, 23:50</td><td>G4-02 to G4-04</td><td><span class="pill p-ok">pass</span> ten services running</td></tr>
+      <tr><td>Live checks, 23:56 to 00:06</td><td>G4-05 to G4-10, G4-13</td><td><span class="pill p-ok">pass</span> and one measurement</td></tr>
+      <tr><td>Regression and diff, 00:08</td><td>G4-11, G4-12</td><td><span class="pill p-ok">pass</span></td></tr>
+      <tr><td>README run, 00:30 to 00:41</td><td>17 of 18 blocks (not the enrolment), then step 1's first three steps</td><td>15 printed what the README shows, 2 in another form, 0 failed; G4-06 counted 1 loss line</td></tr>
+      <tr><td>README run 2, 01:07 to 01:13</td><td>Blocks 1 to 11 with the new 60 s wait, and a gate exercise</td><td>G4-06 counted 0; with <code>goat4.env</code> moved aside the gated start refused and started nothing</td></tr>
+    </table>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>Different from step 1</h2>
+      <ul>
+        <li><b>The router</b> is the goatnet's (<code>zenohd v1.9.0-modified</code>). We do not restart it or read its log.</li>
+        <li><b>The identities</b> come from the portal and the goatnet's authority. Step 1 used a test authority and a pool of 8.</li>
+        <li><b>A refused write</b> is shown by absence at a subscriber, with a control write. Step 1 read a router log line.</li>
+        <li><b>Reading is open</b> on cuaslab: every TLS client may subscribe to <code>**</code>. Step 1's stand-in had scoped reading on.</li>
+        <li><b>The goat client</b> is the released 0.5.19 with a real context, not a source build with a hand-written profile.</li>
+        <li><b>The bridge noticed the cut</b> after 5 s, against 9 to 10 s in step 1. Not explained.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Known limits</h2>
+      <ul>
+        <li><b>No mesh on the data path.</b> Two VMs on one Mac, joined by a route. No WireGuard.</li>
+        <li><b>Nothing revokes a slot certificate on this path.</b> goat cuts a machine off at the mesh, and the rig is not on it.</li>
+        <li><b>No ingress gateway.</b> The bridge connects to the core router; a goatlite has no gateway.</li>
+        <li><b>One slot for the whole pod.</b> See ADR 1251.</li>
+        <li><b>The recorder's class.</b> It is enrolled as FUSION because goat has no class for a reader that writes nothing.</li>
+        <li><b>Clocks</b> are known only to within 124 ms between the VMs.</li>
+        <li><b>Scale.</b> One run of each check, minutes long, one pod, one Mac.</li>
+        <li><b>The programs did not change</b>, so every limit of step 1's record still holds.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Tests on the final tree</h2>
+    <div class="grid g3">
+      <div class="stat"><b>26</b><span>enrolment script tests, against a fake portal</span></div>
+      <div class="stat"><b>454</b><span>unit tests, the same count as on branch <code>goat</code></span></div>
+      <div class="stat"><b>18</b><span>README blocks: 17 run, 15 as the README shows, 0 failed</span></div>
+    </div>
+    <p class="sub">Source: <code>docs/acceptance-goat4.md</code> and <code>docs/evidence/goat4/</code>.</p>
+  </div>
+</section>
+
+<!-- ============ LESSONS ============ -->
+<section id="lessons">
+  <div class="card"><h2>Step 4: what went wrong, and what it taught</h2><div id="lessonList"></div></div>
+  <div class="card"><h2>Questions asked along the way</h2><div id="qaList"></div></div>
+</section>
+
+<!-- ============ LEFT OVER ============ -->
+<section id="left">
+  <div class="grid g2">
+    <div class="card">
+      <h2>What stays on cuaslab</h2>
+      <ul>
+        <li>One machine grant: quota 5, affiliation <code>cuaslab-lab</code>.</li>
+        <li>Three machines: <code>pod1-bridge</code> (POD), <code>host-fusion</code> (FUSION), <code>host-recorder</code> (FUSION). Certificates are valid to 2027-11-18.</li>
+        <li>The portal runs with <code>portal_bundle_create_bin: ""</code>. A fresh render from <code>goatlite.yaml</code> turns it back on, and enrolment then fails again.</li>
+      </ul>
+      <p class="sub">"How to remove what step 4 left" is in <code>docs/acceptance-goat4.md</code>. Revoking a machine is a write to cuaslab and was never run.</p>
+    </div>
+    <div class="card">
+      <h2>Changes on the Mac and the VMs</h2>
+      <ul>
+        <li>NetBird installed, profile <code>cuaslab</code>; the Mac is a mesh peer. Always <code>netbird up --profile cuaslab</code>.</li>
+        <li>Colima: <code>network.address: true</code>, plus a route to 192.168.64.4 through 192.168.64.1.</li>
+        <li>goatlite VM: a netplan route to 192.168.64.5 through 192.168.64.1.</li>
+        <li>Both routes depend on <code>net.inet.ip.forwarding=1</code> on the Mac.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Gaps found in goat (no issue filed)</h2>
+    <table>
+      <tr><th>Gap</th><th>Effect</th></tr>
+      <tr><td>The lite preset enables bundle-create but nothing installs the binary</td><td>Every machine enrolment fails with HTTP 500, code <code>mint</code></td></tr>
+      <tr><td>goatlite never stages the peer-health certificate</td><td>An assay check fails until it is copied by hand</td></tr>
+      <tr><td>Python ignores the macOS keychain</td><td>Trust checks fail without <code>SSL_CERT_FILE</code></td></tr>
+      <tr><td>The <code>goat</code> CLI with a private authority</td><td>Operator-key calls worked with curl only</td></tr>
+      <tr><td>The phase 6 bootstrap key is called single-use</td><td>It is reusable, with a limit of 200</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Parked small items on the branch</h2>
+    <ul>
+      <li>Three <code>dg4 up</code> lines later in the README are not gated on <code>goat4_ready</code>.</li>
+      <li>One wording ambiguity in the acceptance record.</li>
+      <li><code>enroll.sh</code> does not handle the case where <code>pki</code> itself is a regular file.</li>
+      <li>Commit <code>0cb7fc0</code> (the last README gate fix) was not reviewed.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Possible next steps</h2>
+    <ol>
+      <li><b>Cheap:</b> let the bridge carry sensors' registration and status up, still under the pod's one anchor. The host then knows what sensors exist and their health.</li>
+      <li><b>Proper:</b> read ADR 1251 closely and plan per-source identity through the pod. It is proposed and not built upstream.</li>
+      <li><b>Step 2:</b> Stone Soup in the fusion node, including which sensors a task should go to.</li>
+    </ol>
+  </div>
+  <footer>Self-contained file; no network requests. No keys, tokens or bundle links are recorded here.</footer>
+</section>
+</main>
+
+<script>
+const TABS=[["overview","Overview"],["goatlite","goatlite"],["arch","The step 4 rig"],["concepts","Mesh, fabric, pod shapes"],["flows","Flows"],["checks","What was tested"],["lessons","Lessons"],["left","Left over"]];
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const tabs=$("#tabs");
+function show(id){$$("section").forEach(s=>s.classList.toggle("on",s.id===id));$$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===id));history.replaceState(null,"","#"+id);window.scrollTo(0,0);}
+TABS.forEach(([id,label])=>{const b=document.createElement("button");b.textContent=label;b.dataset.t=id;b.onclick=()=>show(id);tabs.appendChild(b);});
+show(TABS.some(t=>"#"+t[0]===location.hash)?location.hash.slice(1):"overview");
+
+/* ---------- architecture ---------- */
+const INFO={
+ radar:["Radar (emulated sensor)","Pod-local. Publishes detection reports, registration and status to the pod router. Has no fabric identity; the host never sees its ID.","pod"],
+ camera:["Camera (emulated sensor)","Pod-local. Same as the radar. Receives <code>look_at</code> tasks from the pod fusion node.","pod"],
+ vehicle:["Vehicle (emulated, mobile)","Pod-local. Mobile nodes are left out when the pod fusion node fans a task out.","pod"],
+ podrec:["Pod recorder","Keeps every pod message locally, including the sensor data that never leaves the pod.","pod"],
+ podrouter:["zenohd-pod","The pod's own Zenoh router. Because of it the pod keeps working when the link to the host is down (checks G4-06 and G4-07).","pod"],
+ podfusion:["Pod fusion node f0000001","Fuses sensor detections into tracks and raises one alert for each new track. It is the only pod source whose output goes up. It has no certificate of its own: its data appears on the fabric under the bridge's anchor.","pod"],
+ bridge:["pod-bridge (slot class POD)","The pod's single fabric identity. One side sits on the pod router, the other connects to <code>tls/192.168.64.4:7447</code> with the pod's certificate. Upward it republishes only the fusion node's keys below the pod's anchor. Downward it accepts a task only if it comes from the host's anchor and site, names a known node, and is at most 5 s old.","fab"],
+ router:["cuaslab Zenoh router","<code>zenohd v1.9.0-modified</code>. Mutual TLS on port 7447. A pool of 1000 slots. A slot may write only below its own anchor; every TLS client may read everything. Default deny, and a denied write is silent.","fab"],
+ portal:["Portal","Where enrolment happens: a machine grant, then one enrolment per machine. Returns a slot ID and a bundle with the certificate and key.","ctl"],
+ ca:["Certificate authority and identity service","Signs the slot certificates. The certificate's common name is the slot ID, which is also the key prefix (the anchor).","ctl"],
+ netbird:["NetBird control plane","Runs the mesh. Not used by the rig's data path in step 4.","mesh"],
+ hostfusion:["host-fusion (slot class FUSION)","Own slot, own certificate. Reads the pod's tracks and alerts below the pod's anchor, and publishes tasks below its own anchor.","fab"],
+ hostrec:["host-recorder (slot class FUSION)","Own slot. Records what arrives at the host; its log is the evidence for G4-02.","fab"],
+ mac:["Mac mini","The only mesh peer. It also forwards packets between the two VMs.","mesh"],
+ route:["Local routing","vzNAT isolates the VMs from each other at layer 2, so each VM has a route to the other through the Mac at 192.168.64.1. This is specific to this Mac and is not part of goat.","net"]
+};
+const LABEL={pod:["pod-local","p-pod"],fab:["on the data fabric","p-fab"],mesh:["mesh","p-mesh"],ctl:["control plane",""],net:["this Mac only",""]};
+$$("#dia .n").forEach(n=>n.onclick=()=>{
+  $$("#dia .n").forEach(x=>x.classList.remove("sel"));n.classList.add("sel");
+  const [t,body,k]=INFO[n.dataset.id];
+  $("#info").innerHTML=`<h2>${t} <span class="pill ${LABEL[k][1]}">${LABEL[k][0]}</span></h2><p>${body}</p>`;
+});
+$$("button[data-layer]").forEach(b=>b.onclick=()=>{
+  $$("button[data-layer]").forEach(x=>x.classList.toggle("on",x===b));
+  const L=b.dataset.layer;
+  $$("#dia .n").forEach(n=>{n.classList.remove("fab","mesh","podl","dimmed");
+    if(L==="none")return; if(n.dataset.k===L)n.classList.add(L);else n.classList.add("dimmed");});
+  $$("#dia .e").forEach(e=>e.classList.toggle("dimmed",L!=="none"&&!((L==="fab"&&e.classList.contains("tls"))||(L==="mesh"&&e.classList.contains("wg"))||(L==="podl"&&!e.classList.contains("tls")&&!e.classList.contains("wg")))));
+});
+
+/* ---------- shapes ---------- */
+const SHAPES={
+ A:`<p><b>Everything connects directly.</b> Each sensor and the fusion node enrols and holds its own slot on the fabric router. There is no pod router and no bridge.</p>
+    <ul><li>Good: every source has its own identity; the host sees all of them.</li><li>Bad: the pod stops working as a unit when the link to the fabric router is lost.</li><li>Status: possible today.</li></ul>`,
+ B:`<p><b>The pod router peers with the fabric router.</b> The pod keeps its own router, and that router joins the fabric as a router peer.</p>
+    <ul><li>Good: the pod runs alone when cut off, and the fabric sees pod traffic natively.</li><li>Status: not available today. ADR 1087 leaves the <code>router-peer</code> grant as design pending, and ADR 1095 says peer mode is not built.</li></ul>`,
+ C:`<p><b>A pod router plus a bridge, under one slot.</b> The pod has its own router. One bridge process holds the pod's only fabric identity and republishes chosen keys below the pod's anchor. <b>This is what step 4 built.</b></p>
+    <ul><li>Good: works with today's goat; the pod runs alone when the link is down; little traffic on the link.</li><li>Bad: the fabric knows one identity for the whole pod. The host cannot tell sources apart by certificate and does not see the sensors.</li><li>ADR 1251 (proposed 2026-11-18, designed and not built) names "keep everything under the pod's slot" as a <b>rejected alternative</b>. Its direction is that every source keeps its identity through a pod.</li></ul>
+    <p class="note">The user's view: a pod router is needed, because the pod must keep running when the host link is down. The open concern is the host's missing view of the sensors.</p>`
+};
+function shape(s){$$("#shapeBtns button").forEach(b=>b.classList.toggle("on",b.dataset.s===s));$("#shapeBody").innerHTML=SHAPES[s];}
+$$("#shapeBtns button").forEach(b=>b.onclick=()=>shape(b.dataset.s));shape("C");
+
+const ADRS=[
+ ["1092","POD and MOON node classes","Defines the POD class used for the bridge's slot, and names the <code>router-peer</code> grant."],
+ ["1122","Systems, peers and identities","\"Aggregation reduces peers, never identities.\" A pod may cut the number of network peers, but each source should keep its identity. Shape C does not meet this."],
+ ["1239","A moon pod is a learning tool","Sets expectations for small pods: they are for learning, not a production pattern."],
+ ["1096","Machine enrolment","The grant, enrol and bundle flow that <code>goat4/enroll.sh</code> drives."],
+ ["1025","Slot pool","Slots come from a fixed pool; revocation happens at the mesh first."],
+ ["1098","PLATFORM","The platform class and its admin group."],
+ ["1095","Client mode is the default","A node connects to the router as a client. Peer mode is not built, which rules out shape B today."],
+ ["1087","Grant catalogue","Lists grants; the <code>router-peer</code> design is pending."],
+ ["1251","Every source keeps its identity through a pod","Proposed 2026-11-18, designed and not built. Carriage rules, provenance grades, island mode. Lists shape C as a rejected alternative. The one to read before step 5."]
+];
+$("#adrs").innerHTML=ADRS.map(a=>`<details><summary>ADR ${a[0]}: ${a[1]}</summary><p>${a[2]}</p></details>`).join("");
+
+/* ---------- task flow ---------- */
+const STEPS=[
+ [0,"The host publishes the task","host-fusion writes to <code>&lt;host anchor&gt;/task/p1/sapient/v2/task/&lt;pod fusion node id&gt;</code>. It can only write below its own anchor, so the task lives in the host's key space, addressed to the pod's fusion node."],
+ [1,"The router checks and forwards","The router allows the write because the key is below the writer's own anchor. Every TLS client may read, so the bridge's subscription receives it."],
+ [2,"The bridge filters","The bridge accepts the task only if it comes from the expected host anchor and site, names a node it knows, and is at most 5 s old (check G4-08). Then it republishes the task inside the pod."],
+ [3,"The pod fusion node fans out","<code>_on_task_from_above</code> picks targets with <code>_targets</code>: every registered node that is not mobile. It sends each one a <code>look_at</code>."],
+ [4,"Sensors act and acknowledge","Each sensor acknowledges inside the pod. Those acknowledgements stay in the pod."],
+ [0,"One acknowledgement goes up","The pod fusion node sends a single acknowledgement, \"look_at sent to N nodes\". The bridge carries it up below the pod's anchor, and the host reads it (check G4-04)."]
+];
+let si=0;
+function step(){const [hl,t,b]=STEPS[si];$("#stepNo").textContent=`Step ${si+1} of ${STEPS.length}`;
+  $("#stepBody").innerHTML=`<h3>${t}</h3><p>${b}</p>`;
+  $$("#flowDia .n").forEach(n=>n.classList.toggle("step",+n.dataset.f===hl));}
+$("#prev").onclick=()=>{si=(si+STEPS.length-1)%STEPS.length;step();};
+$("#next").onclick=()=>{si=(si+1)%STEPS.length;step();};step();
+$("#hostView").onclick=e=>{const on=$("#cross").classList.toggle("hide-stay");e.target.classList.toggle("on",on);};
+
+/* ---------- checks ---------- */
+const CHK=[
+ ["G4-01","Version pairing","fabric","pass",
+  "A probe in the rig's image (Zenoh binding 1.10.2) opened two sessions to the cuaslab router (1.9.0-modified). A writer with the pod bridge's certificate put five payloads and declared a liveliness token below its anchor. A reader with the host recorder's certificate printed <code>put below anchor received: 5 of 5</code> and <code>liveliness token seen by reader: true</code>. Exit 0 in 4 s. Two failure cases show the probe can fail: a wrong port gave no session, and a wrong authority for the reader gave <code>0 of 5</code>.",
+  "task-3-g4-01.txt, task-3-g4-01-unreachable.txt, task-3-g4-01-reader-bad-ca.txt",
+  "One run of each case, five small payloads. What the router's modification changes was not read. No router restart was tried."],
+ ["G4-02","Tracks and alerts up","fabric","pass",
+  "The host fusion node logged detection reports from <code>f0000001</code> and the alert <code>new track DF0FB8</code>. The host recorder held <code>records: 192</code>: 100 below the pod's anchor and 92 below the host fusion node's. Four counts were 0: another anchor, a sender ID of the radar, camera or vehicle, records that did not decode, and a sensor ID anywhere in a record.",
+  "task-4-g4-02.txt",
+  "Minutes of traffic from one pod. Whether the recorder's volume held records of an earlier start was not recorded. No sensor raised an alert."],
+ ["G4-03","Registration","fabric","pass",
+  "The pod fusion node accepted its three sensors. The host logged <code>&lt;- registration f0000001 \"fake fusion node\" [FUSION_NODE]</code>, and the pod fusion node got <code>registration_ack ... acceptance=True</code> from the host.",
+  "task-4-g4-03.txt","One start."],
+ ["G4-04","Task down","fabric","pass",
+  "The host sent a <code>look_at</code>. The radar and the camera each logged the task from <code>f0000001</code>. The host logged <code>task_ack ... TASK_STATUS_ACCEPTED ['look_at sent to 2 nodes']</code>. The host's log had 0 lines with reject, stale, too old or timestamp.",
+  "task-4-g4-04.txt","Only the two ends of the chain were saved, not the pod fusion node's lines between them."],
+ ["G4-05","Access","fabric","note",
+  "<b>Fabric part.</b> The router does not log access decisions, so the rule is: a write is refused if a subscriber on the foreign anchor receives nothing while a control write by the same certificate, below its own anchor, arrives. Direction 1: the pod's certificate wrote to the host's task key: 0 samples in 20 s; its control: 1. Direction 2: the host fusion node's certificate wrote to the pod's alert key: 0 samples; its control: 1. The writer saw the same output for a refused write as for an allowed one.<br><b>Pod part.</b> The radar's certificate wrote to the camera's key. The pod router's trace has 1 <code>is unauthorized to Put</code> line and the probe's sample did not arrive.",
+  "task-5-g4-05-fabric.txt, task-5-g4-05-pod.txt",
+  "The fabric part is evidence by absence, not proof. Only <code>put</code> on two keys was probed: no delete, liveliness token or query. Nothing limits reading on cuaslab, so step 1's rule \"a subscription to <code>**</code> is refused\" does not apply."],
+ ["G4-06","Short outage","fabric","note",
+  "The bridge's link to the router was cut for 30 s. The bridge logged <code>fabric router lost</code> and, after the reconnect, <code>fabric router back</code>. During the cut the pod went on working: 0 lines with lost or cannot reach in the pod, and 6 logged detection lines at the pod fusion node. After it, the host logged 3 detection lines in 25 s, with 0 new registrations: the pod did not have to register again.",
+  "task-5-g4-06-precheck.txt, task-5-g4-06.txt, readme-run.txt, readme-run-2.txt",
+  "Three runs counted 0, 1 and 0 loss lines. The run with 1 started the cut right after a block that restarts the pod router; the README then gained a 60 s wait. That the wait made the difference is likely and not shown. One outage length only."],
+ ["G4-07","Long outage","fabric","pass",
+  "With the host's hold time at 20 s, the link was cut for longer. The host logged <code>node f0000001 gone for 20 s; removed</code>. After the reconnect it asked for a registration, the pod fusion node registered again, and the host accepted it as a re-registration.",
+  "task-5-g4-07.txt","The bridge's log was not saved for this check. The file's times are not tied to its commands."],
+ ["G4-08","Old task","repo","note",
+  "The unit tests of step 1's rule: the bridge drops a task older than 5 s. <code>4 passed</code>.",
+  "task-5-g4-08.txt","A unit test with a fake clock. No old task was sent on the live rig, so this shows nothing new about cuaslab."],
+ ["G4-09","A sensor joins with no router restart","pod","pass",
+  "A second radar was added with the routers frozen. The generator printed <code>router files unchanged</code>, both router files kept their SHA-256, the new radar registered, and the pod router's start time was the same before and after, with 0 error lines. The clean-up removed the radar again.",
+  "task-5-g4-09.txt","This is inside the pod and does not touch cuaslab."],
+ ["G4-10","goat's client reads the pod's tracks","fabric","pass",
+  "On the Mac, the released <code>goat</code> 0.5.19 with the founder's context subscribed to everything below the pod's anchor for 30 s while the rig ran. It printed 36 events: 30 detection reports from <code>f0000001</code>, 4 status reports and 2 task acknowledgements. Every key starts with the pod's anchor.",
+  "task-5-g4-10.txt","One command, one prefix, 30 s; payloads were not decoded. It shows no limit on reading. goat's portal commands could not be used: its portal client does not trust the goatlite's private authority."],
+ ["G4-11","No regression","repo","pass",
+  "The unit suite: <code>454 passed</code> with warnings as errors, the same count as on branch <code>goat</code>. Then the step 1 rig, started with its own commands and its own stand-in router: 11 services running, registration and an alert at the host, and the recorder's four counts at 0. The step 1 anchors and the cuaslab anchors share no value.",
+  "task-6-unit-suite.txt, task-6-step1-rig.txt, task-6-addendum.txt","The step 1 recorder's volume keeps records of earlier runs, so its total (41150) is not of this run alone. A difference of 24 records between two counts is not explained by the evidence."],
+ ["G4-12","Configuration only","repo","pass",
+  "<code>git diff goat --diff-filter=MDR --stat -- emulators/</code> printed nothing: no existing program changed. Step 4 added an overlay compose file, the enrolment script and its tests, two shell helpers and the pairing probe.",
+  "task-6-g4-12.txt","The list is that of one commit; later commits added documents only."],
+ ["G4-13","Clocks","fabric","note",
+  "Thirty rounds for each VM of reading the VM's clock between two readings of the Mac's clock; the round with the shortest round trip gives the offset. Colima: +96.3 ms, bound ±95.9 ms. goatlite: +26.5 ms, bound ±28.2 ms. Difference: −69.8 ms, bound ±124.1 ms. No message was rejected for its time in the runs.",
+  "task-5-g4-13.txt","Measured, with no pass value. The plan asked for a method good to 50 ms; through <code>colima ssh</code> the round trip is 192 ms at best, so it cannot be reached. One measurement; drift was not measured."]
+];
+let chkF="all";
+function chk(f){chkF=f;$$("#chkFilter button[data-f]").forEach(b=>b.classList.toggle("on",b.dataset.f===f));
+  $("#chkList").innerHTML=CHK.filter(c=>f==="all"||c[2]===f||c[3]===f).map(c=>
+   `<details><summary><span class="mono">${c[0]}</span> ${c[1]} <span class="pill ${c[3]==="pass"?"p-ok":"p-warn"}">${c[0]==="G4-13"?"measured":c[3]==="pass"?"pass":"pass, with a caveat"}</span></summary>
+    <p><b>What was measured.</b> ${c[4]}</p><p><b>Where it falls short.</b> ${c[6]}</p><p class="sub">Evidence: <span class="mono">docs/evidence/goat4/</span> ${c[5]}</p></details>`).join("");}
+$$("#chkFilter button[data-f]").forEach(b=>b.onclick=()=>chk(b.dataset.f));chk("all");
+$("#chkOpen").onclick=()=>{const all=$$("#chkList details");const open=all.some(d=>!d.open);all.forEach(d=>d.open=open);};
+
+/* ---------- goatlite ---------- */
+const PHASES=[
+ ["1","Preflight and render","Gate. Checks the box (it reported READY) and renders the whole configuration surface from <code>goatlite.yaml</code>. The rendered files are generated; they are not edited by hand and not committed. (Step 4 later edited one of them, on purpose, to turn bundle-create off.)"],
+ ["2","Host baseline","Prepares the box and installs Docker. 105 s here. Disk encryption was left off."],
+ ["3","Secrets","Generates the secrets of this goatnet: 33 values, written to a local file and never printed."],
+ ["4","Authority and certificates","Creates the goatnet's own authority and mints 22 leaf certificates, one for each service. Then the box pulls its 11 images; this is where the second run stopped, on the MTU problem."],
+ ["5","Management stack","Brings up NetBird management and what it needs, up to the account seed."],
+ ["6","Ory","Kratos and Hydra: sign-in for people, and OIDC for the dashboard. The account seed runs here. The bootstrap key this phase makes is described as single-use; we found it reusable, with a limit of 200."],
+ ["9","Zenoh router","The data fabric's router, with its TLS identity and the slot pool. SPIRE comes up in this stretch too."],
+ ["10","LAN surface","The dashboard, DNS, TLS routes and STUN, served on the LAN. This phase needed two extra runs."],
+ ["11","Manual step","The stand-up stops here for a person. Add the names to <code>/etc/hosts</code>, trust the root, sign in to the dashboard (it shows 403 until phase 10 is run again to make the first user an administrator), then create a service user and its token and write the token into the local secrets file. The stand-up continues with <code>--from 12</code>. Sign-in requests expire after about 30 minutes, so start from the dashboard address each time."],
+ ["12","ACL, portal and services","Declares the NetBird groups and policies and enforces them; mints the service identities; then the portal, grant-keyd, the onboarding front desk and runner."],
+ ["13","Assay","Gate. The acceptance suite, with values taken from the configuration. Every applicable row must be green."],
+ ["14","Extras","Break-glass node, network jump host and cross-goatnet surfaces. Not needed for a goatlite."]
+];
+function phase(i){$$("#phaseBtns button").forEach((b,j)=>b.classList.toggle("on",i===j));const p=PHASES[i];$("#phaseBody").innerHTML=`<h3>Phase ${p[0]}: ${p[1]}</h3><p>${p[2]}</p>`;}
+PHASES.forEach((p,i)=>{const b=document.createElement("button");b.textContent=p[0]+" "+p[1];b.onclick=()=>phase(i);$("#phaseBtns").appendChild(b);});phase(0);
+
+const ASSAY=[
+ ["mesh","netbird-service-identities","The NetBird service identities exist and verify"],
+ ["mesh","mgmt-api-answers","The management API answers an authorised caller"],
+ ["mesh","mgmt-api-refuses-an-unauthenticated-caller","The management API answers 401 with no credentials"],
+ ["mesh","signal-tls-not-cleartext","The signal service negotiates TLS 1.3"],
+ ["mesh","goat-acl-declaration-holds","The live ACL is the declared one"],
+ ["identity","oidc-dashboard-login-flow","OIDC discovery and keys are served for the dashboard login"],
+ ["identity","fenced-surface-oidc-client-exists","The dashboard's OIDC client exists"],
+ ["identity","portal-resolves-a-person","The portal resolves a person by ID"],
+ ["identity","portal-anchor-linkage-is-recorded","The portal records the person's anchor"],
+ ["fabric","router-tls-identity-mesh-ip","The router's certificate has the expected name and address"],
+ ["fabric","zenoh-router-answers","The router answers"],
+ ["fabric","router-storages-spawned","The router's storages are as configured"],
+ ["fabric","fabric-put-subscribe-roundtrip","A sample published with goat is read back"],
+ ["fabric","goat-hello-roundtrip","<code>goat hello</code> round trip on the box"],
+ ["fabric","goat-status-chain","<code>goat status</code>: the chain from router port to session is healthy"],
+ ["fabric","goat-who-roster","<code>goat who</code> returns the roster"],
+ ["fabric","adminspace-is-not-writable-from-the-fabric","A write to the router's admin space is refused"],
+ ["ops","portal-health-answers","The portal's health endpoint answers"],
+ ["ops","pgbackrest-stanza-and-first-backup","The database has a backup stanza and a first backup"],
+ ["ops","operator-ssh-login-core-a","The operator can log in to the box"],
+ ["ops","deadman-switch-has-external-receiver","The dead man's switch reports to an external receiver"],
+ ["ops","relay-cert-system-trust","The relay's certificate is trusted by the system store"],
+ ["ops","deploy-ledgers-match-main","What is deployed matches the checkout"]
+];
+const AG=[["all","All 23"],["mesh","Mesh"],["identity","Identity"],["fabric","Data fabric"],["ops","Operations"]];
+function assay(g){$$("#assayBtns button").forEach(b=>b.classList.toggle("on",b.dataset.g===g));
+  $("#assayTable").innerHTML="<tr><th>Row</th><th>What it shows</th><th></th></tr>"+ASSAY.filter(a=>g==="all"||a[0]===g).map(a=>`<tr><td class="mono">${a[1]}</td><td>${a[2]}</td><td><span class="pill p-ok">pass</span></td></tr>`).join("");}
+AG.forEach(([g,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.g=g;b.onclick=()=>assay(g);$("#assayBtns").appendChild(b);});assay("all");
+
+const LITE=[
+ ["A release tag cannot be stood up","<p>The request was the latest release, v0.7.3. goatbuilder's fresh-source rule (C3, GB-064) and the Ansible preflight refuse a checkout that is behind <code>origin/main</code>. So the only version one can stand up is the tip of <code>main</code>, and the checkout must be fast-forwarded before each run. Step 4 met this again when it redeployed the portal.</p>"],
+ ["Image pulls timed out in the TLS handshake","<p>All 11 pulls failed with <code>TLS handshake timeout</code>, while <code>curl</code> from the same VM worked. Measured: 1500-byte packets from the VM were dropped and packets up to 1412 bytes passed. A netplan file in the VM that sets the MTU to 1400 fixed it: the same image went from a 51 s timeout to a 1.7 s pull. IPv6 was suspected first and ruled out by a test.</p>"],
+ ["Each tool reads trust from a different place","<p>Browsers use the keychain. Python does not: The assay row <code>relay-cert-system-trust</code> failed although the root was trusted in the keychain. Fix: export <code>SSL_CERT_FILE</code> pointing at a bundle that holds the system roots plus the goatnet's root. The <code>goat</code> client's portal calls use only built-in public roots, so they cannot reach a goatlite portal at all; <code>curl</code> can.</p>"],
+ ["goatlite never stages the peer-health certificate","<p>The row <code>deploy-ledgers-match-main</code> failed. Fix: copy the peer-health leaf from the local goat state to the box by hand, then deploy the peer-health component. This is a gap in goatlite.</p>"],
+ ["Browsers and the LAN","<p>Chrome needed the macOS Local Network permission before it could open pages on the VM's address. Safari is exempt. Command-line tools never appear in that permission list, which later explained why Colima's default network could not reach the VM.</p>"],
+ ["Sign-in requests expire","<p>A Hydra login request lives about 30 minutes. A stale tab gives an error; start again from the dashboard address.</p>"],
+ ["The bootstrap key is not single-use","<p>The key that phase 6 makes is described as single-use. It is reusable, with a limit of 200.</p>"],
+ ["The mesh and another overlay can coexist","<p>The Mac also runs Tailscale. NetBird's range here sits inside the range Tailscale uses, but Tailscale installs one route for each peer, so both work at once. Always start NetBird with its named profile.</p>"],
+ ["A goatlite cannot enrol a machine as shipped","<p>Found in step 4, but it is a goatlite fact: the lite preset turns bundle-create on and nothing installs the binary. See the step 4 lessons.</p>"]
+];
+$("#liteLessons").innerHTML=LITE.map(l=>`<details><summary>${l[0]}</summary>${l[1]}</details>`).join("");
+
+/* ---------- lessons ---------- */
+const LESSONS=[
+ ["Enrolment failed on a real goatlite: HTTP 500, code mint","<p>The lite preset turns bundle-create on, but nothing installs the binary; on the box the path is an empty directory. The user chose to turn the setting off and redeploy the portal. The second run succeeded.</p><p><b>Lesson:</b> goatlite as shipped cannot enrol a machine. This is the most useful upstream finding of step 4.</p>"],
+ ["Two script defects were caught by review before the live run","<p>The script expected HTTP 200 where the portal answers 201. It also took the first other <code>.pem</code> file as the root, and in a real bundle that file is a public key.</p><p><b>Lesson:</b> a fake portal written from reading the code is not the real one. Choose the root by parsing and verifying, never by file name.</p>"],
+ ["A secret pattern that matched nothing","<p>The evidence checker looked for a key prefix that came from misreading a redacted value. The final review caught it. It was replaced by the real key shape, a 64-hex rule and a long-token rule with exact allow-lists.</p><p><b>Lesson:</b> a secret scanner must be tested against a real example of the shape it claims to find.</p>"],
+ ["The README said things that were not run","<p>It said the script \"was run once\" (it ran twice), and its commands had not been run as written. Two full README runs followed. The second added a 60 s wait and brought the G4-06 loss count from 1 to 0.</p><p><b>Lesson:</b> run the document, block by block, before calling it done.</p>"],
+ ["A directory passed as a present file","<p><code>enroll.sh</code> used a test that is true for a directory. It now uses <code>-f</code> and checks all target paths before the first portal write.</p>"],
+ ["Colima could not reach 192.168.x","<p>First cause: macOS Local Network permission blocks limactl's user-mode network, and command-line tools never appear in that permission list. After switching Colima to vzNAT, the second cause appeared: vzNAT isolates VMs at layer 2. Fixed with a route on each VM through the Mac.</p>"],
+ ["Full-size packets can vanish on the way","<p>Twice a path dropped 1500-byte packets without an error: the VM's image pulls timed out in the TLS handshake, and later long TLS connections from the Mac were reset. A lower MTU in the VM fixed the first; an MSS clamp at the site's edge fixed the second. Neither was caused by goatlite, NetBird or Colima.</p><p><b>Lesson:</b> when TLS handshakes time out or large transfers reset while small requests work, check the negotiated MSS before anything else. And state only what was measured: the first causes named for the resets had no evidence and were withdrawn.</p>"],
+ ["A denied write is silent","<p>The router drops a write outside the writer's anchor and reports nothing to the writer. So an access check must look for absence at a subscriber, and needs a control write to prove the subscriber works.</p>"]
+];
+$("#lessonList").innerHTML=LESSONS.map(l=>`<details><summary>${l[0]}</summary>${l[1]}</details>`).join("");
+const QA=[
+ ["Is the mesh the same thing as goatnet membership?","No. A mesh peer is a machine with a WireGuard address. Being on the data fabric means holding a slot: a certificate whose name is the slot ID. A goatnet has both layers, and one can be a member of either without the other."],
+ ["In step 4, what is on the fabric and what is on the mesh?","On the fabric: the bridge and the two host services. On the mesh: only the Mac. Inside the pod, the fusion node and the sensors are on neither; they speak plain Zenoh to the pod router."],
+ ["Would the rig's containers show up as peers in the NetBird dashboard?","No. They are not mesh peers. They show up in the portal's machine list instead."],
+ ["Does the Mac need to be in the platform admin group?","Not for step 4. The rig's data path does not use the mesh."],
+ ["Must Tailscale be stopped?","No. Tailscale installs one route for each of its peers, so the two overlays coexist."],
+ ["Do we need a pod bridge in reality?","With today's goat, yes, if the pod must run alone when cut off: a pod router cannot yet peer with the fabric router. If ADR 1251 is built, the bridge's job changes from \"republish under my name\" to \"carry each source under its own name\"."],
+ ["Is shape C described in an ADR?","Only as a rejected alternative in ADR 1251. No ADR endorses it."],
+ ["A drone is seen by radar and not by camera. The host sends a task. Who gets it?","All registered non-mobile nodes, so both radar and camera. The pod fusion node does not choose by who saw the target. That choice belongs to step 2."],
+ ["Is sensor data stopped at the pod?","Yes. Only the pod fusion node's tracks, alerts, registration, status and task acknowledgements go up."]
+];
+$("#qaList").innerHTML=QA.map(q=>`<details><summary>${q[0]}</summary><p>${q[1]}</p></details>`).join("");
+</script>
+</body>
+</html>
