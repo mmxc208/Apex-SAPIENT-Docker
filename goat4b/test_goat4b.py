@@ -43,7 +43,9 @@ case "$tool $*" in
   "limactl shell goathost ip route show"*) echo "192.168.64.4 via 192.168.64.1 dev lima0" ;;
   "limactl shell goathost systemctl is-active lima-guestagent"*) echo "${STUB_GA:-active}" ;;
   "limactl shell goathost systemctl"*) echo "${STUB_TS:-active}" ;;
-  "limactl shell goathost date"*) [ -n "${STUB_VM_DATE:-}" ] && echo "$STUB_VM_DATE" ;;
+  "limactl shell goathost date"*)
+    if [ "${STUB_VM_DATE:-}" = mac ]; then python3 -c 'import time; print(repr(time.time()))'
+    elif [ -n "${STUB_VM_DATE:-}" ]; then echo "$STUB_VM_DATE"; fi ;;
   "limactl shell goathost ip route get"*) echo "192.168.64.4 via 192.168.64.1 dev lima0 src 192.168.64.7" ;;
   "limactl shell goatlite ip route show"*) echo "${STUB_VM_ADDR:-192.168.64.7} via 192.168.64.1 dev lima0" ;;
   "limactl shell goatlite sudo cat"*)
@@ -350,6 +352,50 @@ class HelperTests(unittest.TestCase):
         self.assertRegex(line, r"^offset of goathost from the Mac \(ms\): [-+]\d+ \(bound \+/-\d+, best of \d+\)$")
         # no answer: unknown, not a number
         self.assertIn("offset of colima from the Mac (ms): unknown", out)
+
+    # ------------------------------------------------------------ clock step and restore
+    def test_clock_step_refuses_no_argument(self):
+        rc, out = self.sh.run("g4b_clock_step")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("refused", out)
+        self.assertEqual(self.sh.calls(), [])
+
+    def test_clock_step_refuses_a_non_number(self):
+        for bad in ("abc", "1s", "0.5.1", "--", "+", "1e3", " "):
+            rc, out = self.sh.run('g4b_clock_step "%s"' % bad)
+            self.assertEqual(rc, 1, (bad, out))
+            self.assertIn("refused", out)
+        self.assertEqual(self.sh.calls(), [])
+
+    def test_clock_step_refuses_more_than_5_seconds(self):
+        for bad in ("5.5", "-6", "+10", "5.001"):
+            rc, out = self.sh.run("g4b_clock_step %s" % bad)
+            self.assertEqual(rc, 1, (bad, out))
+            self.assertIn("refused", out)
+        self.assertEqual(self.sh.calls(), [])
+
+    def test_clock_step_stops_both_syncs_then_steps(self):
+        for good in ("0.5", "-0.15", "+1.2", "5", "-5"):
+            self.sh = Shell(self)
+            rc, out = self.sh.run("g4b_clock_step %s" % good)
+            self.assertEqual(rc, 0, (good, out))
+            (call,) = [c for c in self.sh.calls() if "clock_settime" in c]
+            self.assertTrue(call.startswith("limactl shell goathost sudo "), call)
+            self.assertIn("systemctl stop systemd-timesyncd lima-guestagent", call)
+            self.assertLess(call.index("systemctl stop"), call.index("clock_settime"), call)
+
+    def test_clock_restore_starts_both_syncs_and_fails_if_offset_not_back(self):
+        rc, out = self.sh.run("g4b_clock_restore", G4B_RESTORE_TIMEOUT="0")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("not back", out)
+        calls = "\n".join(self.sh.calls())
+        self.assertIn("limactl shell goathost sudo systemctl start lima-guestagent systemd-timesyncd", calls)
+
+    def test_clock_restore_returns_when_offset_is_within_its_bound(self):
+        # the stub VM reads the Mac's own clock: the offset lies inside the round trip
+        rc, out = self.sh.run("g4b_clock_restore", STUB_VM_DATE="mac", G4B_RESTORE_TIMEOUT="0")
+        self.assertEqual(rc, 0, out)
+        self.assertRegex(out, r"offset back after \d+ s: -?\d+\.\d ms \(bound \+/-\d+\.\d ms\)")
 
     def test_vm_addr_prints_only_the_address(self):
         rc, out = self.sh.run("g4b_vm_addr", STUB_VM_ADDR="192.168.64.12")

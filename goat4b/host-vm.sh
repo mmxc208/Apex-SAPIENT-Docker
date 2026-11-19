@@ -166,3 +166,54 @@ g4b_vm_remove() {
   limactl stop "$G4B_VM" 2>/dev/null || true
   limactl delete --force "$G4B_VM"
 }
+
+# Clock of goathost (G4B-06). Two things set it: systemd-timesyncd, and Lima's host agent, which
+# about every 10 s reads the drift through the guest agent (lima-guestagent) and sets the guest
+# clock when it is off (seen at boot: "guest clock adjusted (was 312ms off)"). A step holds only
+# while both are stopped. While the guest agent is stopped, Lima's forwarded Docker socket may be
+# down: use `limactl shell goathost ...` (ssh) for commands in the VM in that window.
+# A caller that steps the clock restores it in a trap: trap g4b_clock_restore EXIT INT TERM.
+
+# g4b_clock_step <seconds>: stops both, then moves the VM's clock by <seconds> (-5 to 5; positive
+# = ahead) from its current reading. Refused without a number or beyond 5 s.
+g4b_clock_step() {
+  local d=${1-}
+  if ! printf '%s\n' "$d" | grep -Eq '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)$'; then
+    echo "g4b_clock_step: refused: give the step in seconds as a number, e.g. 0.5 or -0.15 (got '${d}')" >&2
+    return 1
+  fi
+  if ! awk -v d="$d" 'BEGIN { exit !(d <= 5 && d >= -5) }'; then
+    echo "g4b_clock_step: refused: $d s is more than 5 s" >&2
+    return 1
+  fi
+  limactl shell "$G4B_VM" sudo sh -c "systemctl stop systemd-timesyncd lima-guestagent && python3 -c 'import time; time.clock_settime(time.CLOCK_REALTIME, time.clock_gettime(time.CLOCK_REALTIME) + ($d))'" \
+    < /dev/null || { echo "g4b_clock_step: the step failed in $G4B_VM (g4b_clock_restore)" >&2; return 1; }
+  echo "g4b_clock_step: stopped systemd-timesyncd and lima-guestagent in $G4B_VM; clock moved by $d s"
+}
+
+# g4b_clock_restore: starts both again and waits (G4B_RESTORE_TIMEOUT s, default 180) until the
+# VM's offset from the Mac is within the bound of its own measurement (as g4b_state prints it).
+# Needs _g4b_offset of goat4b/dg4b.sh. Exit 1 if the offset is not back in time.
+g4b_clock_restore() {
+  local limit=${G4B_RESTORE_TIMEOUT:-180} start now m off bound
+  limactl shell "$G4B_VM" sudo systemctl start lima-guestagent systemd-timesyncd < /dev/null \
+    || echo "g4b_clock_restore: starting the services failed in $G4B_VM" >&2
+  start=$(date +%s)
+  while :; do
+    m=$(_g4b_offset 5 limactl shell "$G4B_VM" date +%s.%N)
+    now=$(date +%s)
+    case "$m" in
+      unknown|'') off=unknown; bound=unknown ;;
+      *) off=${m%% *}; bound=${m#* }; bound=${bound%% *}
+         if awk -v o="$off" -v b="$bound" 'BEGIN { exit !(o <= b && -o <= b) }'; then
+           echo "g4b_clock_restore: offset back after $((now - start)) s: ${off} ms (bound +/-${bound} ms); systemd-timesyncd $(limactl shell "$G4B_VM" systemctl is-active systemd-timesyncd 2>/dev/null), lima-guestagent $(limactl shell "$G4B_VM" systemctl is-active lima-guestagent 2>/dev/null)"
+           return 0
+         fi ;;
+    esac
+    if [ $((now - start)) -ge "$limit" ]; then
+      echo "g4b_clock_restore: offset not back after $((now - start)) s: ${off} ms (bound +/-${bound} ms)" >&2
+      return 1
+    fi
+    sleep 5
+  done
+}
