@@ -857,7 +857,7 @@ docker network connect apex-goat4_mesh apex-goat4-pod-bridge-1
 sleep 40
 dg4 logs host-fusion | grep -E 'removed|request "Registration"|<- registration '
 dg4 logs fusion-node | grep "<- registration_ack f0000002"
-dg4 up -d
+goat4_ready && dg4 up -d
 ```
 
 ```text
@@ -870,7 +870,7 @@ fusion-node-1  | 00:01:09 fusion: <- registration_ack f0000002 -> f0000001 accep
 fusion-node-1  | 00:02:51 fusion: <- registration_ack f0000002 -> f0000001 acceptance=True ['Accepted by fake fusion node (re-registration)']
 ```
 
-`task-5-g4-07.txt`. The first registration is the one at start; the other lines follow the outage. The second line of the block (`goat4_ready && HOST_HOLD_SECONDS=20 dg4 up -d`) and the `echo` after it were changed after every run of this block and were not run. The task run and the first README run had `goat4_ready; echo "goat4_ready exit $?"` and then the start on a line of its own, which printed the line `goat4_ready exit 0` shown above.
+`task-5-g4-07.txt`. The first registration is the one at start; the other lines follow the outage. The second line of the block (`goat4_ready && HOST_HOLD_SECONDS=20 dg4 up -d`) and the `echo` after it were changed after every run of this block and were not run. The task run and the first README run had `goat4_ready; echo "goat4_ready exit $?"` and then the start on a line of its own, which printed the line `goat4_ready exit 0` shown above. The last line of the block (`goat4_ready && dg4 up -d`) was also changed after every run of this block and was not run; before, it was `dg4 up -d`, which started the rig even when the check had failed.
 
 **10. An old task (G4-08).** The unit test of G1-08, unchanged.
 
