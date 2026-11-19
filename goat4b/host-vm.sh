@@ -55,8 +55,15 @@ g4b_vm_load_image() {
 
 # Copies emulators/ and the five files to /opt/apex-host/ in the VM; sets modes. The compose
 # files of G4B_COMPOSE_FILES go to /opt/apex-host/compose/ for G4B_ENGINE=shell.
+# Refused while a container of project apex-goat4b runs: replacing emulators/ under a running
+# host service leaves its working directory outside the mount (seen live: host-fusion stalled).
 g4b_vm_sync() {
-  local f base mode
+  local f base mode running
+  running=$(limactl shell "$G4B_VM" sudo docker ps -q --filter label=com.docker.compose.project=apex-goat4b 2>/dev/null)
+  if [ -n "$running" ]; then
+    echo "g4b_vm_sync: refused: host services of apex-goat4b run in $G4B_VM; dg4b_host stop first, dg4b_host up -d host-fusion host-recorder after" >&2
+    return 1
+  fi
   limactl shell "$G4B_VM" sudo install -d -m 0755 /opt/apex-host /opt/apex-host/pki /opt/apex-host/compose || return 1
   limactl shell "$G4B_VM" sudo rm -rf /opt/apex-host/emulators || return 1
   # no macOS metadata in the stream: GNU tar in the VM warns once per file on such headers
