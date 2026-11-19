@@ -163,6 +163,10 @@ def main() -> int:
     parser.add_argument("--readme", default="README-goat.md")
     args = parser.parse_args()
     files = evidence()
+    if not files:
+        print("no evidence files in " + str(HERE) + ": from 2026-11-19 they are kept out of git and stay on the "
+              "machine that made the runs (see the README.md beside this file). Nothing can be checked here.")
+        return 2
     readme = pathlib.Path(args.readme).read_text()
     start = readme.index(SECTION)
     following = readme.find("\n## ", start + 1)  # the section ends at the next heading of its level

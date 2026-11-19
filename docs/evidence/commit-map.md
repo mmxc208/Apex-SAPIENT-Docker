@@ -28,3 +28,29 @@ On 2026-11-19 the evidence files (`docs/evidence/goat4/*.txt` and `docs/evidence
 | `0cb7fc0` | `2790b06` | docs(goat4): gate the last start of the long-outage block on goat4_ready |
 | `494e64b` | `1394cc9` | docs: the explainer page for goat step 4 and the goatlite stand-up |
 | `311b304` | `7a65467` | docs(goat-context): the ingress gateway and the edge router compared; cut-off on our rig |
+
+## step 4b, branch `goat-step4b-host-vm`
+
+| Old | New | Subject |
+|---|---|---|
+| `7ae0801` | `4bae55a` | docs: the design of goat step 4b, the host on its own machine |
+| `d6dd09e` | `db98c30` | docs: settle four questions of the builder check in the step 4b design |
+| `2355db4` | `77e34e3` | docs: the plan of goat step 4b |
+| `5969c5b` | `34fd47b` | feat(goat4b): the host VM definition, the overlay and the two-engine helpers |
+| `bc72f1f` | `b486f73` | feat(goat4b): the host VM runs the host services; G4B-01 and G4B-02 |
+| `4a2485f` | `3a761e8` | fix(goat4b): g4b_vm_sync refuses while the host services run |
+| `ade0274` | `4d083eb` | fix(goat4b): sync guard fails closed; G4B-01/02 evidence completed |
+| `5d1655c` | `d3f298c` | feat(goat4b): readers, a pod subscriber; g4b_state shows Lima's time sync and offset bounds |
+| `3904f92` | `bdbf795` | feat(goat4b): g4b_clock_step and g4b_clock_restore stop and restart both clock syncs of goathost |
+| `f50fc2f` | `41894a1` | feat(goat4b): readers latency takes --since and --until |
+| `f858f52` | gone: it held only evidence files | feat(goat4b): readers and a pod subscriber; G4B-03, 04, 05 and 11 |
+| `87ef147` | `7a99358` | fix(goat4b): clock step restarts the syncs when the set fails; restore undoes the steps, needs both syncs active and the offset of before |
+| `6351c82` | `4a133b2` | test(goat4b): scripts of G4B-06, G4B-07 and G4B-08, each restoring in a trap |
+| `2c8e225` | gone: it held only evidence files | test(goat4b): G4B-06 clock tolerance, G4B-07 and G4B-08 link cuts |
+| `eb9431f` | gone: it held only evidence files | test(goat4b): G4B-09 no regression, G4B-10 configuration only |
+| `13f8a6c` | `a4fb526` | docs: hierarchy, echelon and how step 4b fits goat's ADRs |
+| `f914d68` | `10eba18` | docs(goat4b): the acceptance record, the README section and the roadmap |
+| `e24a81f` | `32e7c89` | docs(goat4b): fix round 1 of the record: the README's step 6 run as written, wording of inferred and untested points |
+| `9eb749d` | `8b53176` | docs: the explainer page for goat step 4b |
+| `a714aec` | `3026010` | fix(goat4b): guards on run/create/start/restart, route recovery in the refusals, hold flag first, optional env file |
+| `e8e9bd4` | `c09cd03` | docs(goat4b): final review fixes to the record, the README, the explainer and the explainer index |
