@@ -1,8 +1,11 @@
 # Shared by goat4b/run_g4b_06.sh, run_g4b_07.sh and run_g4b_08.sh (task 4). Sourced by zsh from
-# the repo root. Sets the Docker environment and the helpers, and gives small readers. Changes
-# nothing by itself.
+# the repo root. Sets the helpers and gives small readers. Changes nothing by itself.
 
-. .superpowers/sdd/2026-11-18-goat-step4-cuaslab/docker-env.sh
+# The Docker environment of the agent session that made the runs of task 4, if it is there. The
+# file is git-ignored; without it the shell's own Docker environment is used, and nothing is printed.
+_g4b_env=.superpowers/sdd/2026-11-18-goat-step4-cuaslab/docker-env.sh
+[ -f "$_g4b_env" ] && . "$_g4b_env"
+unset _g4b_env
 . goat4/dg4.sh
 . goat4b/host-vm.sh
 . goat4b/dg4b.sh
@@ -18,9 +21,6 @@ utc_add() { python3 -c 'import sys, datetime as d; t = d.datetime.fromisoformat(
 
 # A sleep that a trapped signal ends at once (the trap runs then, not after the sleep).
 pause() { sleep "$1" & wait $!; }
-
-# Home paths shortened to ~ in everything printed (also URL-encoded ones).
-tilde() { sed -e "s|$HOME|~|g" -e "s|$(printf '%s' "$HOME" | sed 's|/|%2F|g')|~|g"; }
 
 # Evidence header: UTC time and the commit.
 header() { echo "$(utc) $(git rev-parse --short HEAD)"; }

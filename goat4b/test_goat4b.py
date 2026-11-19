@@ -71,14 +71,14 @@ class Shell:
         self.log = os.path.join(self.tmp, "calls.log")
         open(self.log, "w").close()
 
-    def run(self, body, **env):
+    def run(self, body, shell=("zsh", "-fc"), **env):
         script = (". goat4/dg4.sh; . goat4b/dg4b.sh; . goat4b/host-vm.sh; "
                   "goat4_ready() { return 0; }; " + body)
         e = dict(os.environ, STUB_LOG=self.log, PATH=self.bin + os.pathsep + os.environ["PATH"])
         e.pop("HOST_HOLD_SECONDS", None)
         e.pop("G4B_ENGINE", None)
         e.update(env)
-        p = subprocess.run(["zsh", "-fc", script], cwd=ROOT, env=e, stdin=subprocess.DEVNULL,
+        p = subprocess.run(list(shell) + [script], cwd=ROOT, env=e, stdin=subprocess.DEVNULL,
                            capture_output=True, text=True)
         return p.returncode, p.stdout + p.stderr
 
@@ -165,6 +165,85 @@ class HelperTests(unittest.TestCase):
 
     def test_dg4b_host_up_adds_no_deps(self):
         rc, out = self.sh.run("dg4b_host up -d host-fusion host-recorder")
+        self.assertEqual(rc, 0, out)
+        (call,) = self.sh.calls()
+        self.assertIn(" up --no-deps -d host-fusion host-recorder ", call)
+
+    def _refused(self, cmd, word=None):
+        self.sh = Shell(self)
+        rc, out = self.sh.run(cmd)
+        self.assertEqual(rc, 1, cmd + "\n" + out)
+        self.assertIn("refused", out, cmd)
+        if word:
+            self.assertIn(word, out, cmd)
+        self.assertEqual(self.sh.calls(), [], cmd)
+
+    def _passed(self, cmd, expect):
+        self.sh = Shell(self)
+        rc, out = self.sh.run(cmd)
+        self.assertEqual(rc, 0, cmd + "\n" + out)
+        (call,) = self.sh.calls()
+        self.assertIn(expect, call, cmd)
+
+    def test_dg4b_pod_run_create_start_restart_refuse_host_service(self):
+        for cmd in ("dg4b_pod run --rm host-fusion sh",
+                    "dg4b_pod run --rm -e A=1 -v /x:/y host-recorder sh",
+                    "dg4b_pod create radar host-fusion",
+                    "dg4b_pod start host-recorder",
+                    "dg4b_pod restart -t 5 host-fusion"):
+            with self.subTest(cmd=cmd):
+                self._refused(cmd, "host-")
+
+    def test_dg4b_pod_create_start_restart_refuse_no_service(self):
+        for cmd in ("dg4b_pod create", "dg4b_pod start", "dg4b_pod restart",
+                    "dg4b_pod restart -t 5", "dg4b_pod run --rm"):
+            with self.subTest(cmd=cmd):
+                self._refused(cmd)
+
+    def test_dg4b_pod_run_checks_only_the_service_not_the_command(self):
+        # the form of README step 5 (pod_sub); the command's words are not services
+        self._passed("dg4b_pod run --rm --no-deps -T -e PYTHONPATH=/emulators "
+                     "-v /p/pod_sub.py:/w/pod_sub.py:ro recorder python /w/pod_sub.py host-fusion",
+                     " run --rm --no-deps -T -e PYTHONPATH=/emulators")
+
+    def test_dg4b_pod_start_and_restart_of_pod_services_pass(self):
+        self._passed("dg4b_pod start pod-bridge", " start pod-bridge DOCKER_HOST=")
+        self._passed("dg4b_pod restart -t 5 radar camera", " restart -t 5 radar camera DOCKER_HOST=")
+        self._passed("dg4b_pod create radar", " create radar DOCKER_HOST=")
+
+    def test_dg4b_host_run_create_start_restart_refuse_pod_service(self):
+        for cmd in ("dg4b_host run --rm radar sh",
+                    "dg4b_host run -T --entrypoint sh recorder",
+                    "dg4b_host create host-fusion radar",
+                    "dg4b_host start fusion-node",
+                    "dg4b_host restart host-fusion pod-bridge"):
+            with self.subTest(cmd=cmd):
+                self._refused(cmd)
+
+    def test_dg4b_host_create_start_restart_refuse_no_service(self):
+        for cmd in ("dg4b_host create", "dg4b_host start", "dg4b_host restart", "dg4b_host run -T"):
+            with self.subTest(cmd=cmd):
+                self._refused(cmd)
+
+    def test_dg4b_host_run_start_restart_of_host_services_pass(self):
+        # restart of both: the form of run_g4b_08.sh
+        self._passed("dg4b_host restart host-fusion host-recorder",
+                     " restart host-fusion host-recorder DOCKER_HOST=")
+        self._passed("dg4b_host start host-recorder", " start host-recorder DOCKER_HOST=")
+        self._passed("dg4b_host run --rm -T host-recorder sh -c radar",
+                     " run --rm -T host-recorder sh -c radar DOCKER_HOST=")
+
+    def test_guards_work_in_bash(self):
+        # dg4b.sh and host-vm.sh claim bash 3.2 as well as zsh: the same stubs, in /bin/bash
+        bash = ("/bin/bash", "-c")
+        rc, out = self.sh.run("dg4b_pod up -d radar host-fusion", shell=bash)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("refused: 'host-fusion'", out)
+        rc, out = self.sh.run("dg4b_host up -d radar", shell=bash)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("refused: 'radar'", out)
+        self.assertEqual(self.sh.calls(), [])
+        rc, out = self.sh.run("dg4b_host up -d host-fusion host-recorder", shell=bash)
         self.assertEqual(rc, 0, out)
         (call,) = self.sh.calls()
         self.assertIn(" up --no-deps -d host-fusion host-recorder ", call)
@@ -457,6 +536,42 @@ class HelperTests(unittest.TestCase):
     def test_vm_addr_prints_only_the_address(self):
         rc, out = self.sh.run("g4b_vm_addr", STUB_VM_ADDR="192.168.64.12")
         self.assertEqual((rc, out.strip()), (0, "192.168.64.12"))
+
+
+class RunLibTests(unittest.TestCase):
+    """goat4b/run_lib.sh in a copy of the repo's layout, with and without the agent's env file."""
+    ENV = ".superpowers/sdd/2026-11-18-goat-step4-cuaslab/docker-env.sh"
+
+    def _root(self, with_env):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        for d in ("goat4", "goat4b"):
+            os.symlink(os.path.join(ROOT, d), os.path.join(root, d))
+        os.makedirs(os.path.join(root, "zenoh", "goat4"))
+        with open(os.path.join(root, "zenoh", "goat4", "goat4.env"), "w") as f:
+            f.write("FABRIC_POD1_ID=x\n")
+        if with_env:
+            os.makedirs(os.path.join(root, os.path.dirname(self.ENV)))
+            with open(os.path.join(root, self.ENV), "w") as f:
+                f.write("echo ENV-SOURCED\n")
+        return root
+
+    def _source(self, root):
+        p = subprocess.run(["zsh", "-fc", ". goat4b/run_lib.sh; echo rc=$?"], cwd=root,
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        return p.stdout + p.stderr
+
+    def test_without_the_env_file_nothing_is_printed(self):
+        out = self._source(self._root(with_env=False))
+        self.assertEqual(out.strip(), "rc=0")
+
+    def test_with_the_env_file_it_is_sourced(self):
+        out = self._source(self._root(with_env=True))
+        self.assertEqual(out.split(), ["ENV-SOURCED", "rc=0"])
+
+    def test_tilde_is_gone(self):
+        with open(os.path.join(HERE, "run_lib.sh")) as f:
+            self.assertNotIn("tilde", f.read())
 
 
 class OverlayTests(unittest.TestCase):

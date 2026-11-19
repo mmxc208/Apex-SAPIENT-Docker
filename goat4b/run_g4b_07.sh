@@ -15,7 +15,8 @@ case "$MODE" in short) CUT=30 ;; long) CUT=40 ;; *) echo "usage: $0 short|long" 
 ROUTE=$(colima ssh -- ip route show 192.168.64.4/32 < /dev/null | head -n 1 | tr -s ' ' | sed 's/ *$//')
 case "$ROUTE" in
   "192.168.64.4 via 192.168.64.1 "*) ;;
-  *) echo "refused: the route from Colima to 192.168.64.4 is '$ROUTE', not the normal one; restore it first" >&2; exit 1 ;;
+  *) echo "refused: the route from Colima to 192.168.64.4 is '$ROUTE', not the normal one; restore it first:" >&2
+     echo "  colima ssh -- sudo ip route replace 192.168.64.4/32 via 192.168.64.1 dev col0" >&2; exit 1 ;;
 esac
 
 route_line() { colima ssh -- ip route show 192.168.64.4/32 < /dev/null | head -n 1; }
@@ -65,8 +66,9 @@ echo "\$ containers' StartedAt"; started_at
 if [ "$MODE" = long ]; then
   echo
   echo "## the host services again with HOST_HOLD_SECONDS=20"
-  echo "\$ dg4b_host down"; dg4b_host down
+  # the flag first: an interrupt during or right after the down still brings the services back
   hold_changed=1
+  echo "\$ dg4b_host down"; dg4b_host down
   echo "\$ goat4b_ready"; goat4b_ready; echo "goat4b_ready exit $?"
   echo "\$ HOST_HOLD_SECONDS=20 dg4b_host up -d host-fusion host-recorder"
   HOST_HOLD_SECONDS=20 dg4b_host up -d host-fusion host-recorder

@@ -23,18 +23,23 @@ _g4b_vm_sock() { printf '%s\n' "${G4B_VM_SOCK:-unix://$HOME/.lima/goathost/sock/
 # Words of $1 (a space-separated list) contain $2?
 _g4b_in() { case " $1 " in *" $2 "*) return 0 ;; *) return 1 ;; esac; }
 
-# Prints the service names an `up` names, one per line. Arguments: those after `up`.
-# Options that take a value in a separate word are skipped with their value.
-_g4b_up_services() {
-  local skip=0 a
+# Prints the service names that the compose subcommand $1 names, one per line. Arguments: the
+# subcommand, then the words after it. Options that take a value in a separate word are skipped
+# with their value. For `run` only the first name is a service; the words after it are the command.
+_g4b_services() {
+  local sub=$1 skip=0 a
+  shift
   for a in "$@"; do
     if [ "$skip" -eq 1 ]; then skip=0; continue; fi
     case "$a" in
       --scale|-t|--timeout|--pull|--attach|--no-attach|--wait-timeout|--exit-code-from) skip=1 ;;
+      -e|--env|--env-from-file|-v|--volume|-l|--label|-p|--publish|-u|--user|-w|--workdir|--name|--entrypoint|--cap-add|--cap-drop)
+        [ "$sub" = run ] && skip=1 ;;
       -*) ;;
-      *) printf '%s\n' "$a" ;;
+      *) printf '%s\n' "$a"; [ "$sub" = run ] && return 0 ;;
     esac
   done
+  return 0
 }
 
 # The first word of the arguments that is not an option: the compose subcommand.
@@ -48,24 +53,31 @@ _g4b_subcmd() {
 # Prints the words of the space-separated list $1, one per line (zsh does not split $var).
 _g4b_w() { printf '%s\n' "$1" | tr ' ' '\n'; }
 
-# _g4b_check_up <allowed services> <need at least one: 1|0> <who> args...  (args include `up`)
-# Prints the reason and returns 1 if refused.
-_g4b_check_up() {
-  local allowed=$1 need=$2 who=$3 s n=0 a found=0
+# The subcommands that make, start or run containers: each must name at least one service, and
+# only services of its engine. (`up` with no service, `start` or `restart` with none, would act
+# on every service of the project, the other engine's among them.)
+G4B_GUARDED="up run create start restart"
+
+# _g4b_check <allowed services> <who> args...  (args include the subcommand)
+# Prints the reason and returns 1 if refused; returns 0 for a subcommand that is not guarded.
+_g4b_check() {
+  local allowed=$1 who=$2 sub s n=0 a found=0
   local rest=()
-  shift 3
+  shift 2
+  sub=$(_g4b_subcmd "$@")
+  _g4b_in "$G4B_GUARDED" "$sub" || return 0
   for a in "$@"; do
-    if [ "$found" -eq 1 ]; then rest+=("$a"); elif [ "$a" = up ]; then found=1; fi
+    if [ "$found" -eq 1 ]; then rest+=("$a"); elif [ "$a" = "$sub" ]; then found=1; fi
   done
-  for s in $(_g4b_up_services ${rest[@]+"${rest[@]}"}); do
+  for s in $(_g4b_services "$sub" ${rest[@]+"${rest[@]}"}); do
     n=$((n + 1))
     if ! _g4b_in "$allowed" "$s"; then
       echo "$who: refused: '$s' is not a service of this engine (allowed: $allowed)" >&2
       return 1
     fi
   done
-  if [ "$need" -eq 1 ] && [ "$n" -eq 0 ]; then
-    echo "$who: refused: name at least one service (allowed: $allowed)" >&2
+  if [ "$n" -eq 0 ]; then
+    echo "$who: refused: $sub needs at least one service named (allowed: $allowed)" >&2
     return 1
   fi
   return 0
@@ -77,9 +89,7 @@ dg4b_pod() {
     shift
     set -- up -d "$@" $(_g4b_w "$G4B_POD_SERVICES")
   fi
-  if [ "$(_g4b_subcmd "$@")" = up ]; then
-    _g4b_check_up "$G4B_POD_SERVICES" 1 dg4b_pod "$@" || return 1
-  fi
+  _g4b_check "$G4B_POD_SERVICES" dg4b_pod "$@" || return 1
   (
     export DOCKER_HOST="$(_g4b_colima_sock)"
     docker compose -p apex-goat4 \
@@ -88,12 +98,13 @@ dg4b_pod() {
   )
 }
 
-# The engine of the goathost VM. `up` adds --no-deps and may name only host services.
+# The engine of the goathost VM. `up`, `run`, `create`, `start` and `restart` may name only host
+# services; `up` adds --no-deps.
 dg4b_host() {
   local sub
+  _g4b_check "$G4B_HOST_SERVICES" dg4b_host "$@" || return 1
   sub=$(_g4b_subcmd "$@")
   if [ "$sub" = up ]; then
-    _g4b_check_up "$G4B_HOST_SERVICES" 1 dg4b_host "$@" || return 1
     # --no-deps goes right after `up`
     local out=() a added=0
     for a in "$@"; do

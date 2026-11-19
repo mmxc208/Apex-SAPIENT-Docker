@@ -13,7 +13,8 @@ route_line() { limactl shell goathost ip route show 192.168.64.4/32 < /dev/null 
 ROUTE=$(route_line)
 case "$ROUTE" in
   "192.168.64.4 via 192.168.64.1 "*) ;;
-  *) echo "refused: the route in goathost to 192.168.64.4 is '$ROUTE', not the normal one; restore it first" >&2; exit 1 ;;
+  *) echo "refused: the route in goathost to 192.168.64.4 is '$ROUTE', not the normal one; restore it first:" >&2
+     echo "  limactl shell goathost sudo ip route replace 192.168.64.4/32 via 192.168.64.1 dev lima0" >&2; exit 1 ;;
 esac
 TMPD=$(mktemp -d /tmp/g4b08.XXXXXX)
 
