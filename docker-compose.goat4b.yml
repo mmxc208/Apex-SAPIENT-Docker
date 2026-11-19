@@ -1,0 +1,20 @@
+# Goat step 4b: the two host services run on the engine of the goathost VM. This overlay changes
+# only their bind-mount sources, to paths in that VM; the engine there cannot see the Mac's files.
+# Use it through goat4b/dg4b.sh (dg4b_host), after goat4b/host-vm.sh (g4b_vm_sync) has copied
+# the files to /opt/apex-host/. Merged by target path, so every other mount of the two services
+# (host-records) stays as step 1 has it.
+
+services:
+  host-fusion:
+    volumes:
+      - /opt/apex-host/emulators:/emulators:ro
+      - /opt/apex-host/pki/ca.pem:/certs/ca.pem:ro
+      - /opt/apex-host/pki/host-fusion.pem:/certs/host-fusion.pem:ro
+      - /opt/apex-host/pki/host-fusion.key:/certs/host-fusion.key:ro
+
+  host-recorder:
+    volumes:
+      - /opt/apex-host/emulators:/emulators:ro
+      - /opt/apex-host/pki/ca.pem:/certs/ca.pem:ro
+      - /opt/apex-host/pki/host-recorder.pem:/certs/host-recorder.pem:ro
+      - /opt/apex-host/pki/host-recorder.key:/certs/host-recorder.key:ro

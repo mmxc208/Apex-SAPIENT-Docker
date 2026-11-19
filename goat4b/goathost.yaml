@@ -1,0 +1,78 @@
+# Goat step 4b: the host VM. It runs the host fusion node and the host recorder of the step 4 rig
+# on their own machine. No file of the Mac is mounted. Start it through goat4b/host-vm.sh:
+#   . goat4b/host-vm.sh && g4b_vm_create
+minimumLimaVersion: 2.0.0
+vmType: vz
+arch: aarch64
+
+images:
+# Same Ubuntu 24.04 arm64 image as the goatlite VM, pinned first, then the latest release.
+- location: "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+  digest: "sha256:50e24e1fb79e89116e939d90aa7738f7af48c442fa1bc2510131e0b39c50348e"
+  variant: "server"
+- location: https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-arm64.img
+  arch: aarch64
+  variant: "server"
+
+cpus: 2
+memory: 4GiB
+disk: 20GiB
+
+networks:
+- vzNAT: true
+
+mounts: []
+
+containerd:
+  user: false
+  system: false
+
+provision:
+# Rootful Docker (engine and compose plugin), the user in the docker group so that the
+# forwarded socket works, and the directory of the host's files.
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v docker >/dev/null 2>&1 || curl -fsSL https://get.docker.com | sh
+    usermod -aG docker "${LIMA_CIDATA_USER}"
+    systemctl enable --now docker
+    install -d -m 0755 /opt/apex-host /opt/apex-host/pki /opt/apex-host/compose
+# The route to the cuaslab router goes through the Mac (vzNAT isolates VMs at L2). It is a netplan
+# file, so a restart keeps it; the live route is set too, without a netplan apply.
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    cat > /etc/netplan/90-cuaslab-route.yaml <<'NETPLAN'
+    # goathost: the cuaslab router (192.168.64.4) is reached via the Mac; vzNAT isolates VMs at L2
+    network:
+      version: 2
+      ethernets:
+        lima0:
+          routes:
+            - to: 192.168.64.4/32
+              via: 192.168.64.1
+    NETPLAN
+    chmod 0600 /etc/netplan/90-cuaslab-route.yaml
+    ip route replace 192.168.64.4/32 via 192.168.64.1 || true
+
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "docker is not installed yet"
+      exit 1
+    fi
+    if ! timeout 30s bash -c "until sudo docker info >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "dockerd is not running"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log" in the guest
+
+# The rootful Docker socket, forwarded to the Mac: $HOME/.lima/goathost/sock/docker.sock
+portForwards:
+- guestSocket: "/var/run/docker.sock"
+  hostSocket: "{{.Dir}}/sock/docker.sock"
