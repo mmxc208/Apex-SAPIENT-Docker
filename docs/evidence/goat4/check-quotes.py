@@ -18,10 +18,15 @@ Quotes checked (the method of docs/evidence/goat1/check-quotes.py):
   evidence file. Record spans are searched in all the .txt files of this directory.
 Trailing white space is ignored on both sides. Only the .txt files of this directory are searched.
 
-Secret rule (added in step 4): every file below this directory, of any type, is searched for the
-patterns of SECRET. A match fails the check, unless the whole line is in ALLOWED: a line that names
-the patterns in a saved check, not a secret. The patterns are written in pieces so that this file
-does not match itself.
+Secret rule (added in step 4, widened in the final fix wave): every file below this directory, of any
+type, is searched for the patterns of SECRET: a private key header; the field and path names of the
+enrolment answer that carry an API key, a bundle token or a bundle path; a machine API key in the shape
+the portal mints (prefix "vp", a lower-case id, 64 hex); any 64-hex string, except right after
+"sha256:" (a docker image digest); and any standalone token of 40 or more characters of letters,
+digits, "_" and "-" that is not purely hexadecimal and has no "/" next to it (the shape of the
+operator key, which has no fixed prefix). A match fails the check, unless the whole line is in
+ALLOWED: an exact line judged harmless. The earlier rule looked for a key prefix that no key of this
+portal has. The patterns are written in pieces so that this file does not match itself.
 """
 import argparse
 import pathlib
@@ -43,16 +48,43 @@ LOGLIKE = re.compile(
 README_RUN = "readme-run.txt"  # the transcript of the README run; not a source of the outputs shown in the README
 TXT_NAME = re.compile(r"`([A-Za-z0-9_.-]+\.txt)`")
 COMMAND = re.compile(r"^(?:\$ |dg4 |dg |docker |python3 |goat |git |grep |shasum |test |HOST_HOLD|ZENOHD_|colima |limactl )")
+# The secret rule. Each pattern is written in pieces, so that this file does not match itself.
 SECRET = re.compile(
-    "PRIVATE" + " KEY" + "|sbq" + "_[A-Za-z0-9_-]{20,}" + "|api" + "_key" + "|bundle" + "_token" + "|/api/" + "org-bundle/"
+    "PRIVATE" + " KEY"                      # a private key header
+    + "|api" + "_key" + "|bundle" + "_token" + "|/api/" + "org-bundle/"  # field and path names of the enrolment answer
+    + "|vp" + "_[a-z0-9-]+_[0-9a-f]{64}"    # a machine API key as the portal mints it
+    + "|(?<![0-9A-Fa-f])[0-9A-Fa-f]{6" + "4}(?![0-9A-Fa-f])"  # any 64-hex string
+    # any standalone token of 40 or more characters of [A-Za-z0-9_-] that is not purely
+    # hexadecimal and is not part of a path (no "/" next to it): the shape of an operator key
+    + "|(?<![A-Za-z0-9_/-])(?=[A-Za-z0-9_-]*[G-Zg-z_-])[A-Za-z0-9_-]{4" + "0,}(?![A-Za-z0-9_/-])"
 )
+# A 64-hex string right after "sha256:" is a docker image digest, not a secret.
+DIGEST = re.compile("sha256:[0-9a-f]{6" + "4}")
+# Exact lines that match a pattern and were judged harmless, one by one (see README.md). Long
+# tokens are split with "+" so that this file does not match itself.
+_TEST_3 = "tests/test_pod_bridg" + "e.py::test_a_task_wi" + "thout_a_timestamp_is" + "_stale PASSED [ 75%]"
+_TEST_4 = ("tests/test_pod_bridg" + "e.py::test_registrat" + "ion_ack_is_not_subje" + "ct_to_the_age_limit "
+           + "PASSED [100%]")
+_SHA_POD = ("c3a5e2b99a4a843d0322" + "ddddd5dde61cf5c9796a" + "25bb1d962af9c9b519b8" + "4627  zenoh/goat1/ro"
+            + "uter-pod1.json5")
+_SHA_FABRIC = ("f7f5e342377767ddcf0e" + "22d754d22236f1417967" + "dcd2891927b6aea54a3b" + "edf8  zenoh/goat1/ro"
+               + "uter-fabric.json5")
 ALLOWED = {
     # task-2-verify.txt: the header of the secret grep that Task 2 ran; it names the patterns.
     ("task-2-verify.txt", "# grep -rEl 'PRIVATE" + " KEY|sbq_|api" + "_key|bundle" + "_token|org-bundle' docs/evidence/goat4/"
      " ; exit status below (1 = no file matched)"),
+    # the names of two unit tests of G1-08, as pytest prints them (G4-08, and block 13 of the README run)
+    ("task-5-g4-08.txt", _TEST_3), ("task-5-g4-08.txt", _TEST_4),
+    ("readme-run.txt", _TEST_3), ("readme-run.txt", _TEST_4),
+    # the SHA-256 of the two router files of the step 1 generator (G4-09, and block 14 of the README run)
+    ("task-5-g4-09.txt", _SHA_POD), ("task-5-g4-09.txt", _SHA_FABRIC),
+    ("readme-run.txt", _SHA_POD), ("readme-run.txt", _SHA_FABRIC),
+    # a line of 60 "-" that separates the parts of the README run's step 1 appendix
+    ("readme-run.txt", "-" * 60),
+    # the name of the portal's staging directory of the refused run: "stage", the anchor, a UTC time
+    ("task-2-refusal-diagnosis.txt", "# (.stage-7a640b349a" + "c2e03848531fce2000fc" + "57-20261118T233724Z)"
+     + ", so that slot was free again."),
 }
-
-
 def evidence() -> dict[str, list[str]]:
     files = {}
     # the files of the task runs first, the README run last, so that a record quote is found in a task file if it is in one
@@ -91,7 +123,7 @@ def secrets() -> int:
         rel = path.relative_to(HERE).as_posix()
         text = path.read_bytes().decode("utf-8", errors="replace")
         for number, line in enumerate(text.replace("\r\n", "\n").split("\n"), 1):
-            if SECRET.search(line) and (rel, line.rstrip()) not in ALLOWED:
+            if SECRET.search(DIGEST.sub("sha256:digest", line)) and (rel, line.rstrip()) not in ALLOWED:
                 found += 1
                 print("SECRET", f"{rel}:{number}", "| a secret pattern matched (line not printed)")
     return found

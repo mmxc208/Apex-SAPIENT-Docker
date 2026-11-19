@@ -1,6 +1,6 @@
 # Step 4 design: the step 1 rig on a real goatnet, by configuration only
 
-Date: 2026-11-18. Branch: `goat-step4-cuaslab`, made from `goat` at `8b536f9`. Status: design, not built.
+Date: 2026-11-18. Branch: `goat-step4-cuaslab`, made from `goat` at `8b536f9`. Status: built on 2026-11-18 to 19 UTC; the record is `docs/acceptance-goat4.md`.
 
 Read first: `docs/goat-roadmap.md`, `docs/goat-context.md`, `docs/acceptance-goat1.md`, and the step 1 design `docs/superpowers/specs/2026-11-11-goat-step1-pod-to-host-design.md`. This document uses the words of those files and does not repeat them.
 
@@ -49,6 +49,7 @@ What changed in goat between `cbf2cb7f` and `e44e893d` does not touch the slot w
 - No session ID, no schema declaration at `attest/schema`, no topic registration at the portal. They are the next small step.
 - No mesh. The pod does not become a mesh peer, and the goatlite box does not join the mesh.
 - No change to `cuaslab`: no router log level, no access rule, no portal setting. Enrolments and a quota are the only things this step writes there.
+- (Added after the build.) One portal setting of `cuaslab` was changed after all, by Richard's decision on 2026-11-18: bundle-create was turned off (see `docs/acceptance-goat4.md`).
 - No move of the host fusion node or the recorder into the goatlite VM.
 - No Stone Soup, no Billie adapter, no second pod.
 
