@@ -90,7 +90,18 @@ cn_of() {
   openssl x509 -in "$1" -noout -subject -nameopt RFC2253 2>/dev/null | sed -n 's/.*CN=\([^,\/]*\).*/\1/p'
 }
 
-# 2. list the machines
+# 2. every target path that exists must be a regular file. Docker makes a directory
+# where a bind-mount source is missing, and [ -s ] is true for a directory. Checked
+# before any request, so nothing is written to the portal.
+for f in "$OUT/goat4.env" "$OUT/pki/ca.pem" "$OUT/pki/pod1.pem" "$OUT/pki/pod1.key" \
+         "$OUT/pki/host-fusion.pem" "$OUT/pki/host-fusion.key" \
+         "$OUT/pki/host-recorder.pem" "$OUT/pki/host-recorder.key"; do
+  if [ -e "$f" ] || [ -L "$f" ]; then
+    [ -f "$f" ] || die "$f exists and is not a regular file (a directory left by Docker?); remove it first; nothing was sent to the portal"
+  fi
+done
+
+# 3. list the machines
 api GET /api/machines
 is2xx "$STATUS" || die "listing machines failed: HTTP $STATUS, code $(errcode)"
 python3 -I -c '
@@ -102,7 +113,7 @@ for m in d["machines"]:
     print(m.get("system_handle", ""), m.get("slot_id", ""))
 ' "$WORK/resp" > "$WORK/machines.txt" || die "the machine list has no machines key; nothing was enrolled"
 
-# 3. decide per handle, before anything is written to the portal
+# 4. decide per handle, before anything is written to the portal
 TODO=""
 ANCHORS="$WORK/anchors.txt"
 : > "$ANCHORS"
@@ -110,7 +121,8 @@ BAD=0
 while IFS=: read -r handle stem class autonomy var; do
   live="$(awk -v h="$handle" '$1 == h { print $2; exit }' "$WORK/machines.txt")"
   have=0
-  [ -s "$OUT/pki/$stem.pem" ] && [ -s "$OUT/pki/$stem.key" ] && have=1
+  [ -f "$OUT/pki/$stem.pem" ] && [ -s "$OUT/pki/$stem.pem" ] \
+    && [ -f "$OUT/pki/$stem.key" ] && [ -s "$OUT/pki/$stem.key" ] && have=1
   if grep -q "^$handle " "$WORK/machines.txt"; then
     if [ "$have" = 1 ]; then
       cn="$(cn_of "$OUT/pki/$stem.pem")"
@@ -130,13 +142,13 @@ while IFS=: read -r handle stem class autonomy var; do
 done <<EOF
 $MACHINES
 EOF
-if [ -s "$ANCHORS" ] && [ ! -s "$OUT/pki/ca.pem" ]; then
+if [ -s "$ANCHORS" ] && { [ ! -f "$OUT/pki/ca.pem" ] || [ ! -s "$OUT/pki/ca.pem" ]; }; then
   echo "enroll.sh: handles are present but $OUT/pki/ca.pem is missing or empty; nothing was enrolled" >&2
   BAD=1
 fi
 [ "$BAD" = 0 ] || exit 1
 
-# 4. the grant, only when something is to be enrolled
+# 5. the grant, only when something is to be enrolled
 if [ -n "$TODO" ]; then
   api GET "/api/machines/grant/$CUSTODIAN"
   if is2xx "$STATUS"; then
@@ -152,7 +164,7 @@ print(json.dumps({"custodian": sys.argv[1], "quota": int(sys.argv[2]), "affiliat
   fi
 fi
 
-# 5. enrol the missing handles
+# 6. enrol the missing handles
 mkdir -p "$OUT/pki" || die "cannot create $OUT/pki"
 CA_DONE=0
 rc=0
@@ -170,6 +182,11 @@ import json, sys
 print(json.dumps({"machine_handle": sys.argv[1], "node_class": sys.argv[2], "autonomy": sys.argv[3], "custodian": sys.argv[4]}))
 ' "$handle" "$class" "$autonomy" "$CUSTODIAN")"
   api POST /api/machines/enroll "$body"
+  case "$STATUS" in
+    curl-exit-*)
+      # no answer (a timeout, say): the portal may have enrolled the handle or not
+      die "$handle: the enrolment request got no answer ($STATUS); whether the portal enrolled $handle is unknown. Run the script again: it lists the machines first, and a live handle without files stops the run" ;;
+  esac
   is2xx "$STATUS" || die "$handle: enrolment refused: HTTP $STATUS, code $(errcode)"
   anchor="$(jget "$WORK/resp" slot_id)"
   burl="$(jget "$WORK/resp" bundle_url)"
@@ -231,7 +248,7 @@ done <<EOF
 $MACHINES
 EOF
 
-# 6. goat4.env last, then the report
+# 7. goat4.env last, then the report
 ENVTMP="$WORK/goat4.env"
 : > "$ENVTMP"
 while IFS=: read -r handle stem class autonomy var; do

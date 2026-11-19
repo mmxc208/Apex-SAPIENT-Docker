@@ -63,7 +63,7 @@ class FakePortal:
 
     def __init__(self, bundles, listed=(), grant_exists=False, refuse=None, no_mesh_key=False,
                  bundle_without_key=False, bad_slot_for=None, bundle_status=200,
-                 machines_key=True, extra_files=()):
+                 machines_key=True, extra_files=(), drop_enrol_for=None):
         self.bundles = bundles          # anchor -> (cert path, key path, root path)
         self.listed = list(listed)      # handles that already hold a live slot
         self.grant_exists = grant_exists
@@ -74,6 +74,7 @@ class FakePortal:
         self.bundle_status = bundle_status
         self.machines_key = machines_key
         self.extra_files = list(extra_files)
+        self.drop_enrol_for = drop_enrol_for  # handle whose enrol request gets no answer
         self.requests = []              # (method, path, auth header, parsed body)
         self.lock = threading.Lock()
         portal = self
@@ -119,6 +120,10 @@ class FakePortal:
 
             def enroll(self, body):
                 handle = body["machine_handle"]
+                if portal.drop_enrol_for == handle:
+                    # as after a timeout: the connection ends with no answer
+                    self.close_connection = True
+                    return
                 if portal.refuse and portal.refuse[0] == handle:
                     return self.send_json(portal.refuse[1], {"code": portal.refuse[2]})
                 anchor = ANCHORS[handle]
@@ -476,6 +481,33 @@ class EnrollTest(unittest.TestCase):
         with self.portal(no_mesh_key=True) as portal:
             res = self.run_script(portal)
             self.assertEqual(res.returncode, 0, res.stderr)
+
+    def test_target_path_is_a_directory_stops_before_any_write(self):
+        # Docker makes a directory where a bind-mount source is missing: goat4.env
+        # present, the pki files gone (say after a revoke), the rig started anyway.
+        os.makedirs(self.out, exist_ok=True)
+        with open(os.path.join(self.out, "goat4.env"), "w") as f:
+            f.write("FABRIC_POD1_ID=" + ANCHORS["pod1-bridge"] + "\n")
+        os.makedirs(self.pki("pod1.key"))
+        with self.portal() as portal:
+            res = self.run_script(portal)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertIn(self.pki("pod1.key"), res.stderr)
+            self.assertEqual(self.enrol_bodies(portal), [])
+            self.assertEqual([r for r in portal.requests if r[1].startswith("/api/machines/grant")], [])
+        self.assertTrue(os.path.isdir(self.pki("pod1.key")))
+        self.assertEqual(os.listdir(self.pki("pod1.key")), [])
+
+    def test_enrol_without_answer_reports_unknown_state(self):
+        with self.portal(drop_enrol_for="host-fusion") as portal:
+            res = self.run_script(portal)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertIn("host-fusion", res.stderr)
+            self.assertIn("unknown", res.stderr)
+            self.assertNotIn("refused", res.stderr)
+            self.assertEqual([b["machine_handle"] for b in self.enrol_bodies(portal)],
+                             ["pod1-bridge", "host-fusion"])
+        self.assertFalse(os.path.exists(os.path.join(self.out, "goat4.env")))
 
     def test_secrets_file_without_key(self):
         self.write_secrets("OTHER=1\n# CUASLAB_PORTAL_OPERATOR_API_KEY=commented\n")

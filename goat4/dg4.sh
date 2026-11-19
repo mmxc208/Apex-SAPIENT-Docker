@@ -11,14 +11,17 @@ dg4() {
 # Exit 0 only if the rig can start on cuaslab. Each failure prints one line and the function
 # goes on, so one run names every problem.
 goat4_ready() {
-  local bad=0 f id cn pair name var
+  local bad=0 f id cn pair name var rc
   local pki=zenoh/goat4/pki env4=zenoh/goat4/goat4.env env1=zenoh/goat1/goat1.env
+  # GOAT4_FABRIC_ADDR is a test hook: it changes the address that check (d) tries, not the
+  # address in the overlay, which stays tls/192.168.64.4:7447.
   local addr=${GOAT4_FABRIC_ADDR:-192.168.64.4:7447}
 
-  # (a) the seven files and goat4.env
+  # (a) the seven files and goat4.env, each a regular file (Docker makes a directory where
+  # a bind-mount source is missing; such a directory counts as a missing file)
   for f in "$env4" $pki/ca.pem $pki/pod1.pem $pki/pod1.key $pki/host-fusion.pem \
            $pki/host-fusion.key $pki/host-recorder.pem $pki/host-recorder.key; do
-    [ -f "$f" ] || { echo "goat4_ready: missing file $f"; bad=1; }
+    [ -f "$f" ] || { echo "goat4_ready: missing file $f (or not a regular file)"; bad=1; }
   done
 
   # (b) each anchor equals the common name of its certificate
@@ -27,6 +30,10 @@ goat4_ready() {
       var=${pair%%:*}; name=${pair#*:}
       id=$(sed -n "s/^$var=//p" "$env4" | tail -n 1)
       if [ -z "$id" ]; then echo "goat4_ready: $var is not set in $env4"; bad=1; continue; fi
+      # compose takes a variable of the shell environment before both env files
+      if printenv "$var" >/dev/null && [ "$(printenv "$var")" != "$id" ]; then
+        echo "goat4_ready: $var is set in the shell environment to another value than in $env4; compose would use the shell's value (unset it, or source $env4)"; bad=1
+      fi
       [ -f "$pki/$name.pem" ] || continue
       cn=$(openssl x509 -in "$pki/$name.pem" -noout -subject -nameopt multiline 2>/dev/null \
            | sed -n 's/^ *commonName *= *//p' | head -n 1)
@@ -47,12 +54,25 @@ goat4_ready() {
     fi
   fi
 
-  # (d) a container on the Colima VM opens TCP to the fabric router within 5 s
-  if ! docker run --rm --network bridge -e ADDR="$addr" apex-sapient:4.2.0 python -c '
+  # (d) a container on the Colima VM opens TCP to the fabric router within 5 s. The probe
+  # exits 3 when the connection fails; any other failure is Docker's (no DOCKER_HOST, no
+  # daemon, image missing), and is reported apart.
+  if ! docker image inspect apex-sapient:4.2.0 >/dev/null 2>&1; then
+    echo "goat4_ready: docker cannot be used, or the image apex-sapient:4.2.0 is missing (check DOCKER_HOST); TCP to $addr not tried"; bad=1
+  else
+    docker run --rm --network bridge -e ADDR="$addr" apex-sapient:4.2.0 python -c '
 import os, socket, sys
 host, port = os.environ["ADDR"].rsplit(":", 1)
-socket.create_connection((host, int(port)), timeout=5).close()' >/dev/null 2>&1; then
-    echo "goat4_ready: no TCP connection to $addr within 5 s from a container on the Colima VM"; bad=1
+try:
+    socket.create_connection((host, int(port)), timeout=5).close()
+except OSError:
+    sys.exit(3)' >/dev/null 2>&1
+    rc=$?
+    if [ "$rc" -eq 3 ]; then
+      echo "goat4_ready: no TCP connection to $addr within 5 s from a container on the Colima VM"; bad=1
+    elif [ "$rc" -ne 0 ]; then
+      echo "goat4_ready: the probe container did not run (docker exit $rc); TCP to $addr not tried"; bad=1
+    fi
   fi
 
   # (e) no container of the step 1 project runs
