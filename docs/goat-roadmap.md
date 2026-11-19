@@ -119,6 +119,8 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
 
   Also open: the pod bridge connects to the core router, and a goatlite has no ingress gateway (`docs/goat-context.md` gap 13). To read before step 5: goatcore's ADR 1251 and `docs/design/pod-carriage-and-provenance.md` (`docs/goat-context.md` gap 14).
 
+  **Open question: echelon.** No router enforces who may task whom. ADR 0844 (proposed) puts the echelon in a certificate URI-SAN and lets only command echelons at a site publish tasks there. ADR 1025 (proposed, what `cuaslab` runs) enforces only the anchor; site is a descriptive key segment and echelon is not checked. The "v2 namespace" design that is to reconcile the two is not written. Our rig enforces task authority only in the pod bridge's allowlist `FABRIC_HOST_ANCHORS`. Before a hierarchy of more than two levels, or a second host that may task the pod: do we wait for goat's v2 namespace, or keep authority in each level's fusion node? (`docs/goat-hierarchy.md` section 4.)
+
 ### Step 5: pod 2
 
 - **What changes.** A second pod with its own router, its own CA, its own salt and the site name `p2`. Its bridge takes a second slot on the fabric.
