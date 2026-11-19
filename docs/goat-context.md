@@ -21,6 +21,8 @@ This file holds the part of goat that this repository must follow. It is an extr
 
   Sections 1, 2.1, 2.2, 2.4, 2.5, 2.9, 2.11, 5.2 and 8 were corrected on 2026-11-18, after step 4, from `goatcore` read at `e44e893d` (the commit `cuaslab` was stood up from), and from what step 4 measured on the goatlite `cuaslab` (`docs/acceptance-goat4.md`). Each correction names its source.
 
+  Sections 2.7, 4.1 and gaps 13 and 14 were added or corrected on 2026-11-19 from `goatcore` read at `b454a0b5`: ADR 1020, ADR 1025 section 5, ADR 1031, ADR 1092, ADR 1122, ADR 1157, ADR 1251, `ops/zenoh-ingress-gateway/README.md` and `ops/goat-zenoh-portal/internal/api/machine_revoke.go`. Nothing was run for them.
+
 - **Status words.** goat gives each part one of four words, and this file uses them the same way: built, measured, designed, not built.
 - **Evidence.** "Read" means the named file was read for this file. "Notes" means the statement comes from the analysis of 9 to 11 November at the same commit, and the source was not read again. No goat software was built or run for this file.
 - **Caution.** goat is before version 1.0 (`goat` 0.5.19 at `cbf2cb7f`, notes; `goat` 0.5.20 at `e44e893d`, read at `e44e893d`; the installed binary that step 4 used in check G4-10 is 0.5.19). Its interfaces can change. Check the commit before you rely on a line here.
@@ -106,6 +108,8 @@ Rules that come with the taxonomy (read, same document):
 ### 2.7 Cut-off
 
 Zenoh has no certificate revocation list. To stop a system immediately, remove its peer from the mesh. A host that connects with one identity for all that is behind it, such as a pod, is cut off as one unit (read: ADR 1025 section 5).
+
+The portal's machine revoke (`DELETE /api/machines/{anchor}`) cuts at the mesh first and then frees the slot in the registry. Its source says that the registry step moves no authorization: with the slot pool, the router holds a write grant for every slot, so the mesh cut is the only barrier that falls (read: `machine_revoke.go`, ADR 1031). **For us.** The step 4 rig is not on the mesh, and the `cuaslab` portal holds no NetBird credential. So a revoke of our three machines would free their slots and leave their certificates able to connect and write until they expire. This is read from source and was not tried.
 
 ### 2.8 Delivery
 
@@ -245,6 +249,27 @@ our core router -- our edge router == tunnel == their edge router -- their core 
 - Status: the first federation between two separately administered environments was on 2026-11-09, with many manual steps. `goatbuilder federate` has six package verbs on `main`. The one-command procedure is not built. Grant encryption across the boundary is not usable yet (read: ADR 1208, "Consequences").
 - Tutorials: `goatcore/docs/tutorials/03-boundary-node.md` and `04-two-sovereigns.md`.
 
+### 4.1 The ingress gateway and the edge router compared
+
+goat has two ways for data from outside to come in. They serve different cases. Both ADRs are proposed.
+
+| | Ingress gateway (ADR 1020) | Edge router (ADR 1157) |
+|---|---|---|
+| Who is on the other side | A source that was not onboarded end to end: a vendor's router that relays its suppliers, or a moon pod in the learning setup | A sovereign with its own complete goatnet and its own CA |
+| The relation | One way: they send, we receive | The same four steps on both sides |
+| What it does to the data | Rewrites each key to `<peering entity>/<peering id>/<original key>` and publishes it again with the gateway's own goat identity | Passes each message inward unchanged |
+| Where the data lands | A quarantine prefix, with its own storage and audit, marked as not onboarded | `from/<their sovereign id>/**` |
+| Who the publisher is afterwards | The gateway | The original source |
+| The trust | Only the directly connected peer is authenticated | Each side federates the other's SPIRE trust domain; one `zenohd` for each partner trusts that partner's CA and no other |
+| The link | Router to router | One WireGuard or IPsec tunnel between the two edge hosts, on neither side's NetBird |
+| Status | Decisions 3 and 4 proposed; a v0 exists in `ops/zenoh-ingress-gateway/`; the design says designed and not built | Proposed; tutorial 4 rehearses it in containers |
+
+- ADR 1157 amends ADR 1020: it takes the re-publishing gateway out of the cross-sovereign case. Its reason is provenance: a re-publisher is the publisher of record, so a partner's data would reach our core as if we had sent it. The gateway stays as an exception for a partner that cannot change its key names, with the loss of provenance accepted in writing.
+- The edge has three levels, each with a mechanism that stops a peer: recognised (their CA material is on the edge host), connected (tunnel up, no access rule matches, default deny) and exchanging (an access block for the agreed certificate name).
+- To choose: a party with its own goatnet and an agreement meets an edge router. Data that reaches us through someone else's router, from sources we never enrolled, meets the gateway.
+
+**For us.** Neither is used in steps 1 to 5. Our pod is enrolled in its own goatnet with that goatnet's CA (class `POD`, ADR 1092) and connects to the core router as a client. Step 6, the external host, is the edge router case. The ingress gateway would be met only if our pod joined another party's environment as a moon pod, which ADR 1239 sets as a learning use.
+
 ## 5. How a system joins a real goatnet
 
 ### 5.1 The bundle
@@ -326,8 +351,8 @@ What step 4 measured (`docs/acceptance-goat4.md`, section "Enrolment"): on `cuas
 10. **Scale.** goat's validated data stops near 100 peers (notes).
 11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and asks for source info on goat's own publishers. goat's command line tool also sets a publisher's session ID to its slot anchor, which its code credits to ADR 1039. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
 12. **Rebuild of a pod.** goat's pattern for rebuilding a compromised site from its identities (ADR 1237) is proposed and not built, and it comes after goatbuilder 1.0. Until then a compromised pod has no goat procedure to return. Section 3.5.
-13. **Pod ingress on a real goatnet.** The moon pod contract sends a pod through a goat-operated ingress gateway, not to a core router. Not checked against our pod bridge. Open for step 4 (section 3.4).
-14. **Pod carriage and provenance (not read).** goatcore has a new ADR 1251, "every source keeps its identity through a pod", and `docs/design/pod-carriage-and-provenance.md` (goatcore `e0c2e2bf`, in the range up to `b454a0b5`). Neither was read. Read them before step 5: they may bear on our "one slot for the whole pod".
+13. **Pod ingress on a real goatnet.** Closed on 2026-11-19 by reading. The moon pod contract sends a pod through a goat-operated ingress gateway, not to a core router. That is the case of a pod in someone else's environment. Our pod is enrolled in its own goatnet, so its bridge connects to the core router as a client, and ADR 1020 does not ask for a gateway (section 4.1).
+14. **Pod carriage and provenance.** ADR 1251 (proposed, 2026-11-18), "every source keeps its identity through a pod", was read on 2026-11-19 at `b454a0b5`; its design `docs/design/pod-carriage-and-provenance.md` was not. It lists "keep everything under the pod's slot", which is our shape, as a rejected alternative. ADR 1122 already says that aggregation reduces peers and never identities. So our rig does not conform in four points, and step 4 changes none of them: the pod's machine is not a mesh peer (ADR 1092), nothing can cut a machine off (ADR 1025, ADR 1031, section 2.7), the sensors and the pod fusion node have no fabric identity (ADR 1122), and every source appears as the pod (ADR 1251). The first two cannot be met on a goatlite, where the router listens on the LAN and the box is not a mesh peer. The carriage rules of ADR 1251 are not built.
 
 ## 9. Where to read more
 
