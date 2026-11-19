@@ -4,7 +4,7 @@ Written on 2026-11-19 from a side discussion during step 4b. The ADRs were read 
 
 ## 1. Mesh peer and fabric identity
 
-- **A mesh peer is a machine.** In step 4b these are `goathost` and the pod machine. A mesh peer is a NetBird enrolment that holds a management channel (ADR 1122, the table "System, mesh peer, fabric identity").
+- **A mesh peer is a machine.** In step 4b the machines are `goathost` and the pod machine. In goat's model each would be a mesh peer; in the rig of step 4b neither is on the mesh (`docs/goat-context.md` gap 14, `docs/acceptance-goat4b.md`). A mesh peer is a NetBird enrolment that holds a management channel (ADR 1122, the table "System, mesh peer, fabric identity").
 - **A fabric identity is a program.** Each program that writes on the fabric holds its own slot certificate (ADR 1025). ADR 1122 counts systems by fabric identity, not by machine: "aggregation reduces peers and never identities".
 - **Only a pod with a local router needs a bridge.** A pod router cannot rename keys or join the fabric router as a peer, so a bridge process carries the pod's output. A program on a host has no router of its own and connects to the fabric router directly, with its own slot. In 4b, `host-fusion` and `host-recorder` do that.
 - **This holds for many hosts.** Three things grow with the number of hosts:
@@ -64,4 +64,4 @@ This comparison was already saved: `docs/goat-context.md` section 4.1. In short,
 
 ## 7. Open question
 
-The echelon gap is recorded as an open question in `docs/goat-roadmap.md`, step 4.
+The echelon gap is recorded as an open question in `docs/goat-roadmap.md`, step 4b.
