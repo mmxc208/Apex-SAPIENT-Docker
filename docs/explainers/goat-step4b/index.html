@@ -113,7 +113,7 @@ footer{color:var(--dim);font-size:13px;margin-top:24px}
     <div class="card stat"><b>8 / 11</b><span>checks pass; none fails</span></div>
     <div class="card stat"><b>2</b><span>are measurements with no pass value: clocks (G4B-05) and latency (G4B-11)</span></div>
     <div class="card stat"><b>1</b><span>passes in part: clock tolerance (G4B-06)</span></div>
-    <div class="card stat"><b>11 ms</b><span>median time from a host task to the pod's acknowledgement, over 17 tasks</span></div>
+    <div class="card stat"><b>11 ms</b><span>median time from a host task on the fabric to its acknowledgement on the fabric, over 17 tasks</span></div>
   </div>
   <div class="grid g2">
     <div class="card">
@@ -123,7 +123,7 @@ footer{color:var(--dim);font-size:13px;margin-top:24px}
         <li><b>No direct path.</b> Colima and <code>goathost</code> could not reach each other. Everything between pod and host crosses the fabric router. This rests on how the Mac's virtual network behaves, not on a rule of the rig.</li>
         <li><b>A task, hop by hop.</b> One host task was seen at every hop to the pod fusion node and back. With the bridge stopped, none reached the pod.</li>
         <li><b>Clocks.</b> With no clock touched, the pod's messages reached the host a few milliseconds old, and nothing was rejected.</li>
-        <li><b>Clock tolerance.</b> The host's clock was set off by hand. The host rejects everything from the pod once its clock is more than 0.1 s behind the pod's, and once it is more than 0.9 s ahead.</li>
+        <li><b>Clock tolerance.</b> The host's clock was set off by hand. The host rejects the pod's messages once its clock is more than 0.1 s behind the pod's, or more than 0.9 s ahead: these limits are from the validator's window in source. The steps bracket them: accepted at -0.05 and +0.8 s, rejected at -0.15 and +1.2 s.</li>
         <li><b>Link cuts.</b> With its link cut, the pod went on working. After a long cut the host removed the pod and accepted it again. When the host's own link was cut, its connection came back by itself, with no restart.</li>
       </ul>
     </div>
@@ -131,7 +131,7 @@ footer{color:var(--dim);font-size:13px;margin-top:24px}
       <h2>What was not run, or is unknown</h2>
       <ul>
         <li>The removal of the VM was never run.</li>
-        <li>The README was run block by block, but not every block. Its own record of which blocks ran is in the "Left over" tab.</li>
+        <li>Seven blocks of the README were run as written, as one <code>zsh -f</code> script with stdin at <code>/dev/null</code>; the others were not. Its own record of which blocks ran is in the "Left over" tab.</li>
         <li>In G4B-06, two cells are unknown: the host's messages at the pod at -0.15 and -0.30 s. Three more are not judged.</li>
         <li>Only the host's clock was stepped, never the pod's.</li>
         <li>Each check ran once, for minutes, on one Mac.</li>
@@ -281,9 +281,8 @@ footer{color:var(--dim);font-size:13px;margin-top:24px}
   </div>
   <div class="card">
     <h2>What it means for a deployment</h2>
-    <p>The host rejects everything from the pod once its clock is more than 0.1 s behind the pod's. It also rejects everything once its clock is more than 0.9 s ahead. With no clock touched, on these three VMs, nothing was rejected.</p>
-    <p>The steps measured this on both sides of each limit. The host accepted the pod's messages at -0.05 s and at +0.8 s. It rejected all of them at -0.15 s and at +1.2 s.</p>
-    <p>The other direction has its own limit. The pod drops the host's messages once they look as if from the future by more than 0.1 s, that is once the host's clock is more than 0.1 s ahead (from the window). This was seen at +0.5, +0.8 and +1.2 s: the pod dropped the host's tasks, and at +0.5 and +0.8 s 2 tasks were sent and 0 acknowledged. So a host whose clock is ahead by 0.5 or 0.8 s still accepted the pod's messages but could not task it.</p>
+    <p>The host rejects the pod's messages once its clock is more than 0.1 s behind the pod's, or more than 0.9 s ahead. These two limits are from the validator's window in source, not measured. The steps bracket them: the host accepted the pod's messages at -0.05 and +0.8 s, and rejected all of them at -0.15 and +1.2 s. With no clock touched, on these three VMs, nothing was rejected.</p>
+    <p>The other direction has its own limit. The pod drops the host's messages once they look as if from the future by more than 0.1 s, that is once the host's clock is more than 0.1 s ahead. That limit is inferred from the window; it was not measured below +0.5 s. At +1.2 s the pod dropped all 45 of the host's messages. At +0.5 and +0.8 s both of the 2 tasks in each window were dropped; too few to judge.</p>
     <p>The ages in the steps are the offset plus a base age of about 0.006 s, measured before the first step.</p>
   </div>
   <div class="card">
