@@ -41,6 +41,8 @@ case "$tool $*" in
     printf '%s\n' "${STUB_KEY_STAT:-600 root host-fusion.key}" "600 root host-recorder.key" ;;
   "limactl shell goathost sudo docker image inspect"*) echo sha256:aaa ;;
   "limactl shell goathost ip route show"*) echo "192.168.64.4 via 192.168.64.1 dev lima0" ;;
+  "limactl shell goathost sudo systemctl stop"*) exit "${STUB_STOP_RC:-0}" ;;
+  "limactl shell goathost sudo python3"*) exit "${STUB_SET_RC:-0}" ;;
   "limactl shell goathost systemctl is-active lima-guestagent"*) echo "${STUB_GA:-active}" ;;
   "limactl shell goathost systemctl"*) echo "${STUB_TS:-active}" ;;
   "limactl shell goathost date"*)
@@ -374,28 +376,83 @@ class HelperTests(unittest.TestCase):
             self.assertIn("refused", out)
         self.assertEqual(self.sh.calls(), [])
 
+    def _state_file(self, text=None):
+        path = os.path.join(self.sh.tmp, "clock-state")
+        if text is not None:
+            with open(path, "w") as f:
+                f.write(text)
+        return path
+
+    def _read(self, path):
+        with open(path) as f:
+            return f.read()
+
     def test_clock_step_stops_both_syncs_then_steps(self):
         for good in ("0.5", "-0.15", "+1.2", "5", "-5"):
             self.sh = Shell(self)
-            rc, out = self.sh.run("g4b_clock_step %s" % good)
+            rc, out = self.sh.run("g4b_clock_step %s" % good, STUB_VM_DATE="mac",
+                                  G4B_CLOCK_STATE=self._state_file())
             self.assertEqual(rc, 0, (good, out))
-            (call,) = [c for c in self.sh.calls() if "clock_settime" in c]
-            self.assertTrue(call.startswith("limactl shell goathost sudo "), call)
-            self.assertIn("systemctl stop systemd-timesyncd lima-guestagent", call)
-            self.assertLess(call.index("systemctl stop"), call.index("clock_settime"), call)
+            calls = self.sh.calls()
+            (i_set,) = [i for i, c in enumerate(calls) if "clock_settime" in c]
+            (i_stop,) = [i for i, c in enumerate(calls)
+                         if "sudo systemctl stop systemd-timesyncd lima-guestagent" in c]
+            self.assertTrue(calls[i_set].startswith("limactl shell goathost sudo "), calls[i_set])
+            self.assertLess(i_stop, i_set, calls)
 
-    def test_clock_restore_starts_both_syncs_and_fails_if_offset_not_back(self):
-        rc, out = self.sh.run("g4b_clock_restore", G4B_RESTORE_TIMEOUT="0")
+    def test_clock_step_restarts_both_syncs_when_the_set_fails(self):
+        rc, out = self.sh.run("g4b_clock_step 0.5", STUB_SET_RC="1", STUB_VM_DATE="mac",
+                              G4B_CLOCK_STATE=self._state_file())
+        self.assertEqual(rc, 1, out)
+        calls = self.sh.calls()
+        (i_set,) = [i for i, c in enumerate(calls) if "clock_settime" in c]
+        starts = [i for i, c in enumerate(calls)
+                  if "sudo systemctl start lima-guestagent systemd-timesyncd" in c]
+        self.assertTrue(starts and starts[0] > i_set, calls)
+        self.assertIn("started both again", out)
+
+    def test_clock_step_saves_the_offset_before_and_adds_up_the_steps(self):
+        state = self._state_file()
+        rc, out = self.sh.run("g4b_clock_step 0.5", STUB_VM_DATE="mac", G4B_CLOCK_STATE=state)
+        self.assertEqual(rc, 0, out)
+        self.assertRegex(self._read(state), r"^before_ms=-?\d+\.\d stepped_s=0\.5\n$")
+        # a second step while both syncs are stopped keeps the saved offset and adds the step
+        rc, out = self.sh.run("g4b_clock_step -0.15", STUB_VM_DATE="mac", G4B_CLOCK_STATE=state,
+                              STUB_TS="inactive", STUB_GA="inactive")
+        self.assertEqual(rc, 0, out)
+        self.assertRegex(self._read(state), r"^before_ms=-?\d+\.\d stepped_s=0\.35\n$")
+
+    def test_clock_restore_undoes_the_steps_starts_both_and_fails_if_offset_not_back(self):
+        state = self._state_file("before_ms=900.0 stepped_s=0.35\n")
+        rc, out = self.sh.run("g4b_clock_restore", STUB_VM_DATE="mac", G4B_CLOCK_STATE=state,
+                              STUB_TS="inactive", STUB_GA="inactive", G4B_RESTORE_TIMEOUT="0")
         self.assertEqual(rc, 1, out)
         self.assertIn("not back", out)
-        calls = "\n".join(self.sh.calls())
-        self.assertIn("limactl shell goathost sudo systemctl start lima-guestagent systemd-timesyncd", calls)
+        calls = self.sh.calls()
+        (i_set,) = [i for i, c in enumerate(calls) if "clock_settime" in c]
+        self.assertIn("+ (-0.35)", calls[i_set])
+        (i_start,) = [i for i, c in enumerate(calls)
+                      if "sudo systemctl start lima-guestagent systemd-timesyncd" in c]
+        self.assertLess(i_set, i_start, calls)
 
-    def test_clock_restore_returns_when_offset_is_within_its_bound(self):
-        # the stub VM reads the Mac's own clock: the offset lies inside the round trip
-        rc, out = self.sh.run("g4b_clock_restore", STUB_VM_DATE="mac", G4B_RESTORE_TIMEOUT="0")
+    def test_clock_restore_compares_with_the_offset_before_the_step(self):
+        # the stub VM reads the Mac's own clock (offset about 0): back when the saved offset is 0
+        state = self._state_file("before_ms=0.0 stepped_s=0\n")
+        rc, out = self.sh.run("g4b_clock_restore", STUB_VM_DATE="mac", G4B_CLOCK_STATE=state,
+                              G4B_RESTORE_TIMEOUT="0", G4B_RESTORE_MARGIN_MS="100")
         self.assertEqual(rc, 0, out)
-        self.assertRegex(out, r"offset back after \d+ s: -?\d+\.\d ms \(bound \+/-\d+\.\d ms\)")
+        self.assertRegex(out, r"offset back after \d+ s: -?\d+\.\d ms, before the step 0\.0 ms "
+                              r"\(margin \+/-100 ms\)")
+        self.assertFalse(os.path.exists(state))
+
+    def test_clock_restore_fails_when_a_service_is_not_active(self):
+        state = self._state_file("before_ms=0.0 stepped_s=0\n")
+        for ts, ga in (("inactive", "active"), ("active", "failed")):
+            rc, out = self.sh.run("g4b_clock_restore", STUB_VM_DATE="mac", G4B_CLOCK_STATE=state,
+                                  G4B_RESTORE_TIMEOUT="0", G4B_RESTORE_MARGIN_MS="100",
+                                  STUB_TS=ts, STUB_GA=ga)
+            self.assertEqual(rc, 1, (ts, ga, out))
+            self.assertIn("systemd-timesyncd %s, lima-guestagent %s" % (ts, ga), out)
 
     def test_vm_addr_prints_only_the_address(self):
         rc, out = self.sh.run("g4b_vm_addr", STUB_VM_ADDR="192.168.64.12")
