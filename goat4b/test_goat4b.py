@@ -35,7 +35,7 @@ case "$tool $*" in
     echo "2: lima0    inet ${STUB_VM_ADDR:-192.168.64.7}/24 brd 192.168.64.255 scope global lima0" ;;
   "limactl shell goathost sudo ls -1 /opt/apex-host/pki"*)
     printf '%s\n' ${STUB_PKI_LS:-ca.pem host-fusion.pem host-fusion.key host-recorder.pem host-recorder.key} ;;
-  "limactl shell goathost sudo docker ps"*) printf '%s\n' ${STUB_VM_PS:-} ;;
+  "limactl shell goathost sudo docker ps"*) printf '%s\n' ${STUB_VM_PS:-}; exit ${STUB_VM_PS_RC:-0} ;;
   "limactl shell goathost sudo find"*) printf '%s\n' ${STUB_FIND:-} ;;
   "limactl shell goathost sudo sh -c stat"*)
     printf '%s\n' "${STUB_KEY_STAT:-600 root host-fusion.key}" "600 root host-recorder.key" ;;
@@ -213,6 +213,14 @@ class HelperTests(unittest.TestCase):
         self.assertIn("dg4b_host stop", out)
         calls = "\n".join(self.sh.calls())
         self.assertIn("label=com.docker.compose.project=apex-goat4b", calls)
+        for bad in ("rm -rf", "tar", "cat >"):
+            self.assertNotIn(bad, calls)
+
+    def test_sync_refuses_when_running_services_cannot_be_listed(self):
+        rc, out = self.sh.run("g4b_vm_sync", STUB_VM_PS_RC="1")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("cannot list", out)
+        calls = "\n".join(self.sh.calls())
         for bad in ("rm -rf", "tar", "cat >"):
             self.assertNotIn(bad, calls)
 
