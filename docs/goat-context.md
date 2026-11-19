@@ -19,15 +19,17 @@ This file holds the part of goat that this repository must follow. It is an extr
 
   Sections 3.1, 3.4 and 3.5 were updated on 2026-11-14 from ADR 1237 and ADR 1239, read at `goatcore` `e8f223b7`, and from `zagros-moon-pod/docs/partner-contract.md`, read at `zagros-moon-pod` `e44114d`.
 
+  Sections 1, 2.1, 2.2, 2.4, 2.5, 2.9, 2.11, 5.2 and 8 were corrected on 2026-11-18, after step 4, from `goatcore` read at `e44e893d` (the commit `cuaslab` was stood up from), and from what step 4 measured on the goatlite `cuaslab` (`docs/acceptance-goat4.md`). Each correction names its source.
+
 - **Status words.** goat gives each part one of four words, and this file uses them the same way: built, measured, designed, not built.
 - **Evidence.** "Read" means the named file was read for this file. "Notes" means the statement comes from the analysis of 9 to 11 November at the same commit, and the source was not read again. No goat software was built or run for this file.
-- **Caution.** goat is before version 1.0 (`goat` 0.5.19, notes). Its interfaces can change. Check the commit before you rely on a line here.
+- **Caution.** goat is before version 1.0 (`goat` 0.5.19 at `cbf2cb7f`, notes; `goat` 0.5.20 at `e44e893d`, read at `e44e893d`; the installed binary that step 4 used in check G4-10 is 0.5.19). Its interfaces can change. Check the commit before you rely on a line here.
 
 ## 1. goat in short
 
 A goatnet is one environment. It has a WireGuard mesh that NetBird manages, a Zenoh data fabric, an identity service, a certificate authority (CA), and site records that replicate between sites. One sovereign operates one environment.
 
-On the data fabric, each site has one Zenoh router. Applications connect to that router as clients. goat pins Zenoh 1.9.0 and uses the stock `eclipse/zenoh` image (read: `goatcore/ops/ansible/roles/goat-zenoh/defaults/main.yml`, lines 34 and 47).
+On the data fabric, each site has one Zenoh router. Applications connect to that router as clients. goat pins Zenoh 1.9.0 and uses the stock `eclipse/zenoh` image (read: `goatcore/ops/ansible/roles/goat-zenoh/defaults/main.yml`, lines 34 and 47). The pin is still `eclipse/zenoh:1.9.0` in the role defaults at `e44e893d` (read at `e44e893d`; the line numbers above are those of `cbf2cb7f`). But the router that runs on the goatlite `cuaslab` is `zenohd v1.9.0-modified`, image `ghcr.io/usareur-af/zenoh-pqc-fips` (measured on `cuaslab`, 2026-11-18; `docs/superpowers/specs/2026-11-18-goat-step4-cuaslab-design.md` section 2). Our 1.10.2 binding operates with it (check G4-01, `docs/acceptance-goat4.md`).
 
 ## 2. Rules on the fabric
 
@@ -38,7 +40,7 @@ These are the rules that our traffic must follow on the host side of the pod bri
 - A system that writes to the fabric has a client certificate for mutual TLS. The common name of the certificate is the slot anchor.
 - The router's access list holds a pool of slots that is made in advance. Slot `k` has the anchor `sha256("<salt>:<k>")`, cut to the first 32 hexadecimal characters. The salt is different for each goatnet. The role default is 256 slots.
 - Onboarding gives a system a certificate for a free slot. The router does not change and does not restart.
-- Status: built. Source (read): `goatcore/docs/adr/1025-zenoh-dynamic-tenant-authz-slot-pool.md` sections 1 and 8; `goat-zenoh/templates/config.json5.j2` lines 1803 to 1808; `goat-zenoh/defaults/main.yml` lines 338 and 339.
+- Status: built. Source (read): `goatcore/docs/adr/1025-zenoh-dynamic-tenant-authz-slot-pool.md` sections 1 and 8; `goat-zenoh/templates/config.json5.j2` lines 1815 to 1820 (read at `e44e893d`; 1803 to 1808 at `cbf2cb7f`); `goat-zenoh/defaults/main.yml` lines 338 and 339.
 
 ### 2.2 A slot writes only below its anchor
 
@@ -50,7 +52,9 @@ volatile/<anchor>/**
 <anchor>/**/@adv/**
 ```
 
-The slot's policy also permits a schema declaration (rule `trial-peer-w-attest-schema`). All other writes are denied. Source (read): `config.json5.j2` lines 1434 to 1451 and 1956.
+The slot's policy also permits a schema declaration (rule `trial-peer-w-attest-schema`). All other writes are denied. Source (read): `config.json5.j2` lines 1438 to 1455 and 1969 (read at `e44e893d`; 1434 to 1451 and 1956 at `cbf2cb7f`; the rules are unchanged).
+
+The router of the goatlite `cuaslab` has these rules as measured on 2026-11-18 (design of step 4, section 2): each slot may `put`, `delete` and declare a `liveliness_token` on `<anchor>/**`, `volatile/<anchor>/**` and `<anchor>/**/@adv/**`, and may also write `attest/schema/**`; the default is `deny`; the pool has 1000 slots. In step 4 two writes below a foreign anchor reached no subscriber, while a control write by the same certificate below its own anchor did (check G4-05, `docs/acceptance-goat4.md`).
 
 ### 2.3 Key taxonomy below the anchor
 
@@ -84,13 +88,14 @@ Rules that come with the taxonomy (read, same document):
 - A goatnet can turn on the scoped read (`zenoh_peer_read_scoped: true`, off in the role default). Then a subscriber must not declare the literal `**`. The rule `peer-r-scoped` permits `*/**`, `**/@adv/**`, and each filter shape that the goatnet lists.
 - A filter that starts with `**` must be in the list `zenoh_peer_cross_tenant_read`, written exactly as the subscriber declares it. If it is not in the list, the router denies it with no message.
 - Zenoh matches a rule to a declaration by inclusion, not by intersection.
-- Source (read): `zenoh-data-fabric.md`, "No one subscription may match the whole keyspace"; `config.json5.j2` lines 869 to 899.
+- Source (read): `zenoh-data-fabric.md`, "No one subscription may match the whole keyspace"; `config.json5.j2` lines 858 to 888 (read at `e44e893d`; 869 to 899 at `cbf2cb7f`).
+- On the goatlite `cuaslab` the scoped read is off: every TLS client may subscribe, query and declare a liveliness subscriber on `**` (measured on 2026-11-18, design of step 4, section 2). So step 1's check that a subscription to `**` is refused does not apply there.
 
 **For us.** The host fusion node and the host recorder must subscribe with a wildcard in the first chunk only, for example `*/telemetry/sapient/**`. They must never subscribe to `**`.
 
 ### 2.5 Release lanes
 
-`release/<set>/**` is the only path for data that leaves the environment. It is denied by default. A producer that has a grant for a set gets one more write rule, `release-w-<anchor>`, on `release/<set>/**`. Source (read): `config.json5.j2` lines 1482 to 1506; `goatcore/docs/adr/1208-sovereign-environments-release-namespaces-and-grant-encryption.md` decision 3.
+`release/<set>/**` is the only path for data that leaves the environment. It is denied by default. A producer that has a grant for a set gets one more write rule, `release-w-<anchor>`, on `release/<set>/**`. Source (read): `config.json5.j2` lines 1486 to 1510 (read at `e44e893d`; 1482 to 1506 at `cbf2cb7f`); `goatcore/docs/adr/1208-sovereign-environments-release-namespaces-and-grant-encryption.md` decision 3.
 
 ### 2.6 The access list is static, and a denial is silent
 
@@ -111,7 +116,7 @@ Zenoh has no certificate revocation list. To stop a system immediately, remove i
 
 ### 2.9 Router configuration
 
-A fabric router has one JSON5 file: `mode: "router"`, one listen endpoint `tls/<mesh-ip>:7447`, mutual TLS, the REST plugin, RocksDB storage with one store for each live slot, and `access_control` with `default_permission: "deny"`. goat renders it from a template of 2,032 lines (read: `zenoh-data-fabric.md`, "Router configuration"; `config.json5.j2`).
+A fabric router has one JSON5 file: `mode: "router"`, one listen endpoint `tls/<mesh-ip>:7447`, mutual TLS, the REST plugin, RocksDB storage with one store for each live slot, and `access_control` with `default_permission: "deny"`. goat renders it from a template of 2,045 lines at `e44e893d` (2,032 at `cbf2cb7f`) (read: `zenoh-data-fabric.md`, "Router configuration"; `config.json5.j2`).
 
 ### 2.10 Key shape
 
@@ -133,6 +138,7 @@ goat's rule for the order of the parts of a key is: stable parts with few values
 - goat's command line tool sets a publisher's session ID to its slot anchor with leading zeros removed, because Zenoh rejects an ID with a leading `0`. `goat sub` keeps a random ID on purpose.
 - The router permits one transport for each session ID. A second session with the same pinned ID is refused (`MAX_LINKS`) until the first one is gone, or it displaces it.
 - Status: proposed (ADR status "Proposed", 2026-06-11); the pin in `goat pub` is built. Source (read): `goatcore/docs/adr/1041-zenoh-router-zid-pinning-and-source-provenance.md`, "Context", "Decision" and "Invariants"; `goatcore/crates/goat-cli/src/cmd/pubsub.rs` lines 25 to 31 and 1205 to 1222.
+- New in `goat` 0.5.20: `goat health --domain peer` compares the session's ZID with the anchor pin, and reads the router's verdict on the peer at `ops/peer/verdict/<own zid>`. A client with a random ZID cannot be matched to its verdict. Source (read at `e44e893d`): `goatcore/crates/goat-cli/src/cmd/health.rs`.
 
 **For us.** Step 1 sets no session ID: the pod bridge, the fusion nodes, the sensors, the recorders and both routers use random IDs, and no publisher attaches source info. Whether the pod bridge and the host fusion node set their ID to their anchor, whether the routers get a fixed ID, and whether our publishers attach source info is open for step 4.
 
@@ -270,7 +276,11 @@ Source (read): `goatcore/docs/design/goatlite.md` and `goatcore/docs/tutorials/0
 | Your identity | A script mints a founder identity that writes below `founder/`. A goatlite has no identity console. |
 | Limits | Never for production. It is a LAN goatnet. The internet profile is rendered, but no internet goatlite was stood up with real relays. |
 
-Not found: a statement that the machine can be arm64, and a procedure that mints a slot identity for a system (such as our pod bridge) on a goatlite. `goat admin onboard` needs operator credentials and the portal.
+Not found: a statement that the machine can be arm64. (Measured since: `cuaslab` runs on an arm64 Lima VM; step 4.)
+
+Corrected on 2026-11-18: the statement here that no procedure mints a slot identity for a system on a goatlite was wrong. The procedure is in `goatcore/docs/operations/gear-enrollment-sop.md` (it was there at `cbf2cb7f`; read at `e44e893d`): the operator runs `goat machine grant <custodian> --quota N --affiliation <unit>` with the operator key, then `goat machine enroll <handle> --node-class <CLASS> --autonomy <level>`. The classes `POD` and `FUSION` exist; `PROCESSOR` is refused. The portal's API for the same is `POST /api/machines/grant`, then `POST /api/machines/enroll`.
+
+What step 4 measured (`docs/acceptance-goat4.md`, section "Enrolment"): on `cuaslab`, stood up from `e44e893d`, the first enrolment was refused with HTTP 500, code `mint`. The lite preset sets `portal_bundle_create_bin: "/usr/local/bin/bundle-create"` (`ops/scripts/goatlite-render.py:767` at `e44e893d`), and on the box that path is an empty directory. So a goatlite stood up at `e44e893d` cannot enrol a machine until that setting is turned off or the binary is installed. With the setting off, three machines were enrolled through the portal API with `curl` (the `goat` portal client does not trust a goatlite's private CA). A bundle then holds the certificate, the key and the root, and no goat-cli profile.
 
 ## 6. goat tools that operate with no goatnet
 
@@ -299,7 +309,7 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
 ## 8. Gaps and unknowns
 
 1. **Zenoh versions.** Our pod uses 1.10.2 and goat uses 1.9.0. Measured in check G1-01 (`docs/acceptance-goat1.md`): two sessions of our Python binding (zenoh 1.10.2) exchanged a sample and a liveliness token over mutual TLS through a router from `eclipse/zenoh:1.9.0`, and again after one restart of that router, with no new declaration. The step 1 rig then ran with a 1.10.2 pod router and a 1.9.0 fabric router. Not measured: x86-64, load, the full access lists in the pairing probe, and any other pair of versions.
-2. **Slot identity on a goatlite.** No procedure found for a system that is not the founder.
+2. **Slot identity on a goatlite.** Corrected on 2026-11-18: the procedure exists (`goatcore/docs/operations/gear-enrollment-sop.md`, section 5.2). Measured in step 4: on a goatlite at `e44e893d` it fails until the portal setting `portal_bundle_create_bin` is turned off or the binary is installed; with it off, three machines were enrolled on `cuaslab`.
 3. **Pod at the edge through the internet.** This needs goat's internet profile with relays and a public zone. It is not proven on a goatlite.
 4. **Router-to-router pod link.** Designed, not built, for operational pods. We use a bridge.
 5. **Schema declaration.** The format at `attest/schema/<topic>` was not read. `goatcore/docs/design/data-dictionary.md` describes it.
@@ -311,12 +321,13 @@ Not found: a statement that the machine can be arm64, and a procedure that mints
 
    `<anchor>` is the writer's 32-character slot anchor, `<site>` is 1 to 32 characters of `[a-z0-9]`, and `<node_id>` is a canonical UUID. A key never holds a report ID, a task ID, an object ID or a timestamp (Zenoh issue 2825: a router can freeze when a face uses up its 16-bit space of expression IDs), so the last segment is the node, not the event. For that reason the `ack/` and `task/` forms end with the node ID, not with goat's `<cmd-id>` or `<task-id>` of section 2.3.
 7. **Quality of service.** goat's classes by prefix are designed, not built. Our priorities for each message kind are set by the sender.
-8. **Time.** The signed clock report for each host is built. The time quality field for each message is not built (read: `hello-galaxy-time-hygiene/README.md`).
+8. **Time.** The signed clock report for each host is built. The time quality field for each message is not built (read: `hello-galaxy-time-hygiene/README.md`). Added on 2026-11-18 (read at `e44e893d`): ADR 1232 and `goatcore/docs/design/peer-fault-handling.md` say that the router replaces a timestamp more than 500 ms ahead and logs the peer's ZID. Status: partly built, not deployed on any goatnet.
 9. **Federation.** The one-command procedure is not built.
 10. **Scale.** goat's validated data stops near 100 peers (notes).
 11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and asks for source info on goat's own publishers. goat's command line tool also sets a publisher's session ID to its slot anchor, which its code credits to ADR 1039. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
 12. **Rebuild of a pod.** goat's pattern for rebuilding a compromised site from its identities (ADR 1237) is proposed and not built, and it comes after goatbuilder 1.0. Until then a compromised pod has no goat procedure to return. Section 3.5.
 13. **Pod ingress on a real goatnet.** The moon pod contract sends a pod through a goat-operated ingress gateway, not to a core router. Not checked against our pod bridge. Open for step 4 (section 3.4).
+14. **Pod carriage and provenance (not read).** goatcore has a new ADR 1251, "every source keeps its identity through a pod", and `docs/design/pod-carriage-and-provenance.md` (goatcore `e0c2e2bf`, in the range up to `b454a0b5`). Neither was read. Read them before step 5: they may bear on our "one slot for the whole pod".
 
 ## 9. Where to read more
 

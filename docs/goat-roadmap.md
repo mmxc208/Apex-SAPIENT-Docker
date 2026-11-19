@@ -1,6 +1,6 @@
 # goat proof of concept: the six steps
 
-This file records the whole plan of work, so that a later session can continue from it. It holds what was decided, what is open, and how a step is started. It was written on 2026-11-11 and must be updated when a step ends. It was last updated on 2026-11-12, at the end of step 1.
+This file records the whole plan of work, so that a later session can continue from it. It holds what was decided, what is open, and how a step is started. It was written on 2026-11-11 and must be updated when a step ends. It was last updated on 2026-11-18, at the end of step 4 (branch `goat-step4-cuaslab`).
 
 Related files:
 
@@ -13,6 +13,10 @@ Related files:
 | `docs/explainers/` | The explainer pages: SAPIENT, SAPIENT over Zenoh, goat, and an interactive page on step 1 for a new team member. Open them in a browser. |
 | `docs/acceptance-goat1.md` | The acceptance record of step 1: checks G1-01 to G1-11, the known limits, the open items |
 | `docs/evidence/goat1/` | The saved outputs and logs that the record of step 1 quotes, with an index and a quote checker |
+| `docs/superpowers/specs/2026-11-18-goat-step4-cuaslab-design.md` | The design of step 4 |
+| `docs/superpowers/plans/2026-11-18-goat-step4-cuaslab.md` | The plan of step 4: 7 tasks, checks G4-01 to G4-13 |
+| `docs/acceptance-goat4.md` | The acceptance record of step 4: checks G4-01 to G4-13, what was not shown, the known limits, and what stays on `cuaslab` |
+| `docs/evidence/goat4/` | The saved outputs that the record of step 4 quotes, with an index and a quote checker that also searches for secrets |
 | `docs/acceptance.md` | The evidence of the earlier work, stages 1 to 4 |
 
 ## 1. End goal
@@ -27,7 +31,7 @@ goat is the open source project of United States Army Europe and Africa. Its sou
 
 ## 2. Rules for all steps
 
-- All steps use the branch `goat`. Nothing is pushed unless Richard says so.
+- All steps use the branch `goat`. Nothing is pushed unless Richard says so. (One exception: step 4 uses its own branch, `goat-step4-cuaslab`, by Richard's decision of 2026-11-18; see section 6.)
 - Each step is its own project: one design, one plan, one acceptance file.
 - The earlier rigs must continue to work: the TCP-only rig and stages 1 to 4.
 - The key rules of goat are the most important part (Richard, 2026-11-11). Read `docs/goat-context.md` before each design.
@@ -39,12 +43,12 @@ goat is the open source project of United States Army Europe and Africa. Its sou
 
 ## 3. The steps
 
-| Step | Content | Host side | Status on 2026-11-12 |
+| Step | Content | Host side | Status on 2026-11-18 |
 |---|---|---|---|
 | 1 | Pod 1 to host | Our stand-in that follows goat's rules, on the Mac | Done. Checks G1-01 to G1-11 pass (G1-08 by unit test only). The record lists the known limits. |
 | 2 | Stone Soup in the fusion node | Same | Not started |
 | 3 | Billie adapter for a sensor with a vendor protocol | Same | Not started |
-| 4 | The host on a real goatnet | goatlite on a cloud VM | Not started |
+| 4 | The host on a real goatnet | The goatlite `cuaslab`, in a Lima VM on the same Mac (not a cloud VM) | Done on 2026-11-18, on branch `goat-step4-cuaslab`, not merged. Checks G4-01 to G4-12 pass (G4-05's fabric part by absence at a subscriber, G4-08 by unit test only); G4-13 is a measurement with a bound wider than the plan asked. One portal setting of `cuaslab` was changed, by Richard's decision. The record lists what was not shown. |
 | 5 | Pod 2 | Real goatnet | Not started |
 | 6 | External host, the second sovereign | goat federation | Not started |
 
@@ -97,7 +101,23 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
   7. The goat client. Only `goat sub` was tried. goat's client does not verify the router's TLS name. A profile from a signed bundle, a portal and a key service do not exist in our rig.
   8. A lost link is noticed after 9 to 10 s. A message sent in that time, and a task sent during an outage, is lost with no count.
   9. Nothing revokes a slot certificate, and every certified peer may read below every anchor (goat's scoped read).
-- **Open questions for Richard.** Which cloud account and region, and who pays for the VM.
+- **Open questions for Richard.** Which cloud account and region, and who pays for the VM. (Not needed for step 4 as built: Richard chose a goatlite on the Mac.)
+- **Result (2026-11-18).** The step 1 rig ran against the goatlite `cuaslab` (goatcore `e44e893d`, router `zenohd v1.9.0-modified`, arm64 Lima VM on the same Mac) by configuration only: an overlay compose file, an enrolment script, and three slot identities that the `cuaslab` portal minted. No existing file below `emulators/` changed. Checks G4-01 to G4-12 pass, each run once. G4-05 shows a refused write by absence at a subscriber, with a control write by the same certificate, because the router does not log access decisions. G4-13 measured the clocks of the two VMs only to within 124 ms, wider than the 50 ms the plan asked. The first enrolment was refused: a goatlite at `e44e893d` cannot enrol a machine while the lite preset's `portal_bundle_create_bin` points at a binary that is not installed. Richard chose to turn that setting off and redeploy the portal, against the design's non-goal "no portal setting". The grant and the three machines stay on `cuaslab`. `docs/acceptance-goat4.md` has the evidence, what was not shown, and the anchors for a later revoke.
+- **The known gaps after step 4.**
+
+  | # | Gap | Status |
+  |---|---|---|
+  | 1 | No procedure for a slot identity on a goatlite | Closed as a question, with a defect found. The procedure exists (`POST /api/machines/grant`, then `/enroll`; `docs/operations/gear-enrollment-sop.md` in goatcore). On a goatlite at `e44e893d` it fails until bundle-create is turned off. Measured. |
+  | 2 | A goatlite is a LAN network | Met for this step by routes through the Mac. No mesh. |
+  | 3 | No statement that the machine can be arm64 | Closed: `cuaslab` runs on arm64. Measured. |
+  | 4 | Zenoh version pairing | Measured against `zenohd v1.9.0-modified` (image `zenoh-pqc-fips`), not stock 1.9.0: G4-01. No router restart was tried. |
+  | 5 | Session IDs | Open. New in goat 0.5.20: `goat health --domain peer` matches a client to the router's verdict by its session ID. |
+  | 6 | Clocks | Measured with a wide bound (G4-13). No message was rejected for time in the runs. |
+  | 7 | The goat client | Measured in part: `goat sub` 0.5.19 with a real context read the pod's tracks (G4-10). The `goat` portal client does not trust a goatlite's private CA, so portal calls were made with `curl`. |
+  | 8 | A lost link is noticed late | Unchanged. |
+  | 9 | Nothing revokes a slot certificate; scoped read | Unchanged. On this path there is no mesh revocation either, and `cuaslab` has the scoped read off: every TLS client may read `**`. |
+
+  Also open: the pod bridge connects to the core router, and a goatlite has no ingress gateway (`docs/goat-context.md` gap 13). To read before step 5: goatcore's ADR 1251 and `docs/design/pod-carriage-and-provenance.md` (`docs/goat-context.md` gap 14).
 
 ### Step 5: pod 2
 
@@ -169,6 +189,16 @@ Environment notes:
 | 2026-11-12 | Node ID ownership by first key is recorded as a deviation from the design and is not changed in step 1. It is a condition for step 5. | Designer, after the final review |
 | 2026-11-12 | Detections from an unregistered node and locations that are not a number are left for step 2. | Final reviewer, accepted by the designer |
 | 2026-11-12 | The goat work gets its own entry page, `README-goat.md`. | Richard |
+| 2026-11-18 | Step 4 uses its own branch, `goat-step4-cuaslab`, made from `goat` at `8b536f9`. This is an exception to the rule of section 2 that all steps use `goat`. | Richard |
+| 2026-11-18 | The goatnet of step 4 is `cuaslab`, a goatlite in a Lima VM (arm64) on the same Mac as the rig, not a cloud VM. | Richard |
+| 2026-11-18 | Scope of step 4: move the step 1 rig as it is. No session ID, no schema declaration, no topic registration, no mesh. | Richard |
+| 2026-11-18 | Approach A: an overlay compose file and an enrolment script. The step 1 files are not edited. | Richard |
+| 2026-11-18 | The pod reaches the `cuaslab` router over the LAN path between the two VMs, with no WireGuard. The pod is not a mesh peer. | Richard (asked) |
+| 2026-11-18 | Node classes: `pod1-bridge` is `POD`, `host-fusion` and `host-recorder` are `FUSION` (no class describes a reader that writes nothing). Custodian `richard@cuaslab.lan`, quota 5, affiliation `cuaslab-lab`. | Designer |
+| 2026-11-18 | A refused write is shown by absence at a subscriber, with a control write by the same client in the same window, not by a router log line, because we do not change `cuaslab`'s router. | Designer |
+| 2026-11-18 | The probes reuse the three enrolled certificates; no fourth machine. | Designer |
+| 2026-11-18 | G4-10 uses the released `goat` 0.5.19 on the Mac with the founder's context, not a build from source. | Designer |
+| 2026-11-18 | After the first enrolment was refused: turn `portal_bundle_create_bin` off in `cuaslab`'s group_vars and redeploy the portal with goatbuilder. This changes a portal setting, which the design had named a non-goal. | Richard |
 
 ## 7. What was done, in order
 
@@ -181,3 +211,4 @@ Environment notes:
 | 2026-11-11 | Step 1 design and plan written and committed. Execution of the plan started. |
 | 2026-11-11 to 12 | Step 1 executed in twelve tasks, each with its own implementer and reviewer: the pairing probe, slots, fabric keys, the generator, the pod bridge, the fabric link, the pod fusion node's traffic upward, the recorder's fabric mode, the rig, the outage and join checks, the `goat` client check, and the final clean run. |
 | 2026-11-12 | Final review of the whole branch, one fix round (a site limit, the bridge's main loop, the recorder's error line, the generator), a second whole run at the new code, and one re-review. Evidence copied to `docs/evidence/goat1/`. `README-goat.md` made. An interactive explainer page for new team members added. Branch `goat` is made from `zenoh` (`0cca505`) and is not pushed. |
+| 2026-11-18 | Step 4 on branch `goat-step4-cuaslab`: design, plan, and seven tasks (the enrolment script, the enrolment on `cuaslab` with one portal change, the pairing probe, the overlay, the live checks, the regression checks, the record). Checks G4-01 to G4-12 pass and G4-13 is measured; `docs/acceptance-goat4.md`. Not merged, not pushed. |
