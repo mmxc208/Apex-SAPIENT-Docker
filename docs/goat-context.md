@@ -23,9 +23,11 @@ This file holds the part of goat that this repository must follow. It is an extr
 
   Sections 2.7, 4.1 and gaps 13 and 14 were added or corrected on 2026-11-19 from `goatcore` read at `b454a0b5`: ADR 1020, ADR 1025 section 5, ADR 1031, ADR 1092, ADR 1122, ADR 1157, ADR 1251, `ops/zenoh-ingress-gateway/README.md` and `ops/goat-zenoh-portal/internal/api/machine_revoke.go`. Nothing was run for them.
 
+  Sections 2.1, 2.6, 2.7, 3.3, 4, 4.1, 8 (gaps 9, 14 and 15) and 9 were updated later on 2026-11-19 from `goatcore` read at `c5bcacee` and `open-entity-gateway` read at `0bdc784`. Read for them: ADR 1225 (status line), ADR 1253 (TL;DR and decision), ADR 1208 ("Consequences"), `ops/ansible/roles/goat-zenoh/files/slot-fragment-reload.py` (its header), `goat-zenoh/defaults/main.yml` lines 338 to 366, `ops/goat-zenoh-portal/internal/api/machine_revoke.go`, `ops/goat-zenoh-portal/internal/registry/leaves.go`, the list of security advisories of `goatcore` on GitHub, and `open-entity-gateway`'s `README.md`, `docs/adapters/sapient.md` and `docs/design/track-egress.md`. Nothing was run for them. The goatlite `cuaslab` is still at `e44e893d`, so where the two commits differ, each statement says which one it is about.
+
 - **Status words.** goat gives each part one of four words, and this file uses them the same way: built, measured, designed, not built.
 - **Evidence.** "Read" means the named file was read for this file. "Notes" means the statement comes from the analysis of 9 to 11 November at the same commit, and the source was not read again. No goat software was built or run for this file.
-- **Caution.** goat is before version 1.0 (`goat` 0.5.19 at `cbf2cb7f`, notes; `goat` 0.5.20 at `e44e893d`, read at `e44e893d`; the installed binary that step 4 used in check G4-10 is 0.5.19). Its interfaces can change. Check the commit before you rely on a line here.
+- **Caution.** goat is before version 1.0 (`goat` 0.5.19 at `cbf2cb7f`, notes; `goat` 0.5.20 at `e44e893d`, read at `e44e893d`, and tagged `goat-cli-v0.5.20` by `c5bcacee`; the installed binary that step 4 used in check G4-10 is 0.5.19). Its interfaces can change. Check the commit before you rely on a line here.
 
 ## 1. goat in short
 
@@ -43,6 +45,9 @@ These are the rules that our traffic must follow on the host side of the pod bri
 - The router's access list holds a pool of slots that is made in advance. Slot `k` has the anchor `sha256("<salt>:<k>")`, cut to the first 32 hexadecimal characters. The salt is different for each goatnet. The role default is 256 slots.
 - Onboarding gives a system a certificate for a free slot. The router does not change and does not restart.
 - Status: built. Source (read): `goatcore/docs/adr/1025-zenoh-dynamic-tenant-authz-slot-pool.md` sections 1 and 8; `goat-zenoh/templates/config.json5.j2` lines 1815 to 1820 (read at `e44e893d`; 1803 to 1808 at `cbf2cb7f`); `goat-zenoh/defaults/main.yml` lines 338 and 339.
+- Changed at `c5bcacee` (read, not run; the fix for advisory GHSA-rr3p, commit `69f4a745`). Two of the statements above hold only up to `e44e893d`, which is what `cuaslab` runs:
+  - The common name is the bare anchor only for a slot's first certificate (generation 0). A later certificate of the same slot has the name `<anchor>.g<generation>` (read: `ops/goat-zenoh-portal/internal/registry/leaves.go`, function `LeafCN`).
+  - The router no longer holds a fixed name for every slot. The portal writes the names of the live slots to `slot-fragment.json5`, beside the router's configuration, and a watcher on the router host recreates the router to load it (section 2.6). So onboarding does restart the router: a new certificate works only after the next recreate, which for a change that only adds names comes at most once in 300 s (read: `goat-zenoh/defaults/main.yml` lines 342 to 366).
 
 ### 2.2 A slot writes only below its anchor
 
@@ -104,12 +109,16 @@ Rules that come with the taxonomy (read, same document):
 - Zenoh reads `access_control` only at start. A change needs a router restart (read: `zenoh-data-fabric.md`, "Router configuration").
 - A denied write or subscription gives no error at the sender or the receiver. Thus you test the access list by asking it, not by watching for errors (read: `zenoh-data-fabric.md`, "Access control").
 - goat's tools for that are `acl-evaluate.py` and `goat acl test`. See section 6.
+- New at `c5bcacee` (read, not run): the reload watcher `slot-fragment-reload.py`, a systemd path unit and a timer on the router host. Its header confirms that zenohd 1.9 reads `access_control` only at start, refuses a live update of it, and ignores SIGHUP. The watcher recreates the router when the portal's slot fragment changes: 15 s or more after the last recreate for a change that removes a name (a revocation), and at most once in 300 s for a change that only adds names. Each recreate drops every session. It then records what the router loaded in `slot-fragment.loaded.json5`, and the portal reads that file to say whether a slot is live or `pending_router_reload`. The role now fails the play when `slot-fragment.json5` is missing, unless `zenoh_slot_fragment_bootstrap` is true for a first run (read: the header of `goat-zenoh/files/slot-fragment-reload.py`; `goat-zenoh/defaults/main.yml` lines 342 to 366).
+- **For us.** If `cuaslab` is upgraded to `c5bcacee` or later, each enrolment and each revocation recreates the fabric router, and the pod bridge and the host clients lose their sessions once. Step 4b saw the host's session come back by itself after a cut of its route (check G4B-08); a recreate of the router was not tried (roadmap, step 4, gap 4).
 
 ### 2.7 Cut-off
 
 Zenoh has no certificate revocation list. To stop a system immediately, remove its peer from the mesh. A host that connects with one identity for all that is behind it, such as a pod, is cut off as one unit (read: ADR 1025 section 5).
 
-The portal's machine revoke (`DELETE /api/machines/{anchor}`) cuts at the mesh first and then frees the slot in the registry. Its source says that the registry step moves no authorization: with the slot pool, the router holds a write grant for every slot, so the mesh cut is the only barrier that falls (read: `machine_revoke.go`, ADR 1031). **For us.** The step 4 rig is not on the mesh, and the `cuaslab` portal holds no NetBird credential. So a revoke of our three machines would free their slots and leave their certificates able to connect and write until they expire. This is read from source and was not tried.
+The portal's machine revoke (`DELETE /api/machines/{anchor}`) cuts at the mesh first and then frees the slot in the registry. Its source says that the registry step moves no authorization: with the slot pool, the router holds a write grant for every slot, so the mesh cut is the only barrier that falls (read: `machine_revoke.go`, ADR 1031). **For us.** The step 4 rig is not on the mesh, and the `cuaslab` portal holds no NetBird credential. So a revoke of our three machines would free their slots and leave their certificates able to connect and write until they expire. This is read from source and was not tried. It holds for `e44e893d`, which `cuaslab` runs.
+
+goat published this as a security advisory on 2026-11-19: GHSA-rr3p, severity high, "Offboarding never revokes the fabric certificate, and the freed anchor is reissued to the next person". At `c5bcacee` the revoke also advances the slot's generation and writes the slot fragment again, so that the name of the revoked certificate is in no rule; the watcher of section 2.6 then recreates the router, and the portal's answer says whether the router has loaded the change yet (read at `c5bcacee`: `machine_revoke.go` lines 155 to 168; the comment at its lines 13 to 16 still describes the old behaviour). Inferred, not run: after the recreate the old certificate can still open a TLS session, because the CA still verifies it, but it matches no write rule. On a goatlite, with the scoped read off, it could still read.
 
 ### 2.8 Delivery
 
@@ -184,13 +193,15 @@ ADR 1239 also withdraws the word "sovereign" from the moon pod claims in ADRs 02
 | octo-pod 0.6 | A local router with a CA on the pod and a generated access list. An uplink bridge publishes only the released local feeds below the pod's slot anchor. A downlink bridge brings only approved fabric keys into the pod. Queues have limits, and there is no store and forward. The pod has one slot certificate from a signed bundle. | Read: `octo-pod/README.md` lines 77 and 78. The other statements: notes. |
 | Open Billie | A local Zenoh island on loopback, and a second Zenoh process in client mode with mutual TLS to the fabric. A one-way bridge adds the authorised prefix. No fabric data goes back to the node. | Read: `open-billie/docs/architecture/GOLDEN_PATH_ZENOH.md` |
 | Moon pod | The pod router dials the fabric router, router to router, with mutual TLS. The pod router denies by default and has one partner namespace. | Read: `hello-galaxy-zagros-pod/stack/templates/pod-router.json5.tmpl` |
+| open-entity-gateway | Not an edge product: a gateway that turns decoded records and tracks into CoT, SAPIENT and ASTERIX CAT062. It has two ways out. A receiver that its host can reach gets one of the gateway's own destinations. For a receiver that cannot join the mesh, the gateway publishes the encoded payload to a key `release/<lane>/...`, and an octo-pod egress destination (`udp://`, `tcp://`, `tcp-server://`, `sapient://`) whose downlink allow list names that key delivers it. | Read at `0bdc784`: `open-entity-gateway/docs/design/track-egress.md` |
 
 More facts:
 
 - `hello-galaxy-zagros-pod` runs the moon pod shape on a laptop with no goatnet. Its fabric router is a stand-in that permits everything on purpose (read: `stack/templates/fabric-router.json5.tmpl`).
 - The moon pod contract says that the pod router does not connect into a goat core router. It connects to an ingress gateway that goat operates (read: `zagros-moon-pod/docs/partner-contract.md`).
 - octo-pod's SAPIENT arm relays only detection reports and alerts, writes its own node ID into each message, and rejects each task (notes).
-- Open Billie's SAPIENT encoder makes detection reports only. It makes no registration, status report, task or alert (notes).
+- Open Billie's SAPIENT encoder makes detection reports only. It makes no registration, status report, task or alert (notes; not read again at `fd074f3`, where the two commits since `7c046be` do not name SAPIENT in their subjects).
+- open-entity-gateway's `sapient` adapter is a SAPIENT edge node over TCP: it connects to a fusion node or to middleware, sends a registration, waits for the acknowledgement, sends status reports, sends each track as a detection report, and says goodbye. Its own record says: measured against Dstl's Apex 4.2.0 with the default validation; tasks, alerts and range-bearing locations not built. The node ID is one UUID for each destination, set in configuration (read at `0bdc784`: `open-entity-gateway/docs/adapters/sapient.md`). We did not run it.
 
 **For us.** We use a bridge process, as octo-pod and Open Billie do. A router cannot rename a key in transit, and the keys in our pod are different from the keys on the fabric.
 
@@ -246,7 +257,7 @@ our core router -- our edge router == tunnel == their edge router -- their core 
 - Data grants list each offered set. Interest grants must keep the full `from/<us>/**`, or Zenoh refuses the subscription and no data crosses.
 - Released data goes one hop, unless the owner marks it as a general release.
 - The tunnel between the two edge hosts is WireGuard or IPsec.
-- Status: the first federation between two separately administered environments was on 2026-11-09, with many manual steps. `goatbuilder federate` has six package verbs on `main`. The one-command procedure is not built. Grant encryption across the boundary is not usable yet (read: ADR 1208, "Consequences").
+- Status: the first federation between two separately administered environments was on 2026-11-09, with many manual steps. `goatbuilder federate` has six package verbs on `main`. Corrected on 2026-11-19: the one-command procedure is built. ADR 1225 is accepted (2026-11-15), and its status line says that the six federation verbs and `goatbuilder federate <partner>` run on the `goat-federation` library (read at `c5bcacee`: the status line of ADR 1225 only; we did not run it). Grant encryption across the boundary is not usable yet: nothing carries the partner's recipient key across the boundary, and ADR 1223 (proposed) designs the fix (read at `c5bcacee`: ADR 1208, "Consequences").
 - Tutorials: `goatcore/docs/tutorials/03-boundary-node.md` and `04-two-sovereigns.md`.
 
 ### 4.1 The ingress gateway and the edge router compared
@@ -267,8 +278,13 @@ goat has two ways for data from outside to come in. They serve different cases. 
 - ADR 1157 amends ADR 1020: it takes the re-publishing gateway out of the cross-sovereign case. Its reason is provenance: a re-publisher is the publisher of record, so a partner's data would reach our core as if we had sent it. The gateway stays as an exception for a partner that cannot change its key names, with the loss of provenance accepted in writing.
 - The edge has three levels, each with a mechanism that stops a peer: recognised (their CA material is on the edge host), connected (tunnel up, no access rule matches, default deny) and exchanging (an access block for the agreed certificate name).
 - To choose: a party with its own goatnet and an agreement meets an edge router. Data that reaches us through someone else's router, from sources we never enrolled, meets the gateway.
+- ADR 1253 (proposed, 2026-11-19; read at `c5bcacee`: TL;DR and decision) adds two more boundary nodes and calls the edge router of ADR 1157 the canonical boundary node.
+  - A simple boundary node (`simple-bn`, in `ops/simple-bn/`) is one process on a dedicated host. It sends declared `release/<set>/**` keys one way to one receiver that is not goat, as UDP datagrams in the receiver's format; for radar, ASTERIX CAT034 and CAT048. Plain UDP is for synthetic data only; real data needs a WireGuard tunnel to the receiver or the receiver's own protected transport. Until the fabric subscription is built, its only input is notional sensor feeds.
+  - A pseudo boundary node (`pseudo-bn`) crosses to another goatnet of the same sovereign. Each crossing declares a `crossing.mode`: `join` (enrolled in both goatnets, admitted on the far side as a machine with a scoped write grant), `tunnel` (WireGuard) or `plain` (synthetic data only).
+  - Every boundary service writes a `goat.boundary-status/v1` document for one monitor, `bn-monitor`.
+  - Its design, `goatcore/docs/design/simple-boundary-node.md`, was not read.
 
-**For us.** Neither is used in steps 1 to 5. Our pod is enrolled in its own goatnet with that goatnet's CA (class `POD`, ADR 1092) and connects to the core router as a client. Step 6, the external host, is the edge router case. The ingress gateway would be met only if our pod joined another party's environment as a moon pod, which ADR 1239 sets as a learning use.
+**For us.** Neither is used in steps 1 to 5. Our pod is enrolled in its own goatnet with that goatnet's CA (class `POD`, ADR 1092) and connects to the core router as a client. Step 6, the external host, is the edge router case if the second sovereign is a different sovereign. If it is a second goatnet that we operate ourselves (an open question of step 6), ADR 1253's pseudo boundary node is the pattern that goat names for it. The ingress gateway would be met only if our pod joined another party's environment as a moon pod, which ADR 1239 sets as a learning use.
 
 ## 5. How a system joins a real goatnet
 
@@ -347,12 +363,19 @@ What step 4 measured (`docs/acceptance-goat4.md`, section "Enrolment"): on `cuas
    `<anchor>` is the writer's 32-character slot anchor, `<site>` is 1 to 32 characters of `[a-z0-9]`, and `<node_id>` is a canonical UUID. A key never holds a report ID, a task ID, an object ID or a timestamp (Zenoh issue 2825: a router can freeze when a face uses up its 16-bit space of expression IDs), so the last segment is the node, not the event. For that reason the `ack/` and `task/` forms end with the node ID, not with goat's `<cmd-id>` or `<task-id>` of section 2.3.
 7. **Quality of service.** goat's classes by prefix are designed, not built. Our priorities for each message kind are set by the sender.
 8. **Time.** The signed clock report for each host is built. The time quality field for each message is not built (read: `hello-galaxy-time-hygiene/README.md`). Added on 2026-11-18 (read at `e44e893d`): ADR 1232 and `goatcore/docs/design/peer-fault-handling.md` say that the router replaces a timestamp more than 500 ms ahead and logs the peer's ZID. Status: partly built, not deployed on any goatnet.
-9. **Federation.** The one-command procedure is not built.
+9. **Federation.** Corrected on 2026-11-19: the one-command procedure, `goatbuilder federate <partner>`, is built (ADR 1225, accepted; read at `c5bcacee`, status line only). We did not run it. Grant encryption across the boundary is still not usable (section 4).
 10. **Scale.** goat's validated data stops near 100 peers (notes).
 11. **Session ID.** goat's ADR 1041 (proposed) fixes a router's session ID for each host and asks for source info on goat's own publishers. goat's command line tool also sets a publisher's session ID to its slot anchor, which its code credits to ADR 1039. Step 1 sets no session ID anywhere (section 2.11). Open for step 4.
 12. **Rebuild of a pod.** goat's pattern for rebuilding a compromised site from its identities (ADR 1237) is proposed and not built, and it comes after goatbuilder 1.0. Until then a compromised pod has no goat procedure to return. Section 3.5.
 13. **Pod ingress on a real goatnet.** Closed on 2026-11-19 by reading. The moon pod contract sends a pod through a goat-operated ingress gateway, not to a core router. That is the case of a pod in someone else's environment. Our pod is enrolled in its own goatnet, so its bridge connects to the core router as a client, and ADR 1020 does not ask for a gateway (section 4.1).
-14. **Pod carriage and provenance.** ADR 1251 (proposed, 2026-11-18), "every source keeps its identity through a pod", was read on 2026-11-19 at `b454a0b5`; its design `docs/design/pod-carriage-and-provenance.md` was not. It lists "keep everything under the pod's slot", which is our shape, as a rejected alternative. ADR 1122 already says that aggregation reduces peers and never identities. So our rig does not conform in four points, and step 4 changes none of them: the pod's machine is not a mesh peer (ADR 1092), nothing can cut a machine off (ADR 1025, ADR 1031, section 2.7), the sensors and the pod fusion node have no fabric identity (ADR 1122), and every source appears as the pod (ADR 1251). The first two cannot be met on a goatlite, where the router listens on the LAN and the box is not a mesh peer. The carriage rules of ADR 1251 are not built.
+14. **Pod carriage and provenance.** ADR 1251 (proposed, 2026-11-18), "every source keeps its identity through a pod", was read on 2026-11-19 at `b454a0b5`; its design `docs/design/pod-carriage-and-provenance.md` was not. It lists "keep everything under the pod's slot", which is our shape, as a rejected alternative. ADR 1122 already says that aggregation reduces peers and never identities. So our rig does not conform in four points, and step 4 changes none of them: the pod's machine is not a mesh peer (ADR 1092), nothing can cut a machine off (ADR 1025, ADR 1031, section 2.7), the sensors and the pod fusion node have no fabric identity (ADR 1122), and every source appears as the pod (ADR 1251). The first two cannot be met on a goatlite, where the router listens on the LAN and the box is not a mesh peer. The carriage rules of ADR 1251 are not built. Checked at `c5bcacee`: ADR 1251 and its design have no commit after the one that added them (`e0c2e2bf`), the ADR is still proposed, and the design is still not read.
+15. **Security advisories.** `goatcore` published 20 advisories on 2026-11-19 (2 critical, 7 high, 10 medium, 1 low; read from the GitHub advisory list). The fixes are in commit `69f4a745`, "fixes for the advisories published with this release". `cuaslab` runs `e44e893d`, which is before that commit. Only the titles were read, except for GHSA-rr3p. The ones that touch what our rig uses:
+    - GHSA-rr3p (high): offboarding never revokes the fabric certificate, and the freed anchor is reissued. Sections 2.1, 2.6 and 2.7.
+    - GHSA-fghv (medium): a reused slot inherits the previous holder's machine custody, quotas and data grants. It matters if the three machines of step 4 are revoked and their slots are given out again.
+    - GHSA-qc75 (critical): the portal's bundle download link, which serves the private key, never expires. Our three bundles came from the `cuaslab` portal API.
+    - GHSA-6828 (critical): a Docker socket mounted read-write into a mesh-facing service. Whether a goatlite has that mount was not checked.
+
+    `cuaslab` is a lab on one Mac with no real data. An upgrade is Richard's decision; section 2.6 says what it changes for the rig.
 
 ## 9. Where to read more
 
@@ -368,6 +391,11 @@ All paths are in `../usareur-af/`.
 - `goatcore/docs/adr/1238-the-learning-program-is-a-ten-rung-ladder-and-a-lane-beyond-it-in-use-while-proposed.md`: the learner ladder.
 - `zagros-moon-pod/docs/partner-contract.md`: the seven requirements and the custody floor.
 - `goatcore/docs/adr/1157-cross-sovereign-federation-edge-terminated.md` and `1208-sovereign-environments-release-namespaces-and-grant-encryption.md`: sovereigns.
+- `goatcore/docs/adr/1225-federation-belongs-to-goatbuilder-one-command-one-decision.md`: federation in one command.
+- `goatcore/docs/adr/1253-simple-boundary-node-pseudo-boundary-node-and-one-boundary-monitor.md` and `goatcore/docs/design/simple-boundary-node.md`: the simple and the pseudo boundary node.
+- `goatcore/docs/adr/1251-every-source-keeps-its-identity-through-a-pod-carriage-rules-provenance-at-entry-and-pod-local-authority.md` and `goatcore/docs/design/pod-carriage-and-provenance.md`: what a pod must keep of each source. Read the design before step 5.
+- `goatcore/ops/ansible/roles/goat-zenoh/files/slot-fragment-reload.py`: how a slot change reaches the router.
+- `open-entity-gateway/docs/adapters/sapient.md` and `docs/design/track-egress.md`: a SAPIENT edge node session, and SAPIENT delivered through a pod's egress.
 - `goatcore/docs/design/goatlite.md` and `goatcore/docs/tutorials/00-goatlite.md`: the smallest real goatnet.
 - `goatcore/ops/ansible/roles/goat-zenoh/`: the router role, its template and `acl-evaluate.py`.
 - `hello-galaxy-zagros-pod/`: a pod router and a fabric router on a laptop.

@@ -1,6 +1,6 @@
 # goat proof of concept: the six steps
 
-This file records the whole plan of work, so that a later session can continue from it. It holds what was decided, what is open, and how a step is started. It was written on 2026-11-11 and must be updated when a step ends. It was last updated on 2026-11-19, after step 4b (branch `goat-step4b-host-vm`).
+This file records the whole plan of work, so that a later session can continue from it. It holds what was decided, what is open, and how a step is started. It was written on 2026-11-11 and must be updated when a step ends. It was last updated on 2026-11-19, after step 4b (branch `goat-step4b-host-vm`). On the same day steps 3, 5 and 6 and gap 9 of step 4 were checked against the goat source at `goatcore` `c5bcacee` and `open-entity-gateway` `0bdc784`, by reading only; each such line names the commit.
 
 Related files:
 
@@ -86,10 +86,12 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
 ### Step 3: Billie adapter
 
 - **What exists.** Open Billie is in `../usareur-af/open-billie`. Its SAPIENT encoder makes detection reports only. It makes no registration, status report, task or alert. Its data goes one way.
+- **Also exists (read at `open-entity-gateway` `0bdc784`, not run).** `../usareur-af/open-entity-gateway` has a `sapient` adapter that is a whole edge node session over TCP: registration, acknowledgement, status reports, detection reports and goodbye. Its record says it was measured against Apex 4.2.0 with the default validation; tasks and alerts are not built. Its input is decoded records or tracks (Canonical Track v2), not Billie's SAPIENT output. It connects to a fusion node or to Apex, not to a Zenoh router, and its node ID is one UUID set in configuration (`docs/goat-context.md` section 3.3).
 - **What is needed.** An adapter with a registration shim: it gives the Billie sensor a registration, status reports and presence in the pod, and it rejects tasks.
 - **Known problem.** A pod slot gives a sensor its node ID. Billie makes its own node ID. The step must decide how the two fit. Section 4.2 of the step 1 design has this limit.
 - **Earlier test plan** (notes of 9 November): first build Billie's translator and a synthetic sensor package, capture its SAPIENT output and validate it with Apex's validator. Then connect it to the pod router, see the fusion node accept its detections, stop the node and see it removed, and confirm that a task is refused.
 - **Link to step 1.** The Billie sensor is the first real test of "join with no router restart".
+- **Open question for Richard (2026-11-19).** Do we still write the registration shim, or does open-entity-gateway take that part? Inferred, nothing tried: the gateway already does what the shim was to do except the refusal of tasks, but it speaks TCP, so it fits the TCP-only rig or a fusion node's TCP side, and the pod of stage 4 would still need a step from that session to the pod router. The known problem of the node ID stays in both cases.
 
 ### Step 4: the host on a real goatnet
 
@@ -120,7 +122,7 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
   | 6 | Clocks | Measured with a wide bound (G4-13). No message was rejected for time in the runs. |
   | 7 | The goat client | Measured in part: `goat sub` 0.5.19 with a real context read the pod's tracks (G4-10). The `goat` portal client does not trust a goatlite's private CA, so portal calls were made with `curl`. |
   | 8 | A lost link is noticed late | Unchanged. |
-  | 9 | Nothing revokes a slot certificate; scoped read | Unchanged. On this path there is no mesh revocation either, and `cuaslab` has the scoped read off: every TLS client may read `**`. |
+  | 9 | Nothing revokes a slot certificate; scoped read | Unchanged on `cuaslab`. On this path there is no mesh revocation either, and `cuaslab` has the scoped read off: every TLS client may read `**`. Upstream changed on 2026-11-19 (read at `c5bcacee`, not run): goat published this as advisory GHSA-rr3p, and from commit `69f4a745` a revoke takes the certificate's name out of the router's rules, after a recreate of the router. `cuaslab` is at `e44e893d`, before that fix (`docs/goat-context.md` sections 2.6 and 2.7, gap 15). |
 
   Also open: the pod bridge connects to the core router, and a goatlite has no ingress gateway (`docs/goat-context.md` gap 13). To read before step 5: goatcore's ADR 1251 and `docs/design/pod-carriage-and-provenance.md` (`docs/goat-context.md` gap 14).
 
@@ -140,6 +142,10 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
 - **What changes.** A second pod with its own router, its own CA, its own salt and the site name `p2`. Its bridge takes a second slot on the fabric.
 - **What must be shown.** The host fuses tracks from two pods. A node ID belongs to the anchor that registered it, so one pod cannot speak for the other.
 - **Prepared in step 1.** The registry can describe more than one pod, and the fabric pool has free slots.
+- **To read before the design** (checked at `goatcore` `c5bcacee` and `open-entity-gateway` `0bdc784`; none of them read yet).
+  1. `goatcore/docs/design/pod-carriage-and-provenance.md`, the design of ADR 1251. The ADR is still proposed and has not changed since it was added; it rejects our shape, "everything under the pod's slot" (`docs/goat-context.md` gap 14).
+  2. `open-entity-gateway/tests/e2e/octo-pod-egress/` and `docs/design/track-egress.md`: goat's first path that carries SAPIENT through a pod (a `sapient://` egress destination of octo-pod). Compare its keys with our key shape (`docs/goat-context.md` gap 6).
+- **If `cuaslab` is upgraded first** (read at `c5bcacee`, not run). The enrolment of pod 2's bridge makes the router recreate, at most 300 s later, and every session drops once; the new certificate does not work before that. The certificates of step 4 have the names of generation 0, which the new code still accepts as slot names; whether an upgrade puts them into the first slot fragment was not checked. The play fails if `slot-fragment.json5` is missing (`docs/goat-context.md` sections 2.1 and 2.6). At `e44e893d` none of this applies.
 - **Must be done before a second pod** (found by the final review of step 1):
   1. Node ID ownership. The design of step 1 says that a node ID belongs to the anchor that registered it. The code binds it to the first key or token that names it, before validation, and never releases it. Bind ownership on an accepted registration, or take the node-to-anchor map from the registry.
   2. The host's state is not bounded: one slot can name any number of node IDs.
@@ -150,9 +156,9 @@ Richard gave this order on 2026-11-11. One point is open: his message put the Bi
 
 - **What changes.** The host releases a set of data to a second sovereign.
 - **goat's method** (`docs/goat-context.md` section 4). The host publishes to `release/<set>/...`. A republisher publishes each sample again as `from/<us>/<set>/...`. One edge router for each partner sends it through a tunnel. The partner's router accepts our writes only below `from/<us>/**`.
-- **Where to learn it.** goat's tutorials `03-boundary-node.md` and `04-two-sovereigns.md` in `../usareur-af/goatcore/docs/tutorials/`.
-- **Known gaps.** goat's one-command federation is not built. Encryption to grants across the boundary is not usable yet.
-- **Open questions for Richard.** Is the second sovereign a second goatnet that we operate, in another account? Which data set is released?
+- **Where to learn it.** goat's tutorials `03-boundary-node.md` and `04-two-sovereigns.md` in `../usareur-af/goatcore/docs/tutorials/`. Added on 2026-11-19 (read at `goatcore` `c5bcacee`): ADR 1225, federation in one command, and ADR 1253, the simple and the pseudo boundary node (`docs/goat-context.md` sections 4 and 4.1).
+- **Known gaps.** Encryption to grants across the boundary is not usable yet (ADR 1208, read at `c5bcacee`). Corrected on 2026-11-19: this line said that goat's one-command federation is not built. It is built: ADR 1225 is accepted and `goatbuilder federate <partner>` exists (status line read at `c5bcacee`; we did not run it).
+- **Open questions for Richard.** Is the second sovereign a second goatnet that we operate, in another account? Which data set is released? If the answer to the first is yes, goat's pattern is the pseudo boundary node of ADR 1253 (proposed), with a `crossing.mode` of `join`, `tunnel` or `plain`, and not only the edge router of tutorials 03 and 04. And if the receiver is not goat at all, it is the simple boundary node, which sends ASTERIX over UDP one way.
 
 ## 5. How to start a step
 
